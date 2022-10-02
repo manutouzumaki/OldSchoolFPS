@@ -270,9 +270,9 @@ mat2 Mat2Identity() {
 
 void Mat2Print(mat2 m) {
     char buffer[256];
-    sprintf(buffer, "|%f %f|\n", m.m00, m.m01);
+    sprintf(buffer, "|%.1f  %.1f|\n", m.m00, m.m01);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f|\n", m.m10, m.m11);
+    sprintf(buffer, "|%.1f  %.1f|\n", m.m10, m.m11);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
 }
@@ -323,11 +323,11 @@ mat3 Mat3Identity() {
 
 void Mat3Print(mat3 m) {
     char buffer[256];
-    sprintf(buffer, "|%f %f %f|\n", m.m00, m.m01, m.m02);
+    sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f %f|\n", m.m10, m.m11, m.m12);
+    sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m10, m.m11, m.m12);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f %f|\n", m.m20, m.m21, m.m22);
+    sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m20, m.m21, m.m22);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
 }
@@ -387,13 +387,13 @@ mat4 Mat4Identity() {
 
 void Mat4Print(mat4 m) {
     char buffer[256];
-    sprintf(buffer, "|%f %f %f %f|\n", m.m00, m.m01, m.m02, m.m03);
+    sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02, m.m03);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f %f %f|\n", m.m10, m.m11, m.m12, m.m13);
+    sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m10, m.m11, m.m12, m.m13);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f %f %f|\n", m.m20, m.m21, m.m22, m.m23);
+    sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m20, m.m21, m.m22, m.m23);
     OutputDebugString(buffer);
-    sprintf(buffer, "|%f %f %f %f|\n", m.m30, m.m31, m.m32, m.m33);
+    sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m30, m.m31, m.m32, m.m33);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
 }
