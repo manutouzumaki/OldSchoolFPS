@@ -1,4 +1,44 @@
 internal
+void RenderBuffer(u32 *buffer, vec3 *vertices, i32 verticesCount) {
+
+// TODO: render the vertices list from a camera point of view
+    for(i32 i = 0; i < verticesCount; i += 3) {
+        vec3 aTmp = vertices[i + 0];
+        vec3 bTmp = vertices[i + 1];
+        vec3 cTmp = vertices[i + 2];
+
+        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
+        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
+        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
+
+        // TODO: multiply by the world matrix...
+        mat4 view = Mat4LookAt({0, 0, 10}, {0, 0, 0}, {0, 1, 0}); 
+        mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
+        OutputDebugString("View:\n");
+        Mat4Print(view);
+        OutputDebugString("Proj:\n");
+        Mat4Print(proj);
+        // transform the vertices relative to the camera
+        a = view * a;
+        b = view * b;
+        c = view * c;
+
+        a = proj * a;
+        b = proj * b;
+        c = proj * c;
+        
+        Point aPoint = {((a.x / a.w) * 400) + 400, ((a.y / a.w) * 300) + 300};
+        Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300};
+        Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300};
+        DrawFillTriangle(buffer, aPoint, bPoint, cPoint, 0x00FF0000);
+
+        // render DEBUG wireframe 
+        DrawLineTriangle(buffer, aPoint, bPoint, cPoint, 0x0000FF00);
+
+    }
+}
+
+internal
 void SwapVec2(vec2 *a, vec2 *b) {
     vec2 tmp = *a;
     *a = *b;
@@ -90,7 +130,9 @@ internal
 void DrawPoint(u32 *buffer, Point point, u32 color) {
     i32 x = (f32)point.x;
     i32 y = (f32)point.y;
-    buffer[(i32)y * 800 + (i32)x] = color;
+    if(x >= 0 && x <= 800 && y >= 0 && y <= 600) {
+        buffer[(i32)y * 800 + (i32)x] = color;
+    }
 }
 
 

@@ -228,6 +228,15 @@ vec3 reflect(vec3 a, vec3 b) {
     return a - proj2;
 }
 
+vec3 cross(vec3 l, vec3 r) {
+    vec3 result = {
+        l.y * r.z - l.z * r.y,      
+        l.z * r.x - l.x * r.z,      
+        l.x * r.y - l.y * r.x
+    };
+    return result;
+}
+
 vec3 lerp(vec3 a, vec3 b, f32 t) {
     vec3 result = {
         a.x + (b.x - a.x) * t,
@@ -275,6 +284,14 @@ void Mat2Print(mat2 m) {
     sprintf(buffer, "|%.1f  %.1f|\n", m.m10, m.m11);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
+}
+
+mat2 Mat2Rotate(f32 angle) {
+    mat2 result = {
+        cosf(angle), sinf(angle),
+        -sinf(angle), cosf(angle),
+    };
+    return result;
 }
 
 mat2 operator+(mat2 a, mat2 b) {
@@ -331,6 +348,43 @@ void Mat3Print(mat3 m) {
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
 }
+
+mat3 Mat3Scale(f32 x, f32 y, f32 z) {
+    mat3 result = {
+        x, 0, 0,
+        0, y, 0,
+        0, 0, z
+    };
+    return result;
+}
+
+mat3 Mat3RotateX(f32 angle) {
+    mat3 result = {
+        1, 0, 0,
+        0, cosf(angle), sinf(angle),
+        0, -sinf(angle), cosf(angle), 
+    };
+    return result;
+}
+
+mat3 Mat3RotateY(f32 angle) {
+    mat3 result = {
+        cosf(angle), 0, -sinf(angle),
+        0, 1, 0,
+        sinf(angle), 0, cosf(angle),
+    };
+    return result;
+}
+
+mat3 Mat3RotateZ(f32 angle) {
+    mat3 result = {
+        cosf(angle), sinf(angle), 0,
+        -sinf(angle), cosf(angle), 0,
+        0, 0, 1,
+    };
+    return result;
+}
+
 
 mat3 operator+(mat3 a, mat3 b) {
     mat3 result = {
@@ -398,6 +452,66 @@ void Mat4Print(mat4 m) {
     OutputDebugString("##########################################\n");
 }
 
+mat4 Mat4Translate(f32 x, f32 y, f32 z) {
+    mat4 result = {
+        1, 0, 0, x,
+        0, 1, 0, y,
+        0, 0, 1, z,
+        0, 0, 0, 1
+    };
+    return result;
+}
+
+mat4 Mat4Scale(f32 x, f32 y, f32 z) {
+    mat4 result = {
+        x, 0, 0, 0,
+        0, y, 0, 0,
+        0, 0, z, 0,
+        0, 0, 0, 1
+    };
+    return result;
+}
+
+mat4 Mat4RotateX(f32 angle) {
+    mat4 result = {
+        1, 0, 0, 0,
+        0, cosf(angle), sinf(angle), 0,
+        0, -sinf(angle), cosf(angle), 0,
+        0, 0, 0, 1 
+    };
+    return result;
+}
+
+mat4 Mat4RotateY(f32 angle) {
+    mat4 result = {
+        cosf(angle), 0, -sinf(angle), 0,
+        0, 1, 0, 0,
+        sinf(angle), 0, cosf(angle), 0,
+        0, 0, 0, 1 
+    };
+    return result;
+}
+
+mat4 Mat4RotateZ(f32 angle) {
+    mat4 result = {
+        cosf(angle), sinf(angle), 0, 0,
+        -sinf(angle), cosf(angle), 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    };
+    return result;
+}
+
+mat4 Mat4Transpose(mat4 m) {
+    mat4 result = {
+        m.m00, m.m10, m.m20, m.m30, 
+        m.m01, m.m11, m.m21, m.m31, 
+        m.m02, m.m12, m.m22, m.m32, 
+        m.m03, m.m13, m.m23, m.m33 
+    };
+    return result;
+}
+
 mat4 operator+(mat4 a, mat4 b) {
     mat4 result = {
         a.m00 + b.m00, a.m01 + b.m01, a.m02 + b.m02, a.m03 + b.m03,
@@ -448,4 +562,66 @@ mat4 operator*(mat4 a, mat4 b) {
         a.m30 * b.m03 + a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33
     };
     return result;
+}
+
+mat4 Mat4Frustum(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
+	if (l == r || t == b || n == f) {
+        mat4 zero = {};
+		return zero; // Error
+	}
+	mat4 result = {
+		(2.0f * n) / (r - l), 0,                    0,                       0,
+		0,                    (2.0f * n) / (t - b), 0,                       0,
+		(r + l) / (r - l),    (t + b) / (t - b),    (-(f + n)) / (f - n),   -1,
+		0,                    0,                    (-2 * f * n) / (f - n),  0
+    };
+    // TODO: hardcode this transpose
+    return Mat4Transpose(result);
+}
+
+mat4 Mat4Perspective(f32 fov, f32 aspect, f32 znear, f32 zfar) {
+	f32 ymax = znear * tanf(fov * 3.14159265359f / 360.0f);
+	f32 xmax = ymax * aspect;
+	return Mat4Frustum(-xmax, xmax, -ymax, ymax, znear, zfar);
+}
+
+mat4 Mat4Ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
+	if (l == r || t == b || n == f) {
+        mat4 zero = {};
+		return zero; // Error
+	}
+	mat4 result = {
+		2.0f / (r - l), 0, 0, 0,
+		0, 2.0f / (t - b), 0, 0,
+		0, 0, -2.0f / (f - n), 0,
+		-((r + l) / (r - l)), -((t + b) / (t - b)), -((f + n) / (f - n)), 1
+    };
+    // TODO: hardcode this transpose
+    return Mat4Transpose(result);
+}
+
+mat4 Mat4LookAt(vec3 position, vec3 target, vec3 up) {
+	// Remember, forward is negative z
+	vec3 f = normalized(target - position) * -1.0f;
+	vec3 r = cross(up, f); // Right handed
+	if (lenSq(r) < EPSILON) {
+        mat4 zero = {};
+		return zero; // Error
+	}
+	normalize(&r);
+	vec3 u = normalized(cross(f, r)); // Right handed
+	vec3 t = {
+		-dot(r, position),
+		-dot(u, position),
+		-dot(f, position)
+    };
+	mat4 result = {
+		// Transpose upper 3x3 matrix to invert it
+		r.x, u.x, f.x, 0,
+		r.y, u.y, f.y, 0,
+		r.z, u.z, f.z, 0,
+		t.x, t.y, t.z, 1
+    };
+    // TODO: hardcode this transpose
+    return Mat4Transpose(result);
 }

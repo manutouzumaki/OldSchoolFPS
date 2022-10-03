@@ -14,8 +14,7 @@ LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
-    OutputDebugString("Hi LastHope...\n");
-    
+    OutputDebugString("Hi LastHope...\n"); 
     // we have to create a window class and then register to windows.
     WNDCLASSA wndClass = {};
     wndClass.style = CS_HREDRAW|CS_VREDRAW;
@@ -38,7 +37,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     BITMAPINFO bufferInfo = {};
     bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
     bufferInfo.bmiHeader.biWidth = 800;
-    bufferInfo.bmiHeader.biHeight = -600;
+    bufferInfo.bmiHeader.biHeight = 600;
     bufferInfo.bmiHeader.biPlanes = 1;
     bufferInfo.bmiHeader.biBitCount = 32;
     bufferInfo.bmiHeader.biCompression = BI_RGB;
@@ -64,6 +63,17 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     mat4 bMat = Mat4Identity();
     Mat4Print((aMat * 2.0f) * (bMat * 3));
 
+    vec3 vertices[] = {
+        // bottom left triangle
+        {-3, -1, 1},
+        {-1,  1, 1},
+        { 1, -1, 1},
+        // upper right triangle
+        {-1,  1, 1},
+        { 1,  1, 1},
+        { 1, -1, 1}
+    };
+    RenderBuffer((u32 *)colorBuffer, vertices, ARRAY_LENGTH(vertices));
 
     // get messages and handle them
     MSG msg = {};
