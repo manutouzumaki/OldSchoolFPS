@@ -43,17 +43,26 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     bufferInfo.bmiHeader.biCompression = BI_RGB;
     void *colorBuffer = 0;
     HBITMAP colorBufferHandle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, &colorBuffer, 0, 0);
+    f32 *depthBuffer = (f32 *)VirtualAlloc(0, 800 * 600 * sizeof(f32), MEM_COMMIT, PAGE_READWRITE);
+    
+    // initialize depth buffer
+    for(i32 i = 0; i < 800*600; ++i) {
+        depthBuffer[i] = 0.0f;
+    }
+
     // fill the buffer with black
     memset(colorBuffer, 0, 800 * 600 * 4);
 
+#if 0
     Point c = { 200, 10 };
     Point a = { 200, 160 };
     Point b = { 10, 200 };
-    DrawFillTriangle((u32 *)colorBuffer, a, b, c, 0x00FFFF00);
-    DrawLineTriangle((u32 *)colorBuffer, a, b, c, 0x0000FFFF);
+    DrawFillTriangle((u32 *)colorBuffer, depthBuffer, a, b, c, 0x00FFFF00);
+    DrawLineTriangle((u32 *)colorBuffer, depthBuffer, a, b, c, 0x0000FFFF);
     DrawPoint((u32 *)colorBuffer, a, 0x00FF0000);
     DrawPoint((u32 *)colorBuffer, b, 0x00FF0000);
     DrawPoint((u32 *)colorBuffer, c, 0x00FF0000);
+#endif
 
     b32 running = TRUE;
 
@@ -62,25 +71,49 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     mat4 aMat = Mat4Identity();
     mat4 bMat = Mat4Identity();
     Mat4Print((aMat * 2.0f) * (bMat * 3));
-
+    
+    // TODO: 
+    // - draw a cube
+    // - z buffer
+    // - back face culling
     vec3 vertices[] = {
-        // bottom left triangle
-        {-16, -16, 1},
-        {-16,  16, 1},
-        { 16, -16, 1},
-        // upper right triangle
-        {-16,  16, 1},
-        { 16,  16, 1},
-        { 16, -16, 1}
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f
     };
-
-    for(i32 y = 300; y < 332; ++y) {
-        for(i32 x = 300; x < 332; ++x) {
-            Point p = {(f32)x, (f32)y};
-            DrawPoint((u32 *)colorBuffer, p, 0x0000FFFF);
-        }
-    }
-    RenderBuffer((u32 *)colorBuffer, vertices, ARRAY_LENGTH(vertices));
 
     // get messages and handle them
     MSG msg = {};
@@ -93,6 +126,22 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }
+        
+        // clear color and depth buffer
+        memset(colorBuffer, 0, 800 * 600 * 4);
+        for(i32 i = 0; i < 800*600; ++i) {
+            depthBuffer[i] = 0.0f;
+        }
+
+        RenderBuffer((u32 *)colorBuffer, depthBuffer, vertices, ARRAY_LENGTH(vertices));
+        
+        for(i32 y = 300; y < 332; ++y) {
+            for(i32 x = 300; x < 332; ++x) {
+                Point p = {(f32)x, (f32)y};
+                DrawPoint((u32 *)colorBuffer, p, 0x0000FFFF);
+            }
+        }
+
         
         // present the color buffer to the window
         HDC colorBufferDC = CreateCompatibleDC(hdc);
