@@ -65,14 +65,21 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
     vec3 vertices[] = {
         // bottom left triangle
-        {-3, -1, 1},
-        {-1,  1, 1},
-        { 1, -1, 1},
+        {-16, -16, 1},
+        {-16,  16, 1},
+        { 16, -16, 1},
         // upper right triangle
-        {-1,  1, 1},
-        { 1,  1, 1},
-        { 1, -1, 1}
+        {-16,  16, 1},
+        { 16,  16, 1},
+        { 16, -16, 1}
     };
+
+    for(i32 y = 300; y < 332; ++y) {
+        for(i32 x = 300; x < 332; ++x) {
+            Point p = {(f32)x, (f32)y};
+            DrawPoint((u32 *)colorBuffer, p, 0x0000FFFF);
+        }
+    }
     RenderBuffer((u32 *)colorBuffer, vertices, ARRAY_LENGTH(vertices));
 
     // get messages and handle them

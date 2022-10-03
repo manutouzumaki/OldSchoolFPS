@@ -564,19 +564,14 @@ mat4 operator*(mat4 a, mat4 b) {
     return result;
 }
 
-mat4 Mat4Frustum(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
-	if (l == r || t == b || n == f) {
-        mat4 zero = {};
-		return zero; // Error
-	}
-	mat4 result = {
-		(2.0f * n) / (r - l), 0,                    0,                       0,
-		0,                    (2.0f * n) / (t - b), 0,                       0,
-		(r + l) / (r - l),    (t + b) / (t - b),    (-(f + n)) / (f - n),   -1,
-		0,                    0,                    (-2 * f * n) / (f - n),  0
+mat4 Mat4Frustum(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {	
+    mat4 result = {
+        (2.0f * n) / (r - l), 0, -(r + l) / (r - l), 0,
+        0, (2.0f * n) / (t - b), -(t + b) / (t - b), 0,
+        0, 0, f / (f - n), -(f * n) / (f - n),
+        0, 0, 1, 0
     };
-    // TODO: hardcode this transpose
-    return Mat4Transpose(result);
+    return result;
 }
 
 mat4 Mat4Perspective(f32 fov, f32 aspect, f32 znear, f32 zfar) {
@@ -586,42 +581,24 @@ mat4 Mat4Perspective(f32 fov, f32 aspect, f32 znear, f32 zfar) {
 }
 
 mat4 Mat4Ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
-	if (l == r || t == b || n == f) {
-        mat4 zero = {};
-		return zero; // Error
-	}
-	mat4 result = {
-		2.0f / (r - l), 0, 0, 0,
-		0, 2.0f / (t - b), 0, 0,
-		0, 0, -2.0f / (f - n), 0,
-		-((r + l) / (r - l)), -((t + b) / (t - b)), -((f + n) / (f - n)), 1
+    mat4 result = {
+        2.0f / (r - l), 0, 0, -(r + l) / (r - l),
+        0, 2.0f / (t - b), 0, -(t + b) / (t - b),
+        0, 0, 1.0f / (f - n), -n / (f - n),
+        0, 0, 0, 1
     };
-    // TODO: hardcode this transpose
-    return Mat4Transpose(result);
+    return result;
 }
 
 mat4 Mat4LookAt(vec3 position, vec3 target, vec3 up) {
-	// Remember, forward is negative z
-	vec3 f = normalized(target - position) * -1.0f;
-	vec3 r = cross(up, f); // Right handed
-	if (lenSq(r) < EPSILON) {
-        mat4 zero = {};
-		return zero; // Error
-	}
-	normalize(&r);
-	vec3 u = normalized(cross(f, r)); // Right handed
-	vec3 t = {
-		-dot(r, position),
-		-dot(u, position),
-		-dot(f, position)
+    vec3 zaxis = normalized(target - position);
+    vec3 xaxis = normalized(cross(up, zaxis));
+    vec3 yaxis = cross(zaxis, xaxis);
+    mat4 result = {
+        xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, position), 
+        yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, position), 
+        zaxis.x, zaxis.y, zaxis.z, -dot(zaxis, position),
+        0,       0,       0,       1 
     };
-	mat4 result = {
-		// Transpose upper 3x3 matrix to invert it
-		r.x, u.x, f.x, 0,
-		r.y, u.y, f.y, 0,
-		r.z, u.z, f.z, 0,
-		t.x, t.y, t.z, 1
-    };
-    // TODO: hardcode this transpose
-    return Mat4Transpose(result);
+    return result;
 }

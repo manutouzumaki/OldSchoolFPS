@@ -12,8 +12,9 @@ void RenderBuffer(u32 *buffer, vec3 *vertices, i32 verticesCount) {
         vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
 
         // TODO: multiply by the world matrix...
-        mat4 view = Mat4LookAt({0, 0, 10}, {0, 0, 0}, {0, 1, 0}); 
-        mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
+        mat4 view = Mat4LookAt({100, 0, -8}, {100, 0, 0}, {0, 1, 0}); 
+        //mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
+        mat4 proj = Mat4Ortho(-400, 400, -300, 300, 0.1f, 100.0f);
         OutputDebugString("View:\n");
         Mat4Print(view);
         OutputDebugString("Proj:\n");
