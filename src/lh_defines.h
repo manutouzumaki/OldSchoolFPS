@@ -25,3 +25,11 @@ typedef int8_t b8;
 #define Megabytes(value) (Kilobytes(value)*1024LL)
 #define Gigabytes(value) (Megabytes(value)*1024LL)
 #define Terabytes(value) (Gigabytes(value)*1024LL)
+
+#define FPS 30.0f
+#define TARGET_SECONDS_PER_FRAME (1.0f / FPS)
+
+// SSE2
+#define M(a, i) ((f32 *)&(a))[i]
+#define Mi(a, i) ((i32 *)&(a))[i]
+#define Mu(a, i) ((u32 *)&(a))[i]

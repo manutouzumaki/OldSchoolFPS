@@ -45,28 +45,11 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     HBITMAP colorBufferHandle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, &colorBuffer, 0, 0);
     f32 *depthBuffer = (f32 *)VirtualAlloc(0, 800 * 600 * sizeof(f32), MEM_COMMIT, PAGE_READWRITE);
     
-    // initialize depth buffer
-    for(i32 i = 0; i < 800*600; ++i) {
-        depthBuffer[i] = 0.0f;
-    }
-
     // fill the buffer with black
-    memset(colorBuffer, 0, 800 * 600 * 4);
-
-#if 0
-    Point c = { 200, 10 };
-    Point a = { 200, 160 };
-    Point b = { 10, 200 };
-    DrawFillTriangle((u32 *)colorBuffer, depthBuffer, a, b, c, 0x00FFFF00);
-    DrawLineTriangle((u32 *)colorBuffer, depthBuffer, a, b, c, 0x0000FFFF);
-    DrawPoint((u32 *)colorBuffer, a, 0x00FF0000);
-    DrawPoint((u32 *)colorBuffer, b, 0x00FF0000);
-    DrawPoint((u32 *)colorBuffer, c, 0x00FF0000);
-#endif
+    memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
+    memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
 
     b32 running = TRUE;
-
-
     // TODO: test matrix multiplication
     mat4 aMat = Mat4Identity();
     mat4 bMat = Mat4Identity();
@@ -116,8 +99,32 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     };
 
     // get messages and handle them
+    timeBeginPeriod(1);
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+
+    f32 invFrequency = 1.0f / (f32)frequency.QuadPart;
+
+    LARGE_INTEGER lastCounter;
+    QueryPerformanceCounter(&lastCounter);
+
     MSG msg = {};
     while(running) {
+        // if we have time left Sleep 
+        LARGE_INTEGER workCounter = {};
+        QueryPerformanceCounter(&workCounter);
+        f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
+        while(secondsElapsed < TARGET_SECONDS_PER_FRAME) {
+            DWORD milisecondsToSleep = (DWORD)((TARGET_SECONDS_PER_FRAME - secondsElapsed) * 1000.0f);
+            Sleep(milisecondsToSleep);
+            QueryPerformanceCounter(&workCounter);
+            secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
+        }
+
+        LARGE_INTEGER currentCounter;
+        QueryPerformanceCounter(&currentCounter);
+        f64 fps = (f64)frequency.QuadPart / (f64)(currentCounter.QuadPart - lastCounter.QuadPart); 
+
         // flush windows messages
         while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE)) {
             if(msg.message == WM_QUIT) {
@@ -128,27 +135,18 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         }
         
         // clear color and depth buffer
-        memset(colorBuffer, 0, 800 * 600 * 4);
-        for(i32 i = 0; i < 800*600; ++i) {
-            depthBuffer[i] = 0.0f;
-        }
+        memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
+        memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
 
         RenderBuffer((u32 *)colorBuffer, depthBuffer, vertices, ARRAY_LENGTH(vertices));
-        
-        for(i32 y = 300; y < 332; ++y) {
-            for(i32 x = 300; x < 332; ++x) {
-                Point p = {(f32)x, (f32)y};
-                DrawPoint((u32 *)colorBuffer, p, 0x0000FFFF);
-            }
-        }
-
-        
+         
         // present the color buffer to the window
         HDC colorBufferDC = CreateCompatibleDC(hdc);
         SelectObject(colorBufferDC, colorBufferHandle);
         BitBlt(hdc, 0, 0, 800, 600, colorBufferDC, 0, 0, SRCCOPY);
         DeleteDC(colorBufferDC);
 
+        lastCounter = currentCounter;
     }
     return 0;
 }

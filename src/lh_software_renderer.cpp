@@ -10,7 +10,7 @@ void RenderBuffer(u32 *buffer, f32 *depth, vec3 *vertices, i32 verticesCount) {
     mat4 rotX = Mat4RotateX(RAD(angle));
     mat4 rotZ = Mat4RotateZ(RAD(angle));
     mat4 world = rotY * rotX * rotZ;
-    angle += 0.2f;
+    angle += 1.0f;
 
     for(i32 i = 0; i < verticesCount; i += 3) {
         vec3 aTmp = vertices[i + 0];
