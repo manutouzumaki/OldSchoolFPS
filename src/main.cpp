@@ -31,7 +31,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
                               CW_USEDEFAULT, CW_USEDEFAULT,
                               0, 0, hInstance, 0);
     
-
     // create and update a color buffer
     HDC hdc = GetDC(hwnd);
     BITMAPINFO bufferInfo = {};
@@ -41,63 +40,25 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     bufferInfo.bmiHeader.biPlanes = 1;
     bufferInfo.bmiHeader.biBitCount = 32;
     bufferInfo.bmiHeader.biCompression = BI_RGB;
-    void *colorBuffer = 0;
-    HBITMAP colorBufferHandle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, &colorBuffer, 0, 0);
+    u32 *colorBuffer = 0;
+    HBITMAP colorBufferHandle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&colorBuffer, 0, 0);
     f32 *depthBuffer = (f32 *)VirtualAlloc(0, 800 * 600 * sizeof(f32), MEM_COMMIT, PAGE_READWRITE);
     
     // fill the buffer with black
     memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
     memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
 
-    b32 running = TRUE;
-    // TODO: test matrix multiplication
-    mat4 aMat = Mat4Identity();
-    mat4 bMat = Mat4Identity();
-    Mat4Print((aMat * 2.0f) * (bMat * 3));
-    
-    // TODO: 
-    // - draw a cube
-    // - z buffer
-    // - back face culling
-    vec3 vertices[] = {
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f
-    };
+    // TODO: allocate memory for the entire game
+    Platform platform = {};
+    platform.memory = MemoryCreate(Megabytes(10));
+    platform.renderer.colorBuffer = colorBuffer;
+    platform.renderer.depthBuffer = depthBuffer;
+    platform.renderer.bufferWidth = 800;
+    platform.renderer.bufferHeight = 600;
+    GameInit(&platform); 
 
+    b32 running = TRUE;
+    
     // get messages and handle them
     timeBeginPeriod(1);
     LARGE_INTEGER frequency;
@@ -110,11 +71,12 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
     MSG msg = {};
     while(running) {
-        // if we have time left Sleep 
+        // if we have time left Sleep
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
         while(secondsElapsed < TARGET_SECONDS_PER_FRAME) {
+            // TODO: look for an alternative
             DWORD milisecondsToSleep = (DWORD)((TARGET_SECONDS_PER_FRAME - secondsElapsed) * 1000.0f);
             Sleep(milisecondsToSleep);
             QueryPerformanceCounter(&workCounter);
@@ -124,6 +86,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
         f64 fps = (f64)frequency.QuadPart / (f64)(currentCounter.QuadPart - lastCounter.QuadPart); 
+        platform.deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
 
         // flush windows messages
         while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE)) {
@@ -133,12 +96,14 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }
-        
+       
+        GameUpdate(&platform); 
+
         // clear color and depth buffer
         memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
         memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
-
-        RenderBuffer((u32 *)colorBuffer, depthBuffer, vertices, ARRAY_LENGTH(vertices));
+        
+        GameRender(&platform);
          
         // present the color buffer to the window
         HDC colorBufferDC = CreateCompatibleDC(hdc);
@@ -148,5 +113,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
         lastCounter = currentCounter;
     }
+
+    GameShutdown(&platform);
     return 0;
 }

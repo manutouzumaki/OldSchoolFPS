@@ -1,7 +1,7 @@
 internal
-void RenderBuffer(u32 *buffer, f32 *depth, vec3 *vertices, i32 verticesCount) {
+void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount) {
 
-    // TODO: render the vertices list from a camera point of view
+    // render the vertices list from a camera point of view
     mat4 view = Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}); 
     mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
     //mat4 proj = Mat4Ortho(-400, 400, -300, 300, 0.1f, 100.0f);
@@ -21,15 +21,27 @@ void RenderBuffer(u32 *buffer, f32 *depth, vec3 *vertices, i32 verticesCount) {
         vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
         vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
 
-        // TODO: multiply by the world matrix...
-        // transform the vertices relative to the camera
+        // multiply by the world matrix...
         a = world * a;
         b = world * b;
         c = world * c;
 
+        // transform the vertices relative to the camera
         a = view * a;
         b = view * b;
         c = view * c;
+
+        // backface culling
+        vec3 vecA = Vec4ToVec3(a);
+        vec3 ab = Vec4ToVec3(b) - vecA;
+        vec3 ac = Vec4ToVec3(c) - vecA;
+        vec3 normal = normalized(cross(ac, ab));
+        vec3 origin = {0, 0, 0};
+        vec3 cameraRay = origin - vecA;
+        f32 normalDirection = dot(normal, cameraRay);
+        if(normalDirection < 0.0f) {
+            continue;
+        }
 
         a = proj * a;
         b = proj * b;
@@ -39,10 +51,9 @@ void RenderBuffer(u32 *buffer, f32 *depth, vec3 *vertices, i32 verticesCount) {
         Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300, b.w};
         Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300, c.w};
         
-        DrawFillTriangle(buffer, depth, aPoint, bPoint, cPoint, 0x00FF0000);
+        DrawFillTriangle(renderer, aPoint, bPoint, cPoint, 0x00FF0000);
         // render DEBUG wireframe 
-        DrawLineTriangle(buffer, depth, aPoint, bPoint, cPoint, 0x0000FF00);
-
+        DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0x0000FF00);
     }
 }
 
@@ -80,7 +91,7 @@ vec3 SolveBarycentric(vec2 a, vec2 b, vec2 c, vec2 p) {
 
 
 internal 
-void DrawLine(u32 *buffer, f32 *depth, Point a, Point b, u32 color) {
+void DrawLine(Renderer *renderer, Point a, Point b, u32 color) {
     i32 xDelta = (i32)(b.x - a.x);
     i32 yDelta = (i32)(b.y - a.y);
     i32 sideLength = abs(xDelta) >= abs(yDelta) ? abs(xDelta) : abs(yDelta);
@@ -96,9 +107,9 @@ void DrawLine(u32 *buffer, f32 *depth, Point a, Point b, u32 color) {
         vec2 pRel = start - p;
         f32 t = len(pRel) / len(delta);
         f32 interpolatedReciprocalZ = ((1.0f/a.z) + ((1.0f/b.z) - (1.0f/a.z)) * t) + 0.001f; 
-        if(interpolatedReciprocalZ >= depth[(i32)y * 800 + (i32)x]) {
-            depth[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
-            buffer[(i32)y * 800 + (i32)x] = color;
+        if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
+            renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
+            renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
         } 
         x += xInc;
         y += yInc;
@@ -106,14 +117,14 @@ void DrawLine(u32 *buffer, f32 *depth, Point a, Point b, u32 color) {
 }
 
 internal
-void DrawLineTriangle(u32 *buffer, f32 *depth, Point a, Point b, Point c, u32 color) {
-    DrawLine(buffer, depth, a, b, color);
-    DrawLine(buffer, depth, b, c, color);
-    DrawLine(buffer, depth, c, a, color);
+void DrawLineTriangle(Renderer *renderer, Point a, Point b, Point c, u32 color) {
+    DrawLine(renderer, a, b, color);
+    DrawLine(renderer, b, c, color);
+    DrawLine(renderer, c, a, color);
 }
 
 internal
-void DrawFillTriangle(u32 *buffer, f32 *depth, Point a, Point b, Point c, u32 color) {
+void DrawFillTriangle(Renderer *renderer, Point a, Point b, Point c, u32 color) {
     if(a.y > b.y) {
         SwapPoint(&a, &b);
     }
@@ -143,9 +154,9 @@ void DrawFillTriangle(u32 *buffer, f32 *depth, Point a, Point b, Point c, u32 co
             for(i32 x  = xStart; x <= xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedReciprocalZ = (1.0f/a.z) * weights.x + (1.0f/b.z) * weights.y + (1.0f/c.z) * weights.z;
-                if(interpolatedReciprocalZ >= depth[(i32)y * 800 + (i32)x]) {
-                    depth[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
-                    buffer[(i32)y * 800 + (i32)x] = color;
+                if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
+                    renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
+                    renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
                 }
             }
         }
@@ -164,9 +175,9 @@ void DrawFillTriangle(u32 *buffer, f32 *depth, Point a, Point b, Point c, u32 co
             for(i32 x  = xStart; x <= xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedReciprocalZ = (1.0f/a.z) * weights.x + (1.0f/b.z) * weights.y + (1.0f/c.z) * weights.z; 
-                if(interpolatedReciprocalZ >= depth[(i32)y * 800 + (i32)x]) {
-                    depth[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
-                    buffer[(i32)y * 800 + (i32)x] = color;
+                if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
+                    renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
+                    renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
                 }
             }
         }
@@ -174,11 +185,11 @@ void DrawFillTriangle(u32 *buffer, f32 *depth, Point a, Point b, Point c, u32 co
 }
 
 internal
-void DrawPoint(u32 *buffer, Point point, u32 color) {
+void DrawPoint(Renderer *renderer, Point point, u32 color) {
     i32 x = (f32)point.x;
     i32 y = (f32)point.y;
     if(x >= 0 && x <= 800 && y >= 0 && y <= 600) {
-        buffer[(i32)y * 800 + (i32)x] = color;
+        renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
     }
 }
 

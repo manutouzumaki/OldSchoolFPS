@@ -602,3 +602,9 @@ mat4 Mat4LookAt(vec3 position, vec3 target, vec3 up) {
     };
     return result;
 }
+
+
+vec3 Vec4ToVec3(vec4 v) {
+    vec3 result = { v.x, v.y, v.z };
+    return result;
+}

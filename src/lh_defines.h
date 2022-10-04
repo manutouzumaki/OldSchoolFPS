@@ -26,7 +26,7 @@ typedef int8_t b8;
 #define Gigabytes(value) (Megabytes(value)*1024LL)
 #define Terabytes(value) (Gigabytes(value)*1024LL)
 
-#define FPS 30.0f
+#define FPS 60.0f
 #define TARGET_SECONDS_PER_FRAME (1.0f / FPS)
 
 // SSE2
