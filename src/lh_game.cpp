@@ -136,8 +136,6 @@ void GameInit(Memory *memory) {
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
-
-
 }
 
 void GameUpdate(f32 dt) {

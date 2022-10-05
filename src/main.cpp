@@ -1,6 +1,12 @@
 #include <windows.h>
 #include "lh_game.h"
-#include "lh_win32.h"
+
+struct Window {
+    HWND hwnd;
+    i32 width;
+    i32 height;
+    char *title;
+};
 
 internal
 u32 BitScanForward(u32 mask)
