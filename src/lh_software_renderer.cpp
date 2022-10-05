@@ -1,3 +1,7 @@
+#include <windows.h>
+#include "lh_platform.h"
+#include "lh_win32.h"
+
 internal
 void SwapPoint(Point *a, Point *b) {
     Point tmp = *a;
@@ -35,158 +39,6 @@ vec3 SolveBarycentric(vec2 a, vec2 b, vec2 c, vec2 p) {
     result.z = (d00 * d21 - d20 * d10) / denom;
     result.x = 1.0f - result.y - result.z;
     return result;
-}
-
-inline
-u32 BitScanForward(u32 mask)
-{
-    unsigned long shift = 0;
-    _BitScanForward(&shift, mask);
-    return (u32)shift;
-}
-
-Bitmap LoadBitmap(char *path, Arena *arena) {
-    ReadFileResult fileResult = ReadFile(path, arena);
-    BitmapHeader *header = (BitmapHeader *)fileResult.data;
-    Bitmap bitmap;
-    bitmap.data = (void *)((u8 *)fileResult.data + header->bitmapOffset);
-    bitmap.width = header->width;
-    bitmap.height = header->height;
-    u32 redShift = BitScanForward(header->redMask);
-    u32 greenShift = BitScanForward(header->greenMask);
-    u32 blueShift = BitScanForward(header->blueMask);
-    u32 alphaShift = BitScanForward(header->alphaMask);
-    u32 *colorData = (u32 *)bitmap.data;
-    for(u32 i = 0; i < bitmap.width*bitmap.height; ++i)
-    {
-        u32 red = (colorData[i] & header->redMask) >> redShift;       
-        u32 green = (colorData[i] & header->greenMask) >> greenShift;       
-        u32 blue = (colorData[i] & header->blueMask) >> blueShift;       
-        u32 alpha = (colorData[i] & header->alphaMask) >> alphaShift;       
-        colorData[i] = (alpha << 24) | (red << 16) | (green << 8) | (blue << 0);
-    }
-    return bitmap;
-}
-
-internal
-void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount) {
-
-    // render the vertices list from a camera point of view
-    mat4 view = Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}); 
-    mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
-    //mat4 proj = Mat4Ortho(-400, 400, -300, 300, 0.1f, 100.0f);
-    local_persist f32 angle = 0.0f;
-    mat4 rotY = Mat4RotateY(RAD(angle));
-    mat4 rotX = Mat4RotateX(RAD(angle));
-    mat4 rotZ = Mat4RotateZ(RAD(angle));
-    mat4 world = rotY * rotX * rotZ;
-    angle += 1.0f;
-
-    for(i32 i = 0; i < verticesCount; i += 3) {
-        vec3 aTmp = vertices[i + 0];
-        vec3 bTmp = vertices[i + 1];
-        vec3 cTmp = vertices[i + 2];
-
-        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
-        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
-        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
-
-        // multiply by the world matrix...
-        a = world * a;
-        b = world * b;
-        c = world * c;
-
-        // transform the vertices relative to the camera
-        a = view * a;
-        b = view * b;
-        c = view * c;
-
-        // backface culling
-        vec3 vecA = Vec4ToVec3(a);
-        vec3 ab = Vec4ToVec3(b) - vecA;
-        vec3 ac = Vec4ToVec3(c) - vecA;
-        vec3 normal = normalized(cross(ac, ab));
-        vec3 origin = {0, 0, 0};
-        vec3 cameraRay = origin - vecA;
-        f32 normalDirection = dot(normal, cameraRay);
-        if(normalDirection < 0.0f) {
-            continue;
-        }
-
-        a = proj * a;
-        b = proj * b;
-        c = proj * c;
-        
-        Point aPoint = {((a.x / a.w) * 400) + 400, ((a.y / a.w) * 300) + 300, a.w};
-        Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300, b.w};
-        Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300, c.w};
-        
-        DrawFillTriangle(renderer, aPoint, bPoint, cPoint, 0x00FF0000);
-        // render DEBUG wireframe 
-        DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0x0000FF00);
-    }
-}
-
-internal
-void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, Bitmap bitmap) {
-    // render the vertices list from a camera point of view
-    mat4 view = Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}); 
-    mat4 proj = Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f);
-    //mat4 proj = Mat4Ortho(-400, 400, -300, 300, 0.1f, 100.0f);
-    local_persist f32 angle = 0.0f;
-    mat4 rotY = Mat4RotateY(RAD(angle));
-    mat4 rotX = Mat4RotateX(RAD(angle));
-    mat4 rotZ = Mat4RotateZ(RAD(angle));
-    mat4 world = rotY * rotX * rotZ;
-    angle += 1.0f;
-    
-    for(i32 i = 0; i < verticesCount; i += 3) {
-        vec3 aTmp = vertices[i + 0];
-        vec3 bTmp = vertices[i + 1];
-        vec3 cTmp = vertices[i + 2];
-
-        vec2 aUv = uvs[i + 0];
-        vec2 bUv = uvs[i + 1];
-        vec2 cUv = uvs[i + 2];
-
-        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
-        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
-        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
-
-        // multiply by the world matrix...
-        a = world * a;
-        b = world * b;
-        c = world * c;
-
-        // transform the vertices relative to the camera
-        a = view * a;
-        b = view * b;
-        c = view * c;
-
-        // backface culling
-        vec3 vecA = Vec4ToVec3(a);
-        vec3 ab = Vec4ToVec3(b) - vecA;
-        vec3 ac = Vec4ToVec3(c) - vecA;
-        vec3 normal = normalized(cross(ac, ab));
-        vec3 origin = {0, 0, 0};
-        vec3 cameraRay = origin - vecA;
-        f32 normalDirection = dot(normal, cameraRay);
-        if(normalDirection < 0.0f) {
-            continue;
-        }
-
-        a = proj * a;
-        b = proj * b;
-        c = proj * c;
-        
-        Point aPoint = {((a.x / a.w) * 400) + 400, ((a.y / a.w) * 300) + 300, a.w};
-        Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300, b.w};
-        Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300, c.w};
-        
-        DrawTextureTriangle(renderer, aPoint, bPoint, cPoint, aUv, bUv, cUv, bitmap);
-        // render DEBUG wireframe 
-        DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0x0000FF00);
-    }
 }
 
 internal 
@@ -285,7 +137,7 @@ void DrawFillTriangle(Renderer *renderer, Point a, Point b, Point c, u32 color) 
 
 internal
 void DrawTextureTriangle(Renderer *renderer, Point a, Point b, Point c,
-                         vec2 aUv, vec2 bUv, vec2 cUv, Bitmap bitmap) {
+                         vec2 aUv, vec2 bUv, vec2 cUv, BMP bitmap) {
     if(a.y > b.y) {
         SwapPoint(&a, &b);
         SwapVec2(&aUv, &bUv);
@@ -372,4 +224,168 @@ void DrawPoint(Renderer *renderer, Point point, u32 color) {
     }
 }
 
+Renderer *RendererCreate(Window *window, RendererType type) {
+    Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
+    // TODO: create the renderer
+    HDC hdc = GetDC(window->hwnd);
+    BITMAPINFO bufferInfo = {};
+    bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
+    bufferInfo.bmiHeader.biWidth = window->width;
+    bufferInfo.bmiHeader.biHeight = window->height;
+    bufferInfo.bmiHeader.biPlanes = 1;
+    bufferInfo.bmiHeader.biBitCount = 32;
+    bufferInfo.bmiHeader.biCompression = BI_RGB;
+    renderer->handle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&renderer->colorBuffer, 0, 0);
+    renderer->hdc = hdc;
+    renderer->depthBuffer = (f32 *)malloc(window->width * window->height * sizeof(f32));
+    renderer->bufferWidth = window->width;
+    renderer->bufferHeight = window->height;
+    renderer->view = Mat4Identity();
+    renderer->proj = Mat4Identity();
+    return renderer;
+}
+
+void RendererDestroy(Renderer *renderer) {
+    ASSERT(renderer);
+    DeleteObject(renderer->handle);
+    free(renderer->depthBuffer);
+    free(renderer);
+    renderer = 0;
+}
+
+void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth) {
+    for(i32 i = 0; i < renderer->bufferWidth*renderer->bufferHeight; ++i) {
+        renderer->colorBuffer[i] = color;
+        renderer->depthBuffer[i] = depth;
+    }
+}
+
+void RendererPresent(Renderer *renderer) {
+    HDC colorBufferDC = CreateCompatibleDC(renderer->hdc);
+    SelectObject(colorBufferDC, renderer->handle);
+    BitBlt(renderer->hdc, 0, 0, renderer->bufferWidth, renderer->bufferHeight, colorBufferDC, 0, 0, SRCCOPY);
+    DeleteDC(colorBufferDC);
+}
+
+void RendererSetProj(Renderer *renderer, mat4 proj) {
+    renderer->proj = proj;
+} 
+
+void RendererSetView(Renderer *renderer, mat4 view) {
+    renderer->view = view;
+}
+
+void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount) {
+    local_persist f32 angle = 0.0f;
+    mat4 rotY = Mat4RotateY(RAD(angle));
+    mat4 rotX = Mat4RotateX(RAD(angle));
+    mat4 rotZ = Mat4RotateZ(RAD(angle));
+    mat4 world = rotY * rotX * rotZ;
+    angle += 1.0f;
+
+    for(i32 i = 0; i < verticesCount; i += 3) {
+        vec3 aTmp = vertices[i + 0];
+        vec3 bTmp = vertices[i + 1];
+        vec3 cTmp = vertices[i + 2];
+
+        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
+        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
+        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
+
+        // multiply by the world matrix...
+        a = world * a;
+        b = world * b;
+        c = world * c;
+
+        // transform the vertices relative to the camera
+        mat4 view = renderer->view;
+        a = view * a;
+        b = view * b;
+        c = view * c;
+
+        // backface culling
+        vec3 vecA = Vec4ToVec3(a);
+        vec3 ab = Vec4ToVec3(b) - vecA;
+        vec3 ac = Vec4ToVec3(c) - vecA;
+        vec3 normal = normalized(cross(ac, ab));
+        vec3 origin = {0, 0, 0};
+        vec3 cameraRay = origin - vecA;
+        f32 normalDirection = dot(normal, cameraRay);
+        if(normalDirection < 0.0f) {
+            continue;
+        }
+
+        mat4 proj = renderer->proj;
+        a = proj * a;
+        b = proj * b;
+        c = proj * c;
+        
+        Point aPoint = {((a.x / a.w) * 400) + 400, ((a.y / a.w) * 300) + 300, a.w};
+        Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300, b.w};
+        Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300, c.w};
+        
+        DrawFillTriangle(renderer, aPoint, bPoint, cPoint, 0x00FF0000);
+        // render DEBUG wireframe 
+        DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0x0000FF00);
+    }
+}
+
+void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap) {
+    local_persist f32 angle = 0.0f;
+    mat4 rotY = Mat4RotateY(RAD(angle));
+    mat4 rotX = Mat4RotateX(RAD(angle));
+    mat4 rotZ = Mat4RotateZ(RAD(angle));
+    mat4 world = rotY * rotX * rotZ;
+    angle += 1.0f;
+    
+    for(i32 i = 0; i < verticesCount; i += 3) {
+        vec3 aTmp = vertices[i + 0];
+        vec3 bTmp = vertices[i + 1];
+        vec3 cTmp = vertices[i + 2];
+
+        vec2 aUv = uvs[i + 0];
+        vec2 bUv = uvs[i + 1];
+        vec2 cUv = uvs[i + 2];
+
+        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
+        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
+        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
+
+        // multiply by the world matrix...
+        a = world * a;
+        b = world * b;
+        c = world * c;
+
+        // transform the vertices relative to the camera
+        mat4 view = renderer->view;
+        a = view * a;
+        b = view * b;
+        c = view * c;
+
+        // backface culling
+        vec3 vecA = Vec4ToVec3(a);
+        vec3 ab = Vec4ToVec3(b) - vecA;
+        vec3 ac = Vec4ToVec3(c) - vecA;
+        vec3 normal = normalized(cross(ac, ab));
+        vec3 origin = {0, 0, 0};
+        vec3 cameraRay = origin - vecA;
+        f32 normalDirection = dot(normal, cameraRay);
+        if(normalDirection < 0.0f) {
+            continue;
+        }
+
+        mat4 proj = renderer->proj;
+        a = proj * a;
+        b = proj * b;
+        c = proj * c;
+        
+        Point aPoint = {((a.x / a.w) * 400) + 400, ((a.y / a.w) * 300) + 300, a.w};
+        Point bPoint = {((b.x / b.w) * 400) + 400, ((b.y / b.w) * 300) + 300, b.w};
+        Point cPoint = {((c.x / c.w) * 400) + 400, ((c.y / c.w) * 300) + 300, c.w};
+        
+        DrawTextureTriangle(renderer, aPoint, bPoint, cPoint, aUv, bUv, cUv, bitmap);
+        // render DEBUG wireframe 
+        DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0x0000FF00);
+    }
+}
 

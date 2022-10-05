@@ -1,3 +1,6 @@
+#include <math.h>
+#include "lh_math.h"
+
 // VEC2 FUNCTIONS
 vec2 operator+(vec2 l, vec2 r) {
     vec2 result = { l.x + r.x, l.y + r.y };
@@ -278,12 +281,14 @@ mat2 Mat2Identity() {
 }
 
 void Mat2Print(mat2 m) {
+/*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f|\n", m.m00, m.m01);
     OutputDebugString(buffer);
     sprintf(buffer, "|%.1f  %.1f|\n", m.m10, m.m11);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
+*/
 }
 
 mat2 Mat2Rotate(f32 angle) {
@@ -339,6 +344,7 @@ mat3 Mat3Identity() {
 }
 
 void Mat3Print(mat3 m) {
+/*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02);
     OutputDebugString(buffer);
@@ -347,6 +353,7 @@ void Mat3Print(mat3 m) {
     sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m20, m.m21, m.m22);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
+*/
 }
 
 mat3 Mat3Scale(f32 x, f32 y, f32 z) {
@@ -440,6 +447,7 @@ mat4 Mat4Identity() {
 }
 
 void Mat4Print(mat4 m) {
+    /*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02, m.m03);
     OutputDebugString(buffer);
@@ -450,6 +458,7 @@ void Mat4Print(mat4 m) {
     sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m30, m.m31, m.m32, m.m33);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
+    */
 }
 
 mat4 Mat4Translate(f32 x, f32 y, f32 z) {

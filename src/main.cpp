@@ -1,4 +1,38 @@
-#include "lh_include.h"
+#include <windows.h>
+#include "lh_game.h"
+#include "lh_win32.h"
+
+internal
+u32 BitScanForward(u32 mask)
+{
+    unsigned long shift = 0;
+    _BitScanForward(&shift, mask);
+    return (u32)shift;
+}
+
+
+BMP LoadTexture(char *path, Arena *arena) {
+    ReadFileResult fileResult = ReadFile(path, arena);
+    BitmapHeader *header = (BitmapHeader *)fileResult.data;
+    BMP bitmap;
+    bitmap.data = (void *)((u8 *)fileResult.data + header->bitmapOffset);
+    bitmap.width = header->width;
+    bitmap.height = header->height;
+    u32 redShift = BitScanForward(header->redMask);
+    u32 greenShift = BitScanForward(header->greenMask);
+    u32 blueShift = BitScanForward(header->blueMask);
+    u32 alphaShift = BitScanForward(header->alphaMask);
+    u32 *colorData = (u32 *)bitmap.data;
+    for(u32 i = 0; i < bitmap.width*bitmap.height; ++i)
+    {
+        u32 red = (colorData[i] & header->redMask) >> redShift;       
+        u32 green = (colorData[i] & header->greenMask) >> greenShift;       
+        u32 blue = (colorData[i] & header->blueMask) >> blueShift;       
+        u32 alpha = (colorData[i] & header->alphaMask) >> alphaShift;       
+        colorData[i] = (alpha << 24) | (red << 16) | (green << 8) | (blue << 0);
+    }
+    return bitmap;
+}
 
 ReadFileResult ReadFile(char *path, Arena *arena) {
     ReadFileResult result = {};
@@ -30,6 +64,7 @@ bool WriteFile(char *path, void *data, size_t size) {
     return succed;
 }
 
+
 LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
     switch(msg) {
@@ -43,9 +78,9 @@ LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return result;
 }
 
-INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
-    OutputDebugString("Hi LastHope...\n"); 
-    // we have to create a window class and then register to windows.
+Window *WindowCreate(i32 width, i32 height, char *title) { 
+    HINSTANCE hInstance = GetModuleHandleA(0);
+    Window *window = (Window *)malloc(sizeof(Window));
     WNDCLASSA wndClass = {};
     wndClass.style = CS_HREDRAW|CS_VREDRAW;
     wndClass.lpfnWndProc = WindowProcA;
@@ -54,38 +89,40 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     wndClass.hCursor = LoadCursor(0, IDC_ARROW);
     wndClass.lpszClassName = "LastHope3D";
     RegisterClassA(&wndClass);
-
-    HWND hwnd = CreateWindowA("LastHope3D", "Last Hope 3D",
+    HWND hwnd = CreateWindowA("LastHope3D", title,
                               WS_OVERLAPPEDWINDOW|WS_VISIBLE,
                               CW_USEDEFAULT, CW_USEDEFAULT,
-                              800, 600,
+                              width, height,
                               0, 0, hInstance, 0);
-    
-    // create and update a color buffer
-    HDC hdc = GetDC(hwnd);
-    BITMAPINFO bufferInfo = {};
-    bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
-    bufferInfo.bmiHeader.biWidth = 800;
-    bufferInfo.bmiHeader.biHeight = 600;
-    bufferInfo.bmiHeader.biPlanes = 1;
-    bufferInfo.bmiHeader.biBitCount = 32;
-    bufferInfo.bmiHeader.biCompression = BI_RGB;
-    u32 *colorBuffer = 0;
-    HBITMAP colorBufferHandle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&colorBuffer, 0, 0);
-    f32 *depthBuffer = (f32 *)VirtualAlloc(0, 800 * 600 * sizeof(f32), MEM_COMMIT, PAGE_READWRITE);
-    
-    // fill the buffer with black
-    memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
-    memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
+    window->width = width;
+    window->height =  height;
+    window->title = title;
+    window->hwnd = hwnd;
+    return window;
+}
+
+void WindowDestroy(Window *window) {
+    ASSERT(window);
+    DestroyWindow(window->hwnd);
+    free(window);
+    window = 0;
+}
+
+void WindowSetSize(Window *window, i32 width, i32 height) {
+    RECT currentWindowDim;
+    GetWindowRect(window->hwnd, &currentWindowDim);
+    MoveWindow(window->hwnd,
+               currentWindowDim.left,
+               currentWindowDim.top,
+               width, height, TRUE);
+}
+
+INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
+    OutputDebugString("Hi LastHope...\n"); 
 
     // allocate memory for the entire game
-    Platform platform = {};
-    platform.memory = MemoryCreate(Megabytes(10));
-    platform.renderer.colorBuffer = colorBuffer;
-    platform.renderer.depthBuffer = depthBuffer;
-    platform.renderer.bufferWidth = 800;
-    platform.renderer.bufferHeight = 600;
-    GameInit(&platform); 
+    Memory memory = MemoryCreate(Megabytes(10));
+    GameInit(&memory); 
 
     b32 running = TRUE;
     
@@ -117,7 +154,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
-        platform.deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
+        f32 deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
 
         // flush windows messages
         while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE)) {
@@ -128,23 +165,12 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
             DispatchMessageA(&msg);
         }
        
-        GameUpdate(&platform); 
-
-        // clear color and depth buffer
-        memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
-        memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
-        
-        GameRender(&platform);
+        GameUpdate(deltaTime); 
+        GameRender();
          
-        // present the color buffer to the window
-        HDC colorBufferDC = CreateCompatibleDC(hdc);
-        SelectObject(colorBufferDC, colorBufferHandle);
-        BitBlt(hdc, 0, 0, 800, 600, colorBufferDC, 0, 0, SRCCOPY);
-        DeleteDC(colorBufferDC);
-
         lastCounter = currentCounter;
     }
 
-    GameShutdown(&platform);
+    GameShutdown();
     return 0;
 }

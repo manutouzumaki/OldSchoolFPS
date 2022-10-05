@@ -1,6 +1,8 @@
 #ifndef _LH_MATH_H_
 #define _LH_MATH_H_
 
+#include "lh_defines.h"
+
 #define EPSILON 0.000001f
 #define PI 3.14159265359f
 #define RAD(value) (value*(PI/180.0f))
@@ -26,6 +28,8 @@ struct vec3 {
         f32 v[3];
     }; 
 };
+
+typedef vec3 Point;
 
 struct vec4 {
     union {

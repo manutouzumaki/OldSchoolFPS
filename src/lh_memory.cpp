@@ -1,7 +1,11 @@
+#include "lh_memory.h"
+#include "lh_defines.h"
+#include <malloc.h>
+#include <memory.h>
 
 Memory MemoryCreate(size_t size) {
     Memory memory = {};
-    memory.data = VirtualAlloc(0, size, MEM_COMMIT, PAGE_READWRITE);
+    memory.data = malloc(size);
     memset(memory.data, 0, size);
     memory.size = size;
     memory.used = 0;

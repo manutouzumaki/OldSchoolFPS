@@ -1,3 +1,5 @@
+#include "lh_game.h"
+
 global_variable vec3 vertices[] = {
     -1.0f,  1.0f, -1.0f,
     -1.0f, -1.0f, -1.0f,
@@ -76,36 +78,78 @@ global_variable vec2 uvs[] = {
     0.0f, 1.0f
 };
 
-void GameInit(Platform *platform) {
+global_variable f32 vertices0[] = {
+//  Position               UV
+    -1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
+    -1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 1.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
+    -1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
+    -1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
+    -1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
+    -1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+     1.0f, -1.0f,  1.0f,   1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f,   1.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f,   1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
+     1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f,   1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
+     1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f,   1.0f, 0.0f,
+     1.0f,  1.0f,  1.0f,   1.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f,   0.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
+    -1.0f, -1.0f, -1.0f,   0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f,   1.0f, 1.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f,   0.0f, 1.0f
+};
+
+global_variable GameState *gGameState;
+global_variable Window *gWindow;
+global_variable Renderer *gRenderer;
+
+void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
-    Memory *memory = &platform->memory;
     ASSERT(memory->used + sizeof(GameState) <= memory->size);
-    GameState *gameState = (GameState *)((u8 *)memory->data + memory->used);
+    gGameState = (GameState *)((u8 *)memory->data + memory->used);
     memory->used += sizeof(GameState);
 
-    gameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
-    gameState->bitmap = LoadBitmap("../assets/test.bmp", &gameState->bitmapArena);
+    gWindow = WindowCreate(800, 600, "Last Hope 3D");
+
+    gRenderer = RendererCreate(gWindow, RENDERER_SOFTWARE);
+    RendererSetProj(gRenderer, Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f));
+    RendererSetView(gRenderer, Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}));
+
+    gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
+    gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
+
+
 }
 
-void GameUpdate(Platform *platform) {
-    Memory *memory = &platform->memory;
-    GameState *gameState = (GameState *)memory->data;
-
-    char buffer[256];
-    sprintf(buffer, "FPS: %d\n", (i32)roundf(1.0f / platform->deltaTime));
-    OutputDebugString(buffer);
+void GameUpdate(f32 dt) {
 }
 
-void GameRender(Platform *platform) {
-    Memory *memory = &platform->memory;
-    Renderer *renderer = &platform->renderer;
-    GameState *gameState = (GameState *)memory->data;
-
-    //RenderBuffer(renderer, vertices, ARRAY_LENGTH(vertices));
-    RenderBufferTexture(renderer, vertices, uvs, ARRAY_LENGTH(vertices), gameState->bitmap);
+void GameRender() {
+    RendererClearBuffers(gRenderer, 0xFF000022, 0.0f);
+    RenderBufferTexture(gRenderer, vertices, uvs, ARRAY_LENGTH(vertices), gGameState->bitmap);
+    RendererPresent(gRenderer);
 }
 
-void GameShutdown(Platform *platform) {
-    Memory *memory = &platform->memory;
-    GameState *gameState = (GameState *)memory->data;
+void GameShutdown() {
+    RendererDestroy(gRenderer);
+    WindowDestroy(gWindow);
 }

@@ -1,14 +1,16 @@
 #ifndef _LH_GAME_H_
 #define _LH_GAME_H_
 
+#include "lh_platform.h"
+
 struct GameState {
     Arena bitmapArena;
-    Bitmap bitmap;
+    BMP bitmap;
 };
 
-void GameInit(Platform *platform);
-void GameUpdate(Platform *platform);
-void GameRender(Platform *platform);
-void GameShutdown(Platform *platform);
+void GameInit(Memory *memory);
+void GameUpdate(f32 dt);
+void GameRender();
+void GameShutdown();
 
 #endif
