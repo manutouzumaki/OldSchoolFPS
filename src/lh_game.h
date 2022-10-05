@@ -2,6 +2,8 @@
 #define _LH_GAME_H_
 
 struct GameState {
+    Arena bitmapArena;
+    Bitmap bitmap;
 };
 
 void GameInit(Platform *platform);

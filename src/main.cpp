@@ -1,5 +1,35 @@
 #include "lh_include.h"
 
+ReadFileResult ReadFile(char *path, Arena *arena) {
+    ReadFileResult result = {};
+    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if(file != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER fileSize;
+        GetFileSizeEx(file, &fileSize);
+        result.data = ArenaPush(arena, fileSize.QuadPart);
+        if(ReadFile(file, result.data, (DWORD)fileSize.QuadPart, 0, 0)) {
+            result.size = fileSize.QuadPart; 
+        }
+        else {
+            ASSERT(!"ERROR Reading the file");
+        }
+        CloseHandle(file);
+    }
+    return result;
+}
+
+bool WriteFile(char *path, void *data, size_t size) {
+    bool succed = FALSE;
+    HANDLE file = CreateFileA(path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if(file != INVALID_HANDLE_VALUE) {
+        if(WriteFile(file, data, size, 0, 0)) {
+            succed = TRUE;
+        }
+        CloseHandle(file);
+    }
+    return succed;
+}
+
 LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
     switch(msg) {
@@ -28,7 +58,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     HWND hwnd = CreateWindowA("LastHope3D", "Last Hope 3D",
                               WS_OVERLAPPEDWINDOW|WS_VISIBLE,
                               CW_USEDEFAULT, CW_USEDEFAULT,
-                              CW_USEDEFAULT, CW_USEDEFAULT,
+                              800, 600,
                               0, 0, hInstance, 0);
     
     // create and update a color buffer
@@ -48,7 +78,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     memset(colorBuffer, 0, 800 * 600 * sizeof(u32));
     memset(depthBuffer, 0, 800 * 600 * sizeof(f32));
 
-    // TODO: allocate memory for the entire game
+    // allocate memory for the entire game
     Platform platform = {};
     platform.memory = MemoryCreate(Megabytes(10));
     platform.renderer.colorBuffer = colorBuffer;
@@ -72,6 +102,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     MSG msg = {};
     while(running) {
         // if we have time left Sleep
+#if 1
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
@@ -82,10 +113,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
             QueryPerformanceCounter(&workCounter);
             secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
         }
+#endif
 
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
-        f64 fps = (f64)frequency.QuadPart / (f64)(currentCounter.QuadPart - lastCounter.QuadPart); 
         platform.deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
 
         // flush windows messages
