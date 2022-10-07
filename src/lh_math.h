@@ -78,6 +78,8 @@ struct mat4 {
     };
 };
 
+f32 lerp(f32 a, f32 b, f32 t);
+
 vec2 operator+(vec2 l, vec2 r);
 vec2 operator-(vec2 l, vec2 r);
 vec2 operator*(vec2 l, vec2 r);

@@ -1,6 +1,8 @@
 #include <windows.h>
 #include "lh_platform.h"
 
+#define MAX_VERTICES_PER_CLIPPED_TRIANGLE 16
+
 struct Window {
     HWND hwnd;
     i32 width;
@@ -67,14 +69,14 @@ void DrawLine(Renderer *renderer, Point a, Point b, u32 color) {
     f32 yInc = (f32)yDelta / (f32)sideLength;
     f32 x = a.x;
     f32 y = a.y;
-    for(i32 i = 0; i < sideLength; ++i) {
+    for(i32 i = 0; i <= sideLength; ++i) {
         
         vec2 start = {a.x, a.y};
         vec2 delta = { b.x - a.x, b.y - a.y };
         vec2 p = { x, y };
         vec2 pRel = start - p;
         f32 t = len(pRel) / len(delta);
-        f32 interpolatedReciprocalZ = ((1.0f/a.z) + ((1.0f/b.z) - (1.0f/a.z)) * t) + 0.001f; 
+        f32 interpolatedReciprocalZ = ((1.0f/a.z) + ((1.0f/b.z) - (1.0f/a.z)) * t); 
         if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
             renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
             renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
@@ -119,7 +121,7 @@ void DrawFillTriangle(Renderer *renderer, Point a, Point b, Point c, u32 color) 
             if(xEnd < xStart) {
                 SwapInt(&xStart, &xEnd);
             }
-            for(i32 x  = xStart; x <= xEnd; x++) {
+            for(i32 x  = xStart; x < xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedReciprocalZ = (1.0f/a.z) * weights.x + (1.0f/b.z) * weights.y + (1.0f/c.z) * weights.z;
                 if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
@@ -140,7 +142,7 @@ void DrawFillTriangle(Renderer *renderer, Point a, Point b, Point c, u32 color) 
             if(xEnd < xStart) {
                 SwapInt(&xStart, &xEnd);
             }
-            for(i32 x  = xStart; x <= xEnd; x++) {
+            for(i32 x  = xStart; x < xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedReciprocalZ = (1.0f/a.z) * weights.x + (1.0f/b.z) * weights.y + (1.0f/c.z) * weights.z; 
                 if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
@@ -184,7 +186,7 @@ void DrawTextureTriangle(Renderer *renderer, Point a, Point b, Point c,
             if(xEnd < xStart) {
                 SwapInt(&xStart, &xEnd);
             }
-            for(i32 x  = xStart; x <= xEnd; x++) {
+            for(i32 x  = xStart; x < xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedU = (aUv.x/a.z) * weights.x + (bUv.x/b.z) * weights.y + (cUv.x/c.z) * weights.z;
                 f32 interpolatedV = (aUv.y/a.z) * weights.x + (bUv.y/b.z) * weights.y + (cUv.y/c.z) * weights.z;
@@ -212,7 +214,7 @@ void DrawTextureTriangle(Renderer *renderer, Point a, Point b, Point c,
             if(xEnd < xStart) {
                 SwapInt(&xStart, &xEnd);
             }
-            for(i32 x  = xStart; x <= xEnd; x++) {
+            for(i32 x  = xStart; x < xEnd; x++) {
                 vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
                 f32 interpolatedU = (aUv.x/a.z) * weights.x + (bUv.x/b.z) * weights.y + (cUv.x/c.z) * weights.z;
                 f32 interpolatedV = (aUv.y/a.z) * weights.x + (bUv.y/b.z) * weights.y + (cUv.y/c.z) * weights.z;
@@ -241,7 +243,53 @@ void DrawPoint(Renderer *renderer, Point point, u32 color) {
     }
 }
 
-Renderer *RendererCreate(Window *window, RendererType type) {
+
+void HomogenousClipping(vec4 *srcVertives, vec2 * srcUVs, i32 srcCount,
+                        vec4 *dstVetices, vec2* dstUVs, i32 *dstCount,
+                        i32 index, f32 sign) {
+    // TODO: test using pointers intead...
+    *dstCount = 0;
+    vec4 prevVert = srcVertives[srcCount - 1];
+    vec2 prevUv = srcUVs[srcCount - 1];
+    f32 prevComponent = prevVert.v[index] * sign;
+    bool prevInside = prevComponent <= prevVert.w;
+
+    for(i32 i = 0; i < srcCount; ++i) {
+        vec4 currentVert = srcVertives[i];
+        vec2 currentUv = srcUVs[i];
+        f32 currentComponent = currentVert.v[index] * sign;
+        bool currentInside = currentComponent <= currentVert.w;
+
+        if(currentInside ^ prevInside) {
+            f32 t = (prevVert.w - prevComponent) / ((prevVert.w - prevComponent) - (currentVert.w - currentComponent));
+            vec4 newVertex = {
+                lerp(prevVert.x, currentVert.x, t),  
+                lerp(prevVert.y, currentVert.y, t),  
+                lerp(prevVert.z, currentVert.z, t),  
+                lerp(prevVert.w, currentVert.w, t)  
+            };
+            vec2 newUvs = {
+                lerp(prevUv.x, currentUv.x, t),
+                lerp(prevUv.y, currentUv.y, t)
+            };
+
+            dstVetices[*dstCount] = newVertex;
+            dstUVs[*dstCount] = newUvs;
+            *dstCount = *dstCount + 1;
+        }
+        if(currentInside) {
+            dstVetices[*dstCount] = currentVert;
+            dstUVs[*dstCount] = currentUv;
+            *dstCount = *dstCount + 1;
+        }
+        prevInside = currentInside;
+        prevVert = currentVert;
+        prevUv = currentUv;
+        prevComponent = currentComponent;
+    }
+}
+
+Renderer *RendererCreate(Window *window) {
     Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
     // TODO: create the renderer
     HDC hdc = GetDC(window->hwnd);
@@ -406,3 +454,97 @@ void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 vert
     }
 }
 
+
+void RenderBufferTextureClipping(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap) {
+    local_persist f32 angle = 0.0f;
+    mat4 rotY = Mat4RotateY(RAD(angle));
+    mat4 rotX = Mat4RotateX(RAD(angle));
+    mat4 rotZ = Mat4RotateZ(RAD(angle));
+    mat4 world = rotY * rotX * rotZ;
+    angle += 1.0f;
+    
+    for(i32 i = 0; i < verticesCount; i += 3) {
+        vec3 aTmp = vertices[i + 0];
+        vec3 bTmp = vertices[i + 1];
+        vec3 cTmp = vertices[i + 2];
+
+        vec2 aUv = uvs[i + 0];
+        vec2 bUv = uvs[i + 1];
+        vec2 cUv = uvs[i + 2];
+
+        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
+        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
+        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
+
+        // multiply by the world matrix...
+        a = world * a;
+        b = world * b;
+        c = world * c;
+
+        // transform the vertices relative to the camera
+        mat4 view = renderer->view;
+        a = view * a;
+        b = view * b;
+        c = view * c;
+        
+        // backface culling
+        vec3 vecA = Vec4ToVec3(a);
+        vec3 ab = Vec4ToVec3(b) - vecA;
+        vec3 ac = Vec4ToVec3(c) - vecA;
+        vec3 normal = normalized(cross(ac, ab));
+        vec3 origin = {0, 0, 0};
+        vec3 cameraRay = origin - vecA;
+        f32 normalDirection = dot(normal, cameraRay);
+        if(normalDirection < 0.0f) {
+            continue;
+        }
+
+        mat4 proj = renderer->proj;
+        a = proj * a;
+        b = proj * b;
+        c = proj * c;
+
+        i32 verticesACount = 3;
+        vec4 verticesToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {a, b, c};
+        i32 uvsACount = 3;
+        vec2 uvsToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aUv, bUv, cUv};
+        i32 verticesBCount = 0;
+        vec4 verticesToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        i32 uvsBCount = 0;
+        vec2 uvsToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        
+        HomogenousClipping(verticesToClipA, uvsToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, &verticesBCount,
+                           0, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, &verticesACount,
+                           0, 1.0f);
+        HomogenousClipping(verticesToClipA, uvsToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, &verticesBCount,
+                           1, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, &verticesACount,
+                           1, 1.0f);
+        HomogenousClipping(verticesToClipA, uvsToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, &verticesBCount,
+                           2, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, &verticesACount,
+                           2, 1.0f);
+
+        for(i32 j = 0; j < verticesACount - 2; ++j) {
+            vec4 newA = verticesToClipA[0];
+            vec4 newB = verticesToClipA[1 + j];
+            vec4 newC = verticesToClipA[2 + j];
+            vec2 newUvA = uvsToClipA[0];
+            vec2 newUvB = uvsToClipA[1 + j];
+            vec2 newUvC = uvsToClipA[2 + j];
+
+            Point aPoint = {((newA.x / newA.w) * 400) + 400, ((newA.y / newA.w) * 300) + 300, newA.w};
+            Point bPoint = {((newB.x / newB.w) * 400) + 400, ((newB.y / newB.w) * 300) + 300, newB.w};
+            Point cPoint = {((newC.x / newC.w) * 400) + 400, ((newC.y / newC.w) * 300) + 300, newC.w};
+            
+            DrawTextureTriangle(renderer, aPoint, bPoint, cPoint, newUvA, newUvB, newUvC, bitmap);
+        }
+    }
+}

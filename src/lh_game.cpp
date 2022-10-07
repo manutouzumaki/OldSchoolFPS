@@ -130,9 +130,9 @@ void GameInit(Memory *memory) {
 
     gWindow = WindowCreate(800, 600, "Last Hope 3D");
 
-    gRenderer = RendererCreate(gWindow, RENDERER_SOFTWARE);
+    gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({6, 0, -8}, {6, 0, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -143,7 +143,12 @@ void GameUpdate(f32 dt) {
 
 void GameRender() {
     RendererClearBuffers(gRenderer, 0xFF000022, 0.0f);
-    RenderBufferTexture(gRenderer, vertices, uvs, ARRAY_LENGTH(vertices), gGameState->bitmap);
+    
+    
+    RenderBufferTextureClipping(gRenderer, vertices, uvs,
+             ARRAY_LENGTH(vertices), gGameState->bitmap);
+    
+    
     RendererPresent(gRenderer);
 }
 
@@ -151,3 +156,4 @@ void GameShutdown() {
     RendererDestroy(gRenderer);
     WindowDestroy(gWindow);
 }
+

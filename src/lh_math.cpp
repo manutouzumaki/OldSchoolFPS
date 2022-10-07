@@ -1,6 +1,14 @@
 #include <math.h>
 #include "lh_math.h"
 
+// F32 FUNCTIONS
+
+f32 lerp(f32 a, f32 b, f32 t) {
+    f32 result = a + (b - a) * t;
+    return result;
+}
+
+
 // VEC2 FUNCTIONS
 vec2 operator+(vec2 l, vec2 r) {
     vec2 result = { l.x + r.x, l.y + r.y };

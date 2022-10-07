@@ -54,20 +54,15 @@ Window *WindowCreate(i32 width, i32 height, char *title);
 void WindowDestroy(Window *window);
 void WindowSetSize(i32 width, i32 height);
 
-enum RendererType {
-    RENDERER_SOFTWARE,
-    RENDERER_DIRECTX,
-    RENDERER_OPENGL
-};
-
 struct Renderer;
 
-Renderer *RendererCreate(Window *window, RendererType type);
+Renderer *RendererCreate(Window *window);
 void RendererDestroy(Renderer *renderer);
 void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth);
 void RendererPresent(Renderer *renderer);
 void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount); 
 void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
+void RenderBufferTextureClipping(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
 void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
 
