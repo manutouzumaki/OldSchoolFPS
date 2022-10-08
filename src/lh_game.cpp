@@ -177,7 +177,7 @@ void GameInit(Memory *memory) {
 
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({-2, 1, -4}, {0, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({0, 0, -4}, {0, 0, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);

@@ -1,5 +1,6 @@
 #include <windows.h>
 #include "lh_platform.h"
+#include <math.h>
 
 #define MAX_VERTICES_PER_CLIPPED_TRIANGLE 16
 
@@ -247,6 +248,11 @@ f32 clamp(f32 value, f32 min, f32 max) {
     return value;
 }
 
+f32 maxFloat(f32 value, f32 min) {
+    if(value <= min) return min;
+    return value;
+}
+
 internal
 void DrawTextureLightTriangle(Renderer *renderer,
                               Point a, Point b, Point c,
@@ -302,18 +308,40 @@ void DrawTextureLightTriangle(Renderer *renderer,
                 i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
                 i32 bitmapY = abs((i32)(interpolatedV * bitmap.height)) % bitmap.height;
                 if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
-                    // TODO: try to implement a simple directional light...
+                    // TODO: try to implement simple phong lighting
                     vec3 interpolatedNormal = normalized((aNorm * weights.x) + (bNorm * weights.y) + (cNorm * weights.z));
                     vec3 interpolatedFragPos = (aFragPos * weights.x) + (bFragPos * weights.y) + (cFragPos * weights.z);
-                    f32 lightIntesity = clamp(dot(interpolatedNormal, lightDir), 0.1f, 1.0f);
                     u32 color = ((u32 *)bitmap.data)[bitmapY * bitmap.width + bitmapX];
-                    f32 red = (f32)((color & 0x00FF0000) >> 16) / 255.0f;
-                    f32 green = (f32)((color & 0x0000FF00) >> 8) / 255.0f;
-                    f32 blue = (f32)(color & 0x000000FF) / 255.0f;
-                    red = (red * lightIntesity) * 255.0f;
-                    green = (green * lightIntesity) * 255.0f;
-                    blue = (blue * lightIntesity) * 255.0f;
-                    color = ((u32)red << 16) | ((u32)green << 8) | ((u32)blue << 0);
+                    f32 red = (f32)((color & 0x00FF0000) >> 16);
+                    f32 green = (f32)((color & 0x0000FF00) >> 8);
+                    f32 blue = (f32)(color & 0x000000FF);
+                    vec3 fragColor = {red, green, blue};
+                    
+                    vec3 viewPos = {0, 0, -4};
+                    vec3 lightPos = {0, 0, -4}; 
+                    vec3 lightColor = {1, 1, 1};
+                    lightDir = lightPos - interpolatedFragPos;
+                    
+                    vec3 viewDir = normalized(viewPos - interpolatedFragPos);
+                    vec3 negativeLightDir = {-lightDir.x, -lightDir.y, -lightDir.z};
+                    vec3 reflectDir = normalized(reflect(negativeLightDir, interpolatedNormal));
+
+                    f32 ambientStrength = 0.1f;
+                    vec3 ambient = lightColor * ambientStrength;
+                    f32 diff = clamp(dot(interpolatedNormal, lightDir), 0.0f, 1.0f);
+                    vec3 diffuse = lightColor * diff * 0.6f;
+
+                    f32 specularStrength = 0.5f;
+                    f32 spec = powf(maxFloat(dot(viewDir, reflectDir), 0.0f), 32);
+                    vec3 specular = lightColor * specularStrength * spec;
+
+                    vec3 result = (ambient + diffuse + specular) * fragColor;
+                    
+                    result.x = clamp(result.x, 0.0f, 255.0f); 
+                    result.y = clamp(result.y, 0.0f, 255.0f); 
+                    result.z = clamp(result.z, 0.0f, 255.0f); 
+                    
+                    color = ((u32)result.x << 16) | ((u32)result.y << 8) | ((u32)result.z << 0);
                     renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
                     renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
                 }
@@ -341,17 +369,40 @@ void DrawTextureLightTriangle(Renderer *renderer,
                 i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
                 i32 bitmapY = abs((i32)(interpolatedV * bitmap.height)) % bitmap.height;
                 if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * 800 + (i32)x]) {
+                    // TODO: try to implement simple phong lighting
                     vec3 interpolatedNormal = normalized((aNorm * weights.x) + (bNorm * weights.y) + (cNorm * weights.z));
                     vec3 interpolatedFragPos = (aFragPos * weights.x) + (bFragPos * weights.y) + (cFragPos * weights.z);
-                    f32 lightIntesity = clamp(dot(interpolatedNormal, lightDir), 0.1f, 1.0f);
                     u32 color = ((u32 *)bitmap.data)[bitmapY * bitmap.width + bitmapX];
-                    f32 red = (f32)((color & 0x00FF0000) >> 16) / 255.0f;
-                    f32 green = (f32)((color & 0x0000FF00) >> 8) / 255.0f;
-                    f32 blue = (f32)(color & 0x000000FF) / 255.0f;
-                    red = (red * lightIntesity) * 255.0f;
-                    green = (green * lightIntesity) * 255.0f;
-                    blue = (blue * lightIntesity) * 255.0f;
-                    color = ((u32)red << 16) | ((u32)green << 8) | ((u32)blue << 0);
+                    f32 red = (f32)((color & 0x00FF0000) >> 16);
+                    f32 green = (f32)((color & 0x0000FF00) >> 8);
+                    f32 blue = (f32)(color & 0x000000FF);
+                    vec3 fragColor = {red, green, blue};
+                    
+                    vec3 viewPos = {0, 0, -4};
+                    vec3 lightPos = {0, 0, -4};
+                    vec3 lightColor = {1, 1, 1};
+                    lightDir = lightPos - interpolatedFragPos;
+                    
+                    vec3 viewDir = normalized(viewPos - interpolatedFragPos);
+                    vec3 negativeLightDir = {-lightDir.x, -lightDir.y, -lightDir.z};
+                    vec3 reflectDir = normalized(reflect(negativeLightDir, interpolatedNormal));
+
+                    f32 ambientStrength = 0.1f;
+                    vec3 ambient = lightColor * ambientStrength;
+                    f32 diff = clamp(dot(interpolatedNormal, lightDir), 0.0f, 1.0f);
+                    vec3 diffuse = lightColor * diff * 0.6f;
+
+                    f32 specularStrength = 0.5f;
+                    f32 spec = powf(maxFloat(dot(viewDir, reflectDir), 0.0f), 32);
+                    vec3 specular = lightColor * specularStrength * spec;
+
+                    vec3 result = (ambient + diffuse + specular) * fragColor;
+                    
+                    result.x = clamp(result.x, 0.0f, 255.0f); 
+                    result.y = clamp(result.y, 0.0f, 255.0f); 
+                    result.z = clamp(result.z, 0.0f, 255.0f); 
+                    
+                    color = ((u32)result.x << 16) | ((u32)result.y << 8) | ((u32)result.z << 0);
                     renderer->depthBuffer[(i32)y * 800 + (i32)x] = interpolatedReciprocalZ;
                     renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
                 }
