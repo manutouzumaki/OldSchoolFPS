@@ -153,5 +153,6 @@ vec4 operator*(mat4 m, vec4 v);
 mat4 operator*(mat4 a, mat4 b);
 
 vec3 Vec4ToVec3(vec4 v);
+vec4 Vec3ToVec4(vec3 v, f32 w);
 
 #endif

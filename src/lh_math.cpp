@@ -625,3 +625,8 @@ vec3 Vec4ToVec3(vec4 v) {
     vec3 result = { v.x, v.y, v.z };
     return result;
 }
+
+vec4 Vec3ToVec4(vec3 v, f32 w) {
+    vec4 result = {v.x, v.y, v.z, w};
+    return result;
+}

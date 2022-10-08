@@ -63,6 +63,13 @@ void RendererPresent(Renderer *renderer);
 void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount); 
 void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
 void RenderBufferTextureClipping(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
+void RenderBufferTextureClippingDirectionalLight(Renderer *renderer,
+                                                 vec3 *vertices, 
+                                                 vec2 *uvs,
+                                                 vec3 *normals,
+                                                 i32 verticesCount,
+                                                 BMP bitmap,
+                                                 vec3 lightDir);
 void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
 

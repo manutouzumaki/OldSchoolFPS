@@ -1,5 +1,5 @@
 #include "lh_game.h"
-
+#if 0
 global_variable vec3 vertices[] = {
     -1.0f,  1.0f, -1.0f,
     -1.0f, -1.0f, -1.0f,
@@ -38,6 +38,47 @@ global_variable vec3 vertices[] = {
     -1.0f, -1.0f,  1.0f,
      1.0f, -1.0f,  1.0f
 };
+#else
+global_variable vec3 vertices[] = {
+    -0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f, -0.5f, 
+     0.5f,  0.5f, -0.5f, 
+     0.5f,  0.5f, -0.5f, 
+    -0.5f,  0.5f, -0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+    -0.5f, -0.5f,  0.5f, 
+     0.5f, -0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+    -0.5f,  0.5f,  0.5f, 
+    -0.5f, -0.5f,  0.5f, 
+    -0.5f,  0.5f,  0.5f, 
+    -0.5f,  0.5f, -0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+    -0.5f, -0.5f,  0.5f, 
+    -0.5f,  0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+     0.5f,  0.5f, -0.5f, 
+     0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f,  0.5f, 
+     0.5f, -0.5f,  0.5f, 
+    -0.5f, -0.5f,  0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+    -0.5f,  0.5f, -0.5f, 
+     0.5f,  0.5f, -0.5f, 
+     0.5f,  0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+    -0.5f,  0.5f,  0.5f, 
+    -0.5f,  0.5f, -0.5f
+};
+
+#endif
 
 global_variable vec2 uvs[] = {
     0.0f, 0.0f,
@@ -78,44 +119,48 @@ global_variable vec2 uvs[] = {
     0.0f, 1.0f
 };
 
-global_variable f32 vertices0[] = {
-//  Position               UV
-    -1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
-    -1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 1.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 1.0f,
-     1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
-    -1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
-    -1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
-    -1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
-    -1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
-    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-     1.0f, -1.0f,  1.0f,   1.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
-     1.0f,  1.0f, -1.0f,   0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f,   1.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f,   1.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,   0.0f, 1.0f,
-     1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f,   1.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
-     1.0f,  1.0f, -1.0f,   1.0f, 1.0f,
-     1.0f,  1.0f,  1.0f,   1.0f, 0.0f,
-     1.0f,  1.0f,  1.0f,   1.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f,   0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f,   0.0f, 1.0f,
-    -1.0f, -1.0f, -1.0f,   0.0f, 1.0f,
-    -1.0f, -1.0f,  1.0f,   1.0f, 1.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-     1.0f, -1.0f, -1.0f,   1.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f,   0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f,   0.0f, 1.0f
+global_variable vec3 normals[] = {
+     0.0f,  0.0f, -1.0f,
+     0.0f,  0.0f, -1.0f,
+     0.0f,  0.0f, -1.0f,
+     0.0f,  0.0f, -1.0f,
+     0.0f,  0.0f, -1.0f,
+     0.0f,  0.0f, -1.0f,
+
+     0.0f,  0.0f,  1.0f,
+     0.0f,  0.0f,  1.0f,
+     0.0f,  0.0f,  1.0f,
+     0.0f,  0.0f,  1.0f,
+     0.0f,  0.0f,  1.0f,
+     0.0f,  0.0f,  1.0f,
+
+    -1.0f,  0.0f,  0.0f,
+    -1.0f,  0.0f,  0.0f,
+    -1.0f,  0.0f,  0.0f,
+    -1.0f,  0.0f,  0.0f,
+    -1.0f,  0.0f,  0.0f,
+    -1.0f,  0.0f,  0.0f,
+
+     1.0f,  0.0f,  0.0f,
+     1.0f,  0.0f,  0.0f,
+     1.0f,  0.0f,  0.0f,
+     1.0f,  0.0f,  0.0f,
+     1.0f,  0.0f,  0.0f,
+     1.0f,  0.0f,  0.0f,
+
+     0.0f, -1.0f,  0.0f,
+     0.0f, -1.0f,  0.0f,
+     0.0f, -1.0f,  0.0f,
+     0.0f, -1.0f,  0.0f,
+     0.0f, -1.0f,  0.0f,
+     0.0f, -1.0f,  0.0f,
+
+     0.0f,  1.0f,  0.0f,
+     0.0f,  1.0f,  0.0f,
+     0.0f,  1.0f,  0.0f,
+     0.0f,  1.0f,  0.0f,
+     0.0f,  1.0f,  0.0f,
+     0.0f,  1.0f,  0.0f
 };
 
 global_variable GameState *gGameState;
@@ -132,7 +177,7 @@ void GameInit(Memory *memory) {
 
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({6, 0, -8}, {6, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({-2, 1, -4}, {0, 0, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -142,11 +187,17 @@ void GameUpdate(f32 dt) {
 }
 
 void GameRender() {
-    RendererClearBuffers(gRenderer, 0xFF000022, 0.0f);
+    RendererClearBuffers(gRenderer, 0xFF000000, 0.0f);
     
-    
-    RenderBufferTextureClipping(gRenderer, vertices, uvs,
-             ARRAY_LENGTH(vertices), gGameState->bitmap);
+    RenderBufferTextureClippingDirectionalLight(gRenderer,
+                                                vertices, 
+                                                uvs,
+                                                normals,
+                                                ARRAY_LENGTH(vertices),
+                                                gGameState->bitmap,
+                                                {0.5f, 0.2f, -1});
+    //RenderBufferTextureClipping(gRenderer, vertices, uvs,
+    //         ARRAY_LENGTH(vertices), gGameState->bitmap);
     
     
     RendererPresent(gRenderer);
