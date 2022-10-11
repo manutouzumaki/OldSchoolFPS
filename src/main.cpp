@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <stdio.h>
 #include "lh_game.h"
 
 struct Window {
@@ -161,6 +162,12 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
         f32 deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
+
+#if 0
+        char buffer[256];
+        sprintf(buffer, "FPS: %d\n", (i32)(1.0f/deltaTime));
+        OutputDebugString(buffer);
+#endif
 
         // flush windows messages
         while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE)) {

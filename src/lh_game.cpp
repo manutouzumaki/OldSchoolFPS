@@ -1,171 +1,98 @@
 #include "lh_game.h"
-#if 0
-global_variable vec3 vertices[] = {
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f
-};
-#else
-global_variable vec3 vertices[] = {
-    -0.5f, -0.5f, -0.5f, 
-     0.5f, -0.5f, -0.5f, 
-     0.5f,  0.5f, -0.5f, 
-     0.5f,  0.5f, -0.5f, 
-    -0.5f,  0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f, -0.5f,  0.5f, 
-     0.5f, -0.5f,  0.5f, 
-     0.5f,  0.5f,  0.5f, 
-     0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f, -0.5f,  0.5f, 
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f, -0.5f,  0.5f, 
-    -0.5f,  0.5f,  0.5f, 
-     0.5f,  0.5f,  0.5f, 
-     0.5f,  0.5f, -0.5f, 
-     0.5f, -0.5f, -0.5f, 
-     0.5f, -0.5f, -0.5f, 
-     0.5f, -0.5f,  0.5f, 
-     0.5f,  0.5f,  0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-     0.5f, -0.5f, -0.5f, 
-     0.5f, -0.5f,  0.5f, 
-     0.5f, -0.5f,  0.5f, 
-    -0.5f, -0.5f,  0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f,  0.5f, -0.5f, 
-     0.5f,  0.5f, -0.5f, 
-     0.5f,  0.5f,  0.5f, 
-     0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f, -0.5f
-};
-
-#endif
-
-global_variable vec2 uvs[] = {
-    0.0f, 0.0f,
-    1.0f, 0.0f,
-    1.0f, 1.0f,
-    1.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 0.0f,
-    0.0f, 0.0f,
-    1.0f, 0.0f,
-    1.0f, 1.0f,
-    1.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 0.0f,
-    1.0f, 0.0f,
-    1.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 0.0f,
-    1.0f, 0.0f,
-    1.0f, 0.0f,
-    1.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 1.0f,
-    0.0f, 0.0f,
-    1.0f, 0.0f,
-    0.0f, 1.0f,
-    1.0f, 1.0f,
-    1.0f, 0.0f,
-    1.0f, 0.0f,
-    0.0f, 0.0f,
-    0.0f, 1.0f,
-    0.0f, 1.0f,
-    1.0f, 1.0f,
-    1.0f, 0.0f,
-    1.0f, 0.0f,
-    0.0f, 0.0f,
-    0.0f, 1.0f
-};
-
-global_variable vec3 normals[] = {
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f
-};
 
 global_variable GameState *gGameState;
 global_variable Window *gWindow;
 global_variable Renderer *gRenderer;
+
+#if 0
+global_variable Vertex vertices[] = {
+    // positions           uvs           normals
+    -0.5f, -0.5f, -0.5f,   0.0f, 0.0f,   0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,   1.0f, 0.0f,   0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,   0.0f, 1.0f,   0.0f,  0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,   0.0f, 0.0f,   0.0f,  0.0f, -1.0f,
+
+    -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,   1.0f, 0.0f,   0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,   1.0f, 1.0f,   0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,   1.0f, 1.0f,   0.0f,  0.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,   0.0f, 1.0f,   0.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   0.0f,  0.0f,  1.0f,
+
+    -0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+
+     0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+
+    -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,   1.0f, 1.0f,   0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,   1.0f, 0.0f,   0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,   1.0f, 0.0f,   0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,   0.0f, -1.0f,  0.0f,
+
+    -0.5f,  0.5f, -0.5f,   0.0f, 1.0f,   0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,   0.0f, 0.0f,   0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,   0.0f, 1.0f,   0.0f,  1.0f,  0.0f
+};
+#else
+Vertex vertices[] = {
+    -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+     1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+     1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+    -1.0f, 1.0f,  1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 1.0f, 0.0f, -1.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 1.0f, 0.0f, -1.0f, 0.0f,
+    
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+    -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+    
+    1.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+    1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+    1.0f,  1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+    1.0f,  1.0f,  1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+    
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, -1.0f,
+    
+    -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+     1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+     1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+    -1.0f,  1.0f, 1.0f, 0.0f, 1.0f,  0.0f, 0.0f, 1.0f
+};
+
+u32 indices[] =
+{
+    3,1,0,2,1,3,
+    6,4,5,7,4,6,
+    11,9,8, 10,9, 11,
+    14, 12, 13, 15, 12, 14,
+    19, 17, 16, 18, 17, 19,
+    22, 20, 21, 23, 20, 22
+};
+#endif
+
 
 void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
@@ -177,7 +104,7 @@ void GameInit(Memory *memory) {
 
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(60.0f, 800.0f/600.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({0, 0, -4}, {0, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({0, 0, -8}, {0, 0, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -188,18 +115,13 @@ void GameUpdate(f32 dt) {
 
 void GameRender() {
     RendererClearBuffers(gRenderer, 0xFF000000, 0.0f);
-    
-    RenderBufferTextureClippingDirectionalLight(gRenderer,
-                                                vertices, 
-                                                uvs,
-                                                normals,
-                                                ARRAY_LENGTH(vertices),
-                                                gGameState->bitmap,
-                                                {0.5f, 0.2f, -1});
-    //RenderBufferTextureClipping(gRenderer, vertices, uvs,
-    //         ARRAY_LENGTH(vertices), gGameState->bitmap);
-    
-    
+#if 0 
+    RenderBuffer(gRenderer, vertices, ARRAY_LENGTH(vertices),
+                                                gGameState->bitmap, {0.5f, 0.2f, -1});
+#else
+    RenderBuffer(gRenderer, vertices, indices, ARRAY_LENGTH(indices),
+                 gGameState->bitmap, {0.5f, 0.2f, -1});
+#endif 
     RendererPresent(gRenderer);
 }
 
@@ -207,4 +129,3 @@ void GameShutdown() {
     RendererDestroy(gRenderer);
     WindowDestroy(gWindow);
 }
-

@@ -54,23 +54,26 @@ Window *WindowCreate(i32 width, i32 height, char *title);
 void WindowDestroy(Window *window);
 void WindowSetSize(i32 width, i32 height);
 
+struct Vertex {
+    vec3 position;
+    vec2 uv;
+    vec3 normal;
+};
+
 struct Renderer;
+struct Mesh;
 
 Renderer *RendererCreate(Window *window);
 void RendererDestroy(Renderer *renderer);
 void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth);
 void RendererPresent(Renderer *renderer);
-void RenderBuffer(Renderer *renderer, vec3 *vertices, i32 verticesCount); 
-void RenderBufferTexture(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
-void RenderBufferTextureClipping(Renderer *renderer, vec3 *vertices, vec2 *uvs, i32 verticesCount, BMP bitmap);
-void RenderBufferTextureClippingDirectionalLight(Renderer *renderer,
-                                                 vec3 *vertices, 
-                                                 vec2 *uvs,
-                                                 vec3 *normals,
-                                                 i32 verticesCount,
-                                                 BMP bitmap,
-                                                 vec3 lightDir);
 void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
+void RenderMesh(Renderer *renderer, Mesh *mesh, BMP bitmap, vec3 lightDir);
+void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
+                  BMP bitmap, vec3 lightDir);
+void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
+                  i32 indicesCount, BMP bitmap, vec3 lightDir);
+
 
 #endif
