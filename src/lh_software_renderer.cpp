@@ -183,10 +183,10 @@ void DrawScanLine(Renderer *renderer, i32 xStart, i32 xEnd, i32 y,
                   vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, BMP bitmap, vec3 lightDir) {
     for(i32 x  = xStart; x < xEnd; x++) {
         vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
-        f32 interpolatedReciprocalZ = (1.0f/a.z) * weights.x + (1.0f/b.z) * weights.y + (1.0f/c.z) * weights.z; 
+        f32 interpolatedReciprocalZ = a.z * weights.x + b.z * weights.y + c.z * weights.z; 
         if(interpolatedReciprocalZ >= renderer->depthBuffer[(i32)y * renderer->bufferWidth + (i32)x]) {
-            f32 interpolatedU = ((aUv.x/a.z) * weights.x + (bUv.x/b.z) * weights.y + (cUv.x/c.z) * weights.z) / interpolatedReciprocalZ;
-            f32 interpolatedV = ((aUv.y/a.z) * weights.x + (bUv.y/b.z) * weights.y + (cUv.y/c.z) * weights.z) / interpolatedReciprocalZ;
+            f32 interpolatedU = ((aUv.x*a.z) * weights.x + (bUv.x*b.z) * weights.y + (cUv.x*c.z) * weights.z) / interpolatedReciprocalZ;
+            f32 interpolatedV = ((aUv.y*a.z) * weights.x + (bUv.y*b.z) * weights.y + (cUv.y*c.z) * weights.z) / interpolatedReciprocalZ;
             vec3 interpolatedNormal = normalized((aNorm * weights.x) + (bNorm * weights.y) + (cNorm * weights.z));
             vec3 interpolatedFragPos = (aFragPos * weights.x) + (bFragPos * weights.y) + (cFragPos * weights.z);
             i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
@@ -285,10 +285,9 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
     // clamp to color buffer
     minX = maxFloat(minX, 0.0f);
     minY = maxFloat(minY, 0.0f);
-    maxX = minFloat(maxX, renderer->bufferWidth - 1);
-    maxY = minFloat(maxY, renderer->bufferHeight - 1);
+    maxX = minFloat(maxX, renderer->bufferWidth - 3);
+    maxY = minFloat(maxY, renderer->bufferHeight - 3);
 
-#if 1
     // TODO: modify this function to go by 4 pixel at a time...
     __m128 aPointX = _mm_set1_ps(a.x);
     __m128 aPointY = _mm_set1_ps(a.y);
@@ -385,60 +384,6 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
             //END_CYCLE_COUNTER(TriangleRasterizer);
         }
     }
-
-#else
-    for(i32 y = minY; y <= maxY; ++y) {
-        for(i32 x = minX; x < maxX; x += 4) {
-            //START_CYCLE_COUNTER(TriangleRasterizer);
-            for(i32 currentX = 0; currentX < 4; ++currentX) {
-                Point d = {(f32)x + currentX, (f32)y};
-                f32 dx = (f32)(x + currentX);
-                f32 dy = (f32)y;
-                // TODO: standarize the conditional once we load 3d models
-                if(ORIENTED2D(b, a, d) >= 0.0f &&
-                   ORIENTED2D(a, c, d) >= 0.0f &&
-                   ORIENTED2D(c, b, d) >= 0.0f) {
-                    
-                    // TODO: start to flat out this code
-                    f32 v0x = b.x - a.x;
-                    f32 v0y = b.y - a.y;
-                    f32 v1x = c.x - a.x;
-                    f32 v1y = c.y - a.y;
-                    f32 v2x = dx - a.x;
-                    f32 v2y = dy - a.y;
-                    f32 d00 = v0x * v0x + v0y * v0y;
-                    f32 d10 = v1x * v0x + v1y * v0y;
-                    f32 d11 = v1x * v1x + v1y * v1y;
-                    f32 d20 = v2x * v0x + v2y * v0y;
-                    f32 d21 = v2x * v1x + v2y * v1y;
-                    f32 denom = d00 * d11 - d10 * d10;
-                    f32 gamma = (d20 * d11 - d10 * d21) / denom;
-                    f32 beta = (d00 * d21 - d20 * d10) / denom;
-                    f32 alpha = 1.0f - gamma - beta;
-                    
-                    f32 interpolatedReciprocalZ = a.z * alpha + b.z * gamma + c.z * beta; 
-                    if(interpolatedReciprocalZ >= renderer->depthBuffer[y * renderer->bufferWidth + x + currentX]) {
-                        
-                        f32 interpolatedU = ((aUv.x*a.z) * alpha + (bUv.x*b.z) * gamma + (cUv.x*c.z) * beta) / interpolatedReciprocalZ;
-                        f32 interpolatedV = ((aUv.y*a.z) * alpha + (bUv.y*b.z) * gamma + (cUv.y*c.z) * beta) / interpolatedReciprocalZ;
-                        i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
-                        i32 bitmapY = abs((i32)(interpolatedV * bitmap.height)) % bitmap.height;
-                        u32 color = ((u32 *)bitmap.data)[bitmapY * bitmap.width + bitmapX];
-                        renderer->depthBuffer[y * renderer->bufferWidth + x + currentX] = interpolatedReciprocalZ;
-                        renderer->colorBuffer[y * renderer->bufferWidth + x + currentX] = color;
-                        // TODO SIMD the phong lighting calculations
-                        //vec3 interpolatedNormal = normalized((aNorm * alpha) + (bNorm * gamma) + (cNorm * beta));
-                        //vec3 interpolatedFragPos = (aFragPos * alpha) + (bFragPos * gamma) + (cFragPos * beta);
-                        //color = PhongLighting(color, bitmap, lightDir, interpolatedNormal, interpolatedFragPos);
-
-                    }
-                }
-            }
-            //END_CYCLE_COUNTER(TriangleRasterizer);
-        }
-    }
-#endif
-
 }
 
 internal
@@ -697,7 +642,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
     mat4 rotX = Mat4RotateX(RAD(angle));
     mat4 rotZ = Mat4RotateZ(RAD(angle));
     mat4 world = rotY * rotX * rotZ;
-    angle += 0.5f;
+    angle += 1.0f;
     
     for(i32 i = 0; i < indicesCount; i += 3) {
 
@@ -807,6 +752,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
             Point cPoint = {((newC.x * cInvW) * 400) + 400, ((newC.y * cInvW) * 300) + 300, cInvW};
             
             // TODO: remember that now Point z mean 1/w not w...
+#if 1
             TriangleRasterizer(renderer,
                                aPoint, bPoint, cPoint,
                                newUvA, newUvB, newUvC,
@@ -814,9 +760,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
                                newFragPosA, newFragPosB, newFragPosC,
                                bitmap,
                                lightDir);
-
-            //DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0xFF00FF00);
-            /*
+#else
             DrawTextureLightTriangle(renderer,
                                      aPoint, bPoint, cPoint,
                                      newUvA, newUvB, newUvC,
@@ -824,7 +768,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
                                      newFragPosA, newFragPosB, newFragPosC,
                                      bitmap,
                                      lightDir);
-            */
+#endif
         }
     }
 }
