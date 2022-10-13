@@ -58,14 +58,35 @@ void GameInit(Memory *memory) {
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
 }
 
+global_variable f32 gAngle = 0.0f;
 void GameUpdate(f32 dt) {
+    gAngle += 80.0f * dt;
 }
 
 void GameRender() {
     RendererClearBuffers(gRenderer, 0xFF000000, 0.0f);
-    
+   
+
+#if 1
+    mat4 rotY = Mat4RotateY(RAD(gAngle));
+    mat4 rotX = Mat4RotateX(RAD(gAngle));
+    mat4 rotZ = Mat4RotateZ(RAD(gAngle));
+    mat4 world = rotY * rotX * rotZ;
     RenderBuffer(gRenderer, vertices, indices, ARRAY_LENGTH(indices),
-                 gGameState->bitmap, {0.5f, 0.2f, -1});
+                 gGameState->bitmap, {0.5f, 0.2f, -1}, world);
+#else 
+    mat4 rotY = Mat4RotateY(RAD(gAngle));
+    mat4 rotX = Mat4RotateX(RAD(gAngle));
+    mat4 rotZ = Mat4RotateZ(RAD(gAngle));
+    for(i32 y = -5; y < 5; y++) {
+        for(i32 x = -5; x < 5; x++) {
+            mat4 translation = Mat4Translate(x*2, y*2, 0);
+            mat4 world = translation * rotY * rotX * rotZ;
+            RenderBuffer(gRenderer, vertices, indices, ARRAY_LENGTH(indices),
+                         gGameState->bitmap, {0.5f, 0.2f, -1}, world);
+        }
+    }
+#endif
     
     RendererPresent(gRenderer);
 }

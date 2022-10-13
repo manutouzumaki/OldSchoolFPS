@@ -229,6 +229,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         GameUpdate(deltaTime); 
         GameRender();
         //OutputCounter();
+
          
         lastCounter = currentCounter;
     }

@@ -46,8 +46,9 @@ void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
 void RenderMesh(Renderer *renderer, Mesh *mesh, BMP bitmap, vec3 lightDir);
 void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount, BMP bitmap, vec3 lightDir);
-void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices, i32 indicesCount, BMP bitmap, vec3 lightDir);
-
+void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
+                  i32 indicesCount, BMP bitmap, vec3 lightDir,
+                  mat4 world);
 struct Counter {
     u64 count;
     u64 hit;
