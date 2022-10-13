@@ -6,6 +6,8 @@
 struct GameState {
     Arena bitmapArena;
     BMP bitmap;
+
+    Counter counters[CYCLECOUNTER_COUNT];
 };
 
 void GameInit(Memory *memory);

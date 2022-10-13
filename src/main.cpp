@@ -9,6 +9,32 @@ struct Window {
     char *title;
 };
 
+#pragma pack(push, 1)
+struct BitmapHeader
+{
+    u16 fileType;
+    u32 fileSize;
+    u16 reserved1;
+    u16 reserved2;
+    u32 bitmapOffset;
+	u32 size;             
+	i32 width;            
+    i32 height;           
+	u16 planes;           
+	u16 bitsPerPixel;    
+	u32 compression;      
+	u32 sizeOfBitmap;     
+	i32 horzResolution;  
+	i32 vertResolution;  
+	u32 colorsUsed;       
+	u32 colorsImportant;  
+	u32 redMask;          
+	u32 greenMask;        
+	u32 blueMask;         
+	u32 alphaMask;        
+};
+#pragma pack(pop)
+
 internal
 u32 BitScanForward(u32 mask)
 {
@@ -16,7 +42,6 @@ u32 BitScanForward(u32 mask)
     _BitScanForward(&shift, mask);
     return (u32)shift;
 }
-
 
 BMP LoadTexture(char *path, Arena *arena) {
     ReadFileResult fileResult = ReadFile(path, arena);
@@ -40,6 +65,7 @@ BMP LoadTexture(char *path, Arena *arena) {
     }
     return bitmap;
 }
+
 
 ReadFileResult ReadFile(char *path, Arena *arena) {
     ReadFileResult result = {};
@@ -124,12 +150,34 @@ void WindowSetSize(Window *window, i32 width, i32 height) {
                width, height, TRUE);
 }
 
+Counter *DEBUG_counters = 0;
+
+void OutputCounter() {
+#if 0
+    const char *names[CYCLECOUNTER_COUNT] = {
+        "TriangleRasterizer"
+    };
+    for(i32 i = 0; i < CYCLECOUNTER_COUNT; ++i) {
+        char buffer[256];
+        if(DEBUG_counters[i].hit) DEBUG_counters[i].cyclesPerHit = DEBUG_counters[i].count / DEBUG_counters[i].hit;
+        sprintf(buffer, "%s: cyclesPerFrame: %lld hit: %lld cyclesPerHit: %lld\n", names[i],
+                                                                                   DEBUG_counters[i].count,
+                                                                                   DEBUG_counters[i].hit,
+                                                                                   DEBUG_counters[i].cyclesPerHit);
+        OutputDebugString(buffer);
+        Counter zero = {};
+        DEBUG_counters[i] = zero;
+    }
+#endif
+}
+
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
     OutputDebugString("Hi LastHope...\n"); 
 
     // allocate memory for the entire game
     Memory memory = MemoryCreate(Megabytes(10));
     GameInit(&memory); 
+    DEBUG_counters = ((GameState *)memory.data)->counters;
 
     b32 running = TRUE;
     
@@ -163,7 +211,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         QueryPerformanceCounter(&currentCounter);
         f32 deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
 
-#if 0
+#if 1
         char buffer[256];
         sprintf(buffer, "FPS: %d\n", (i32)(1.0f/deltaTime));
         OutputDebugString(buffer);
@@ -180,6 +228,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
        
         GameUpdate(deltaTime); 
         GameRender();
+        //OutputCounter();
          
         lastCounter = currentCounter;
     }

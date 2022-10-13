@@ -1,6 +1,10 @@
 #include <windows.h>
 #include "lh_platform.h"
 #include <math.h>
+#include <emmintrin.h>
+//#include <xmmintrin.h>
+
+// TODO: implement the new trianglel rasterizer and SIMD omptimized it.
 
 #define MAX_VERTICES_PER_CLIPPED_TRIANGLE 16
 
@@ -67,9 +71,15 @@ f32 clamp(f32 value, f32 min, f32 max) {
 }
 
 internal
-f32 maxFloat(f32 value, f32 min) {
-    if(value <= min) return min;
-    return value;
+f32 maxFloat(f32 a, f32 b) {
+    if(a <= b) return b;
+    return a;
+}
+
+internal
+f32 minFloat(f32 a, f32 b) {
+    if(a >= b) return b;
+    return a;
 }
 
 internal
@@ -88,6 +98,15 @@ vec3 SolveBarycentric(vec2 a, vec2 b, vec2 c, vec2 p) {
     result.z = (d00 * d21 - d20 * d10) / denom;
     result.x = 1.0f - result.y - result.z;
     return result;
+}
+
+internal
+void DrawPoint(Renderer *renderer, Point point, u32 color) {
+    i32 x = (f32)point.x;
+    i32 y = (f32)point.y;
+    if(x >= 0 && x <= 800 && y >= 0 && y <= 600) {
+        renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
+    }
 }
 
 internal 
@@ -245,14 +264,181 @@ void DrawTextureLightTriangle(Renderer *renderer,
     }
 }
 
-
 internal
-void DrawPoint(Renderer *renderer, Point point, u32 color) {
-    i32 x = (f32)point.x;
-    i32 y = (f32)point.y;
-    if(x >= 0 && x <= 800 && y >= 0 && y <= 600) {
-        renderer->colorBuffer[(i32)y * 800 + (i32)x] = color;
+f32 ORIENTED2D(Point a, Point b, Point c) {
+    f32 result = ((a.x - c.x) * (b.y - c.y)) - ((a.y - c.y) * (b.x - c.x));
+    return result;
+}
+
+
+// TODO: SIMD the shit out of this function.
+internal
+void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
+                        vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, BMP bitmap, vec3 lightDir) {
+
+    // compute trinangle AABB
+    f32 minX = minFloat(minFloat(a.x, b.x), c.x);
+    f32 minY = minFloat(minFloat(a.y, b.y), c.y);
+    f32 maxX = maxFloat(maxFloat(a.x, b.x), c.x);
+    f32 maxY = maxFloat(maxFloat(a.y, b.y), c.y);
+    
+    // clamp to color buffer
+    minX = maxFloat(minX, 0.0f);
+    minY = maxFloat(minY, 0.0f);
+    maxX = minFloat(maxX, renderer->bufferWidth - 1);
+    maxY = minFloat(maxY, renderer->bufferHeight - 1);
+
+#if 1
+    // TODO: modify this function to go by 4 pixel at a time...
+    __m128 aPointX = _mm_set1_ps(a.x);
+    __m128 aPointY = _mm_set1_ps(a.y);
+    __m128 aPointZ = _mm_set1_ps(a.z);
+    __m128 bPointX = _mm_set1_ps(b.x);
+    __m128 bPointY = _mm_set1_ps(b.y);
+    __m128 bPointZ = _mm_set1_ps(b.z);
+    __m128 cPointX = _mm_set1_ps(c.x);
+    __m128 cPointY = _mm_set1_ps(c.y);
+    __m128 cPointZ = _mm_set1_ps(c.z);
+    __m128 aUvX = _mm_set1_ps(aUv.x);
+    __m128 aUvY = _mm_set1_ps(aUv.y);
+    __m128 bUvX = _mm_set1_ps(bUv.x);
+    __m128 bUvY = _mm_set1_ps(bUv.y);
+    __m128 cUvX = _mm_set1_ps(cUv.x);
+    __m128 cUvY = _mm_set1_ps(cUv.y);
+    __m128 bitmapWidth = _mm_set1_ps((f32)bitmap.width - 1);
+    __m128 bitmapHeight = _mm_set1_ps((f32)bitmap.height - 1);
+    __m128 zero = _mm_set1_ps(0.0f);
+    __m128 one = _mm_set1_ps(1.0f);
+
+
+    __m128 v0x = _mm_sub_ps(bPointX, aPointX);
+    __m128 v0y = _mm_sub_ps(bPointY, aPointY);
+    __m128 v1x = _mm_sub_ps(cPointX, aPointX);
+    __m128 v1y = _mm_sub_ps(cPointY, aPointY);
+    __m128 d00 = _mm_add_ps(_mm_mul_ps(v0x, v0x), _mm_mul_ps(v0y, v0y));
+    __m128 d10 = _mm_add_ps(_mm_mul_ps(v1x, v0x), _mm_mul_ps(v1y, v0y));
+    __m128 d11 = _mm_add_ps(_mm_mul_ps(v1x, v1x), _mm_mul_ps(v1y, v1y));
+    __m128 denom = _mm_sub_ps(_mm_mul_ps(d00, d11), _mm_mul_ps(d10, d10));
+
+    __m128i blue = _mm_set1_epi32 (0xFF0000FF);
+
+    for(i32 y = minY; y <= maxY; ++y) {
+        for(i32 x = minX; x < maxX; x += 4) {
+            //START_CYCLE_COUNTER(TriangleRasterizer);
+            // get the old data for the maskout
+            u32 *pixelPt = renderer->colorBuffer + ((y * renderer->bufferWidth) + x);
+            __m128i originalDest = _mm_loadu_si128((__m128i *)pixelPt);
+            
+            f32 *depthPt = renderer->depthBuffer + ((y * renderer->bufferWidth) + x);
+            __m128 depth = _mm_loadu_ps(depthPt);
+
+            __m128 pixelsToTestX = _mm_set_ps(x + 3, x + 2, x + 1, x);
+            __m128 pixelsToTestY = _mm_set1_ps(y);
+            // TODO: standarize the conditional once we load 3d models
+            // ORIENTED2D SSE2 version
+            __m128 insideTriangleBA = _mm_sub_ps(_mm_mul_ps(_mm_sub_ps(bPointX, pixelsToTestX), _mm_sub_ps(aPointY, pixelsToTestY)),
+                                                 _mm_mul_ps(_mm_sub_ps(bPointY, pixelsToTestY), _mm_sub_ps(aPointX, pixelsToTestX)));
+            __m128 insideTriangleAC = _mm_sub_ps(_mm_mul_ps(_mm_sub_ps(aPointX, pixelsToTestX), _mm_sub_ps(cPointY, pixelsToTestY)),
+                                                 _mm_mul_ps(_mm_sub_ps(aPointY, pixelsToTestY), _mm_sub_ps(cPointX, pixelsToTestX)));
+            __m128 insideTriangleCB = _mm_sub_ps(_mm_mul_ps(_mm_sub_ps(cPointX, pixelsToTestX), _mm_sub_ps(bPointY, pixelsToTestY)),
+                                                 _mm_mul_ps(_mm_sub_ps(cPointY, pixelsToTestY), _mm_sub_ps(bPointX, pixelsToTestX)));
+            // mask that tell me if the pixel is inside the triangle to render
+            __m128i writeMaski = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmpge_ps(insideTriangleBA, zero), _mm_cmpge_ps(insideTriangleAC, zero)), _mm_cmpge_ps(insideTriangleCB, zero)));
+            __m128 writeMask = _mm_and_ps(_mm_and_ps(_mm_cmpge_ps(insideTriangleBA, zero), _mm_cmpge_ps(insideTriangleAC, zero)), _mm_cmpge_ps(insideTriangleCB, zero));
+
+            // calculate the SSE2 version of SolveBarycentric...
+            __m128 v2x = _mm_sub_ps(pixelsToTestX, aPointX);
+            __m128 v2y = _mm_sub_ps(pixelsToTestY, aPointY);
+            __m128 d20 = _mm_add_ps(_mm_mul_ps(v2x, v0x), _mm_mul_ps(v2y, v0y));
+            __m128 d21 = _mm_add_ps(_mm_mul_ps(v2x, v1x), _mm_mul_ps(v2y, v1y));
+            __m128 gamma = _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d20, d11), _mm_mul_ps(d10, d21)), denom);
+            __m128 beta =  _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d00, d21), _mm_mul_ps(d20, d10)), denom);
+            __m128 alpha = _mm_sub_ps(one, gamma);
+            alpha = _mm_sub_ps(alpha, beta);
+
+            __m128 interReciZ = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aPointZ, alpha), _mm_mul_ps(bPointZ, gamma)), _mm_mul_ps(cPointZ, beta));
+            __m128 depthTestMask = _mm_cmpge_ps(interReciZ, depth);
+            __m128i depthTestMaski = _mm_castps_si128(_mm_cmpge_ps(interReciZ, depth));
+            // Update the writeMask with the new information
+            writeMaski = _mm_and_si128(writeMaski, depthTestMaski);
+            writeMask = _mm_and_ps(writeMask, depthTestMask);
+            __m128 interpolatedU = _mm_div_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(aUvX, aPointZ), alpha), _mm_mul_ps(_mm_mul_ps(bUvX, bPointZ), gamma)), _mm_mul_ps(_mm_mul_ps(cUvX, cPointZ), beta)), interReciZ);
+            __m128 interpolatedV = _mm_div_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(aUvY, aPointZ), alpha), _mm_mul_ps(_mm_mul_ps(bUvY, bPointZ), gamma)), _mm_mul_ps(_mm_mul_ps(cUvY, cPointZ), beta)), interReciZ);
+            // clamp uvs to be 0-1
+            interpolatedU = _mm_min_ps(_mm_max_ps(interpolatedU, zero), one);
+            interpolatedV = _mm_min_ps(_mm_max_ps(interpolatedV, zero), one);
+            __m128i bitmapX = _mm_cvtps_epi32(_mm_mul_ps(interpolatedU, bitmapWidth));
+            __m128i bitmapY = _mm_cvtps_epi32(_mm_mul_ps(interpolatedV, bitmapHeight));
+
+            // TODO: fetch the texture data...
+            __m128i color;
+            for(i32 i = 0; i < 4; ++i) {
+                i32 textureX = Mi(bitmapX, i);
+                i32 textureY = Mi(bitmapY, i);
+                Mi(color, i) = ((u32 *)bitmap.data)[textureY * bitmap.width + textureX];
+            }
+
+            __m128i colorMaskedOut = _mm_or_si128(_mm_and_si128(writeMaski, color), _mm_andnot_si128(writeMaski, originalDest));
+            __m128 depthMaskOut = _mm_or_ps(_mm_and_ps(writeMask, interReciZ), _mm_andnot_ps(writeMask, depth));
+            _mm_storeu_si128((__m128i *)pixelPt, colorMaskedOut);
+            _mm_storeu_ps(depthPt, depthMaskOut);
+            //END_CYCLE_COUNTER(TriangleRasterizer);
+        }
     }
+
+#else
+    for(i32 y = minY; y <= maxY; ++y) {
+        for(i32 x = minX; x < maxX; x += 4) {
+            //START_CYCLE_COUNTER(TriangleRasterizer);
+            for(i32 currentX = 0; currentX < 4; ++currentX) {
+                Point d = {(f32)x + currentX, (f32)y};
+                f32 dx = (f32)(x + currentX);
+                f32 dy = (f32)y;
+                // TODO: standarize the conditional once we load 3d models
+                if(ORIENTED2D(b, a, d) >= 0.0f &&
+                   ORIENTED2D(a, c, d) >= 0.0f &&
+                   ORIENTED2D(c, b, d) >= 0.0f) {
+                    
+                    // TODO: start to flat out this code
+                    f32 v0x = b.x - a.x;
+                    f32 v0y = b.y - a.y;
+                    f32 v1x = c.x - a.x;
+                    f32 v1y = c.y - a.y;
+                    f32 v2x = dx - a.x;
+                    f32 v2y = dy - a.y;
+                    f32 d00 = v0x * v0x + v0y * v0y;
+                    f32 d10 = v1x * v0x + v1y * v0y;
+                    f32 d11 = v1x * v1x + v1y * v1y;
+                    f32 d20 = v2x * v0x + v2y * v0y;
+                    f32 d21 = v2x * v1x + v2y * v1y;
+                    f32 denom = d00 * d11 - d10 * d10;
+                    f32 gamma = (d20 * d11 - d10 * d21) / denom;
+                    f32 beta = (d00 * d21 - d20 * d10) / denom;
+                    f32 alpha = 1.0f - gamma - beta;
+                    
+                    f32 interpolatedReciprocalZ = a.z * alpha + b.z * gamma + c.z * beta; 
+                    if(interpolatedReciprocalZ >= renderer->depthBuffer[y * renderer->bufferWidth + x + currentX]) {
+                        
+                        f32 interpolatedU = ((aUv.x*a.z) * alpha + (bUv.x*b.z) * gamma + (cUv.x*c.z) * beta) / interpolatedReciprocalZ;
+                        f32 interpolatedV = ((aUv.y*a.z) * alpha + (bUv.y*b.z) * gamma + (cUv.y*c.z) * beta) / interpolatedReciprocalZ;
+                        i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
+                        i32 bitmapY = abs((i32)(interpolatedV * bitmap.height)) % bitmap.height;
+                        u32 color = ((u32 *)bitmap.data)[bitmapY * bitmap.width + bitmapX];
+                        renderer->depthBuffer[y * renderer->bufferWidth + x + currentX] = interpolatedReciprocalZ;
+                        renderer->colorBuffer[y * renderer->bufferWidth + x + currentX] = color;
+                        // TODO SIMD the phong lighting calculations
+                        //vec3 interpolatedNormal = normalized((aNorm * alpha) + (bNorm * gamma) + (cNorm * beta));
+                        //vec3 interpolatedFragPos = (aFragPos * alpha) + (bFragPos * gamma) + (cFragPos * beta);
+                        //color = PhongLighting(color, bitmap, lightDir, interpolatedNormal, interpolatedFragPos);
+
+                    }
+                }
+            }
+            //END_CYCLE_COUNTER(TriangleRasterizer);
+        }
+    }
+#endif
+
 }
 
 internal
@@ -432,12 +618,13 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
         vec3 vecA = Vec4ToVec3(a);
         vec3 ab = Vec4ToVec3(b) - vecA;
         vec3 ac = Vec4ToVec3(c) - vecA;
+        // TODO: standarize the cross product once we load 3d models
         vec3 normal = normalized(cross(ac, ab));
         vec3 origin = {0, 0, 0};
         vec3 cameraRay = origin - vecA;
         f32 normalDirection = dot(normal, cameraRay);
         if(normalDirection < 0.0f) {
-            //continue;
+            continue;
         }
 
         mat4 proj = renderer->proj;
@@ -555,6 +742,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
         vec3 vecA = Vec4ToVec3(a);
         vec3 ab = Vec4ToVec3(b) - vecA;
         vec3 ac = Vec4ToVec3(c) - vecA;
+        // TODO: standarize the cross product once we load 3d models
         vec3 normal = normalized(cross(ab, ac));
         vec3 origin = {0, 0, 0};
         vec3 cameraRay = origin - vecA;
@@ -611,9 +799,24 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
             vec3 newFragPosA = fragPosToClipA[0]; 
             vec3 newFragPosB = fragPosToClipA[1 + j]; 
             vec3 newFragPosC = fragPosToClipA[2 + j]; 
-            Point aPoint = {((newA.x / newA.w) * 400) + 400, ((newA.y / newA.w) * 300) + 300, newA.w};
-            Point bPoint = {((newB.x / newB.w) * 400) + 400, ((newB.y / newB.w) * 300) + 300, newB.w};
-            Point cPoint = {((newC.x / newC.w) * 400) + 400, ((newC.y / newC.w) * 300) + 300, newC.w};
+            f32 aInvW = 1.0f/newA.w;
+            f32 bInvW = 1.0f/newB.w;
+            f32 cInvW = 1.0f/newC.w;
+            Point aPoint = {((newA.x * aInvW) * 400) + 400, ((newA.y * aInvW) * 300) + 300, aInvW};
+            Point bPoint = {((newB.x * bInvW) * 400) + 400, ((newB.y * bInvW) * 300) + 300, bInvW};
+            Point cPoint = {((newC.x * cInvW) * 400) + 400, ((newC.y * cInvW) * 300) + 300, cInvW};
+            
+            // TODO: remember that now Point z mean 1/w not w...
+            TriangleRasterizer(renderer,
+                               aPoint, bPoint, cPoint,
+                               newUvA, newUvB, newUvC,
+                               newNormalA, newNormalB, newNormalC,
+                               newFragPosA, newFragPosB, newFragPosC,
+                               bitmap,
+                               lightDir);
+
+            //DrawLineTriangle(renderer, aPoint, bPoint, cPoint, 0xFF00FF00);
+            /*
             DrawTextureLightTriangle(renderer,
                                      aPoint, bPoint, cPoint,
                                      newUvA, newUvB, newUvC,
@@ -621,6 +824,7 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
                                      newFragPosA, newFragPosB, newFragPosC,
                                      bitmap,
                                      lightDir);
+            */
         }
     }
 }
