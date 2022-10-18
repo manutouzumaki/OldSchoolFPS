@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <intrin.h>
 #include <stdio.h>
 #include "lh_game.h"
 
@@ -171,12 +172,131 @@ void OutputCounter() {
 #endif
 }
 
+// TODO: start implementing multithreading code
+struct PlatformWorkQueueEntry {
+    PlatformWorkQueueCallback *callback;
+    void *data;
+};
+
+struct PlatformWorkQueue {
+    u32 volatile completitionGloal;
+    u32 volatile completitionCount;
+    u32 volatile nextEntryToWrite;
+    u32 volatile nextEntryToRead;
+    HANDLE semaphoreHandle;
+    PlatformWorkQueueEntry entries[256];
+};
+
+struct PlatformThreadInfo {
+    i32 logicalThreadIndex;
+    PlatformWorkQueue *queue;
+};
+
+bool DoNextWorkQueueEntry(PlatformWorkQueue *queue) {
+    bool weShouldSleep = false;
+    u32 originalNextEntryToRead = queue->nextEntryToRead;
+    u32 newNextEntryToRead = (originalNextEntryToRead + 1) % ARRAY_LENGTH(queue->entries);
+    if(originalNextEntryToRead != queue->nextEntryToWrite) {
+        u32 index = InterlockedCompareExchange((LONG volatile *)&queue->nextEntryToRead, newNextEntryToRead, originalNextEntryToRead);
+        if(index == originalNextEntryToRead) {
+            PlatformWorkQueueEntry entry = queue->entries[index];
+            entry.callback(queue, entry.data);
+            InterlockedIncrement((LONG volatile *)&queue->completitionCount);
+        } 
+    }
+    else {
+        weShouldSleep = true;
+    }
+    return weShouldSleep;
+}
+
+void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callback, void *data) {
+    u32 newNextEntryToWrite = (queue->nextEntryToWrite + 1) % ARRAY_LENGTH(queue->entries);
+    ASSERT(newNextEntryToWrite != queue->nextEntryToRead);
+    PlatformWorkQueueEntry *entry = queue->entries + queue->nextEntryToWrite;
+    entry->callback = callback;
+    entry->data = data;
+    ++queue->completitionGloal;
+    _WriteBarrier();
+    queue->nextEntryToWrite = newNextEntryToWrite;
+    ReleaseSemaphore(queue->semaphoreHandle, 1, 0);
+}
+
+void PlatformCompleteAllWork(PlatformWorkQueue *queue) {
+    while(queue->completitionGloal != queue->completitionCount) {
+        DoNextWorkQueueEntry(queue);
+    }
+    queue->completitionGloal = 0;
+    queue->completitionCount = 0;
+}
+
+DWORD WINAPI
+ThreadProc(LPVOID lpParameter)
+{
+    PlatformThreadInfo *threadInfo = (PlatformThreadInfo *)lpParameter;
+    for(;;)
+    {
+        if(DoNextWorkQueueEntry(threadInfo->queue))
+        {
+            WaitForSingleObjectEx(threadInfo->queue->semaphoreHandle, INFINITE, FALSE);
+        }
+    }
+}
+
+void TestCallback(PlatformWorkQueue *queue, void *data) {
+    char buffer[256];
+    sprintf(buffer, "Thread: %u: %s\n", GetCurrentThreadId(), (char *)data);
+    OutputDebugString(buffer);
+}
+
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
     OutputDebugString("Hi LastHope...\n"); 
 
+    PlatformThreadInfo threadInfo[7];
+    PlatformWorkQueue queue = {};
+
+    u32 initialCount = 0;
+    u32 threadCount = ARRAY_LENGTH(threadInfo);
+    queue.semaphoreHandle = CreateSemaphoreEx(0, initialCount, threadCount,
+                                              0, 0, SEMAPHORE_ALL_ACCESS);
+
+    for(u32 threadIndex = 0; threadIndex < threadCount; ++threadIndex) {
+        PlatformThreadInfo *info = threadInfo + threadIndex;
+        info->queue = &queue;
+        info->logicalThreadIndex = threadIndex;
+        DWORD threadId;
+        HANDLE threadHandle = CreateThread(0, 0, ThreadProc, info, 0, &threadId);
+        CloseHandle(threadHandle);
+    }
+
+    PlatformAddEntry(&queue, TestCallback, "String A0");
+    PlatformAddEntry(&queue, TestCallback, "String A1");
+    PlatformAddEntry(&queue, TestCallback, "String A2");
+    PlatformAddEntry(&queue, TestCallback, "String A3");
+    PlatformAddEntry(&queue, TestCallback, "String A4");
+    PlatformAddEntry(&queue, TestCallback, "String A5");
+    PlatformAddEntry(&queue, TestCallback, "String A6");
+    PlatformAddEntry(&queue, TestCallback, "String A7");
+    PlatformAddEntry(&queue, TestCallback, "String A8");
+    PlatformAddEntry(&queue, TestCallback, "String A9");
+
+    PlatformAddEntry(&queue, TestCallback, "String B0");
+    PlatformAddEntry(&queue, TestCallback, "String B1");
+    PlatformAddEntry(&queue, TestCallback, "String B2");
+    PlatformAddEntry(&queue, TestCallback, "String B3");
+    PlatformAddEntry(&queue, TestCallback, "String B4");
+    PlatformAddEntry(&queue, TestCallback, "String B5");
+    PlatformAddEntry(&queue, TestCallback, "String B6");
+    PlatformAddEntry(&queue, TestCallback, "String B7");
+    PlatformAddEntry(&queue, TestCallback, "String B8");
+    PlatformAddEntry(&queue, TestCallback, "String B9");
+
+    PlatformCompleteAllWork(&queue);
+
+
     // allocate memory for the entire game
     Memory memory = MemoryCreate(Megabytes(10));
-    GameInit(&memory); 
+    GameInit(&memory, &queue); 
     DEBUG_counters = ((GameState *)memory.data)->counters;
 
     b32 running = TRUE;

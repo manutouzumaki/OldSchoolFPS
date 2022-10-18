@@ -2,6 +2,8 @@
 #define _LH_MATH_H_
 
 #include "lh_defines.h"
+#include <limits.h>
+
 
 #define EPSILON 0.000001f
 #define PI 3.14159265359f
@@ -77,6 +79,17 @@ struct mat4 {
         f32 m[16];
     };
 };
+
+struct rectangle2i {
+    i32 minX, minY;
+    i32 maxX, maxY;
+};
+
+rectangle2i RectangleInvertedInfinity();
+rectangle2i RectangleIntersect(rectangle2i a, rectangle2i b);
+rectangle2i RectangleUnion(rectangle2i a, rectangle2i b);
+i32 RectangleGetClampArea(rectangle2i a);
+bool RectangleHasArea(rectangle2i a);
 
 f32 lerp(f32 a, f32 b, f32 t);
 

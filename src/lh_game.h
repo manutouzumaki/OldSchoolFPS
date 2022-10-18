@@ -10,7 +10,7 @@ struct GameState {
     Counter counters[CYCLECOUNTER_COUNT];
 };
 
-void GameInit(Memory *memory);
+void GameInit(Memory *memory, PlatformWorkQueue *queue);
 void GameUpdate(f32 dt);
 void GameRender();
 void GameShutdown();

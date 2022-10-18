@@ -23,6 +23,12 @@ struct BMP
 
 BMP LoadTexture(char *path, Arena *arena);
 
+
+struct PlatformWorkQueue;
+typedef void PlatformWorkQueueCallback(PlatformWorkQueue *queue, void *data);
+void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callback, void *data);
+void PlatformCompleteAllWork(PlatformWorkQueue *queue);
+
 struct Window;
 
 Window *WindowCreate(i32 width, i32 height, char *title);
@@ -46,9 +52,8 @@ void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
 void RenderMesh(Renderer *renderer, Mesh *mesh, BMP bitmap, vec3 lightDir);
 void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount, BMP bitmap, vec3 lightDir);
-void RenderBuffer(Renderer *renderer, Vertex *vertices, u32 *indices,
-                  i32 indicesCount, BMP bitmap, vec3 lightDir,
-                  mat4 world);
+void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world); 
 struct Counter {
     u64 count;
     u64 hit;
@@ -65,6 +70,5 @@ extern Counter *DEBUG_counters;
 
 #define START_CYCLE_COUNTER(id) u64 StartCycleCounter_##id = __rdtsc()
 #define END_CYCLE_COUNTER(id) DEBUG_counters[CycleCounter_##id].count += (__rdtsc() - StartCycleCounter_##id); DEBUG_counters[CycleCounter_##id].hit++
-
 
 #endif

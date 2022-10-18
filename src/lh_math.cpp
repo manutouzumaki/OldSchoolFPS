@@ -630,3 +630,44 @@ vec4 Vec3ToVec4(vec3 v, f32 w) {
     vec4 result = {v.x, v.y, v.z, w};
     return result;
 }
+
+rectangle2i RectangleInvertedInfinity() {
+    rectangle2i result;
+    result.minX = result.minY = INT_MAX;
+    result.maxX = result.maxY = -INT_MAX;
+    return result;
+}
+
+rectangle2i RectangleIntersect(rectangle2i a, rectangle2i b) {
+    rectangle2i result;
+    result.minX = (a.minX > b.minX) ? a.minX : b.minX;
+    result.minY = (a.minY > b.minY) ? a.minY : b.minY;
+    result.maxX = (a.maxX < b.maxX) ? a.maxX : b.maxX;
+    result.maxY = (a.maxY < b.maxY) ? a.maxY : b.maxY;
+    return result;
+}
+
+rectangle2i RectangleUnion(rectangle2i a, rectangle2i b) {
+    rectangle2i result;
+    result.minX = (a.minX < b.minX) ? a.minX : b.minX;
+    result.minY = (a.minY < b.minY) ? a.minY : b.minY;
+    result.maxX = (a.maxX > b.maxX) ? a.maxX : b.maxX;
+    result.maxY = (a.maxY > b.maxY) ? a.maxY : b.maxY;
+    return result;
+}
+
+i32 RectangleGetClampArea(rectangle2i a) {
+    i32 width = (a.maxX - a.minX);
+    i32 height = (a.maxY - a.minY);
+    i32 result = 0;
+    if((width > 0) && (height) > 0) {
+        result = width * height;
+    }
+    return result;
+}
+
+bool RectangleHasArea(rectangle2i a) {
+    bool result = ((a.minX < a.maxX) && (a.minY < a.maxY));
+    return result;
+}
+
