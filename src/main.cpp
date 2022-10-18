@@ -333,7 +333,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 #if 1
         char buffer[256];
-        sprintf(buffer, "FPS: %d\n", (i32)(deltaTime * 1000));
+        //sprintf(buffer, "MS: %d\n", (i32)(deltaTime * 1000));
+        sprintf(buffer, "FPS: %d\n", (i32)(1.0f/deltaTime));
         OutputDebugString(buffer);
 #endif
 

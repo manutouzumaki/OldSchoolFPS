@@ -53,8 +53,8 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
 
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(60.0f, 960.0f/540.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({-1, 0, -2}, {-1, 0, 0}, {0, 1, 0}));
-    //RendererSetView(gRenderer, Mat4LookAt({0, 0, -5}, {0, 0, 0}, {0, 1, 0}));
+    //RendererSetView(gRenderer, Mat4LookAt({-1, 0, -2}, {-1, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({0, 0, -5}, {0, 0, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -69,7 +69,7 @@ void GameRender() {
     RendererClearBuffers(gRenderer, 0xFF000000, 0.0f);
    
 
-#if 0
+#if 1
     mat4 rotY = Mat4RotateY(RAD(gAngle));
     mat4 rotX = Mat4RotateX(RAD(gAngle));
     mat4 rotZ = Mat4RotateZ(RAD(gAngle));
