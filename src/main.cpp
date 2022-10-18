@@ -314,7 +314,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     MSG msg = {};
     while(running) {
         // if we have time left Sleep
-#if 1
+#if 0
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
@@ -333,7 +333,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 #if 1
         char buffer[256];
-        sprintf(buffer, "FPS: %d\n", (i32)(1.0f/deltaTime));
+        sprintf(buffer, "FPS: %d\n", (i32)(deltaTime * 1000));
         OutputDebugString(buffer);
 #endif
 

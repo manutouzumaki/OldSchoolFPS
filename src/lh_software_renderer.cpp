@@ -439,8 +439,8 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
 
                 // mask that tell me if the pixel is inside the triangle to render
                 __m128 writeMask = _mm_and_ps(_mm_and_ps(_mm_cmpge_ps(insideTriangleBA, zero), _mm_cmpge_ps(insideTriangleAC, zero)), _mm_cmpge_ps(insideTriangleCB, zero));
-                __m128i writeMaski = _mm_castps_si128(writeMask);
                 if(_mm_movemask_ps(writeMask)) {
+                    __m128i writeMaski = _mm_castps_si128(writeMask);
                     // calculate the SSE2 version of SolveBarycentric...
                     __m128 v2x = _mm_sub_ps(pixelsToTestX, aPointX);
                     __m128 v2y = _mm_sub_ps(pixelsToTestY, aPointY);
@@ -453,8 +453,8 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
 
                     __m128 interReciZ = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aPointZ, alpha), _mm_mul_ps(bPointZ, gamma)), _mm_mul_ps(cPointZ, beta));
                     __m128 depthTestMask = _mm_cmpge_ps(interReciZ, depth);
-                    __m128i depthTestMaski = _mm_castps_si128(depthTestMask);
                     if(_mm_movemask_ps(depthTestMask)) {
+                        __m128i depthTestMaski = _mm_castps_si128(depthTestMask);
                         // Update the writeMask with the new information
                         writeMaski = _mm_and_si128(writeMaski, depthTestMaski);
                         writeMask = _mm_and_ps(writeMask, depthTestMask);
@@ -572,11 +572,14 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
 
                         // TODO: try to implement the pow funtion in a SIMD way
                         __m128 spec;
+                        __m128 dotProduct = _mm_add_ps(
+                                            _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
+                                                       _mm_mul_ps(viewDirY, reflectDirY)),
+                                                       _mm_mul_ps(viewDirZ, reflectDirZ));
+                        dotProduct = _mm_max_ps(dotProduct, zero);
                         for(i32 i = 0; i < 4; ++i) {
-                            vec3 viewDir    = { M(viewDirX, i),    M(viewDirY, i),    M(viewDirZ, i) };
-                            vec3 reflectDir = { M(reflectDirX, i), M(reflectDirY, i), M(reflectDirZ, i) };
-                            M(spec, i) = powf(maxFloat(dot(viewDir, reflectDir), 0.0f), 64);
-                        }
+                            M(spec, i) = powf(M(dotProduct, i), 64);
+                        } 
 
                         __m128 specularX = _mm_mul_ps(_mm_mul_ps(lightColorX, spec), specularStrength);
                         __m128 specularY = _mm_mul_ps(_mm_mul_ps(lightColorY, spec), specularStrength);
@@ -720,10 +723,24 @@ void RendererDestroy(Renderer *renderer) {
 }
 
 void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth) {
+#if 1
+    // TODO: test the cycles on this function
+    __m128i pixelColor = _mm_set1_epi32(color);
+    __m128 depthValue = _mm_set1_ps(depth);
+    for(i32 y = 0; y < renderer->bufferHeight; ++y) {
+        for(i32 x = 0; x < renderer->bufferWidth; x += 4) {
+            u32 *pixelPt = renderer->colorBuffer + ((y * renderer->bufferWidth) + x);
+            f32 *depthPt = renderer->depthBuffer + ((y * renderer->bufferWidth) + x);
+            _mm_storeu_si128((__m128i *)pixelPt, pixelColor);
+            _mm_storeu_ps(depthPt, depthValue);
+        }
+    }
+#else
     for(i32 i = 0; i < renderer->bufferWidth*renderer->bufferHeight; ++i) {
         renderer->colorBuffer[i] = color;
         renderer->depthBuffer[i] = depth;
     }
+#endif
 }
 
 void RendererPresent(Renderer *renderer) {
