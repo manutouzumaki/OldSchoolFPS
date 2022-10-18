@@ -572,23 +572,11 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
                         __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(lightColorY, diff), diffuseStrength);
                         __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(lightColorZ, diff), diffuseStrength);
 
-#if 1
                         __m128 dotProduct = _mm_add_ps(
                                             _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
                                                        _mm_mul_ps(viewDirY, reflectDirY)),
                                                        _mm_mul_ps(viewDirZ, reflectDirZ));
                         __m128 spec = _mm_pow_ps(_mm_max_ps(dotProduct, zero), specComponent);
-#else
-                        __m128 spec;
-                        __m128 dotProduct = _mm_add_ps(
-                                            _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
-                                                       _mm_mul_ps(viewDirY, reflectDirY)),
-                                                       _mm_mul_ps(viewDirZ, reflectDirZ));
-                        dotProduct = _mm_max_ps(dotProduct, zero);
-                        for(i32 i = 0; i < 4; ++i) {
-                            M(spec, i) = powf(M(dotProduct, i), 64);
-                        } 
-#endif
 
                         __m128 specularX = _mm_mul_ps(_mm_mul_ps(lightColorX, spec), specularStrength);
                         __m128 specularY = _mm_mul_ps(_mm_mul_ps(lightColorY, spec), specularStrength);
