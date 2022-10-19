@@ -20,17 +20,6 @@ struct Window {
 
 struct RenderWork {
     Renderer *renderer;
-    vec3 aPoint, bPoint, cPoint;
-    vec2 newUvA, newUvB, newUvC;
-    vec3 newNormalA, newNormalB, newNormalC;
-    vec3 newFragPosA, newFragPosB, newFragPosC;
-    BMP bitmap;
-    vec3 lightDir;
-    rectangle2i clipRect;
-};
-
-struct RenderWork2 {
-    Renderer *renderer;
     Vertex *vertices;
     i32 verticesCount;
     u32 *indices;
@@ -50,7 +39,6 @@ struct Renderer {
     mat4 view;
     mat4 proj;
     RenderWork *workArray;
-    RenderWork2 *workArray2;
     i32 workCount;
 };
 
@@ -189,20 +177,6 @@ u32 PhongLighting(u32 color, BMP bitmap, vec3 lightDir, vec3 interpolatedNormal,
     vec3 negativeLightDir = {-lightDir.x, -lightDir.y, -lightDir.z};
     vec3 reflectDir = normalized(reflect(negativeLightDir, interpolatedNormal));
 
-#if 0
-    f32 magB = len(b);
-    if(magB < EPSILON) {
-        vec3 zero = {};
-        return zero;
-    }
-    
-    f32 scale = dot(a, b) / magB;
-    vec3 proj2 = b * (scale * 2.0f);
-    return a - proj2;
-#endif
-
-
-
     f32 ambientStrength = 0.1f;
     vec3 ambient = lightColor * ambientStrength;
     f32 diff = clamp(dot(interpolatedNormal, lightDir), 0.0f, 1.0f);
@@ -245,13 +219,13 @@ void DrawScanLine(Renderer *renderer, i32 xStart, i32 xEnd, i32 y,
 }
 
 internal
-void DrawTextureLightTriangle(Renderer *renderer,
-                              Point a, Point b, Point c,
-                              vec2 aUv, vec2 bUv, vec2 cUv,
-                              vec3 aNorm, vec3 bNorm, vec3 cNorm,
-                              vec3 aFragPos, vec3 bFragPos, vec3 cFragPos,
-                              BMP bitmap,
-                              vec3 lightDir) {
+void TriangleRasterizerScanLine(Renderer *renderer,
+                                Point a, Point b, Point c,
+                                vec2 aUv, vec2 bUv, vec2 cUv,
+                                vec3 aNorm, vec3 bNorm, vec3 cNorm,
+                                vec3 aFragPos, vec3 bFragPos, vec3 cFragPos,
+                                BMP bitmap,
+                                vec3 lightDir) {
     normalize(&lightDir);
     if(a.y > b.y) {
         SwapPoint(&a, &b);
@@ -730,81 +704,8 @@ void HomogenousClipping(vec4 *srcVertives, vec2 * srcUVs, vec3 *srcNormals, vec3
     }
 }
 
-Renderer *RendererCreate(Window *window) {
-    Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
-    // TODO: create the renderer
-
-    i32 bufferPitch = Align16(window->width*4);
-    i32 rendererWidth = bufferPitch/4;
-
-    HDC hdc = GetDC(window->hwnd);
-    BITMAPINFO bufferInfo = {};
-    bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
-    bufferInfo.bmiHeader.biWidth = rendererWidth;
-    bufferInfo.bmiHeader.biHeight = window->height;
-    bufferInfo.bmiHeader.biPlanes = 1;
-    bufferInfo.bmiHeader.biBitCount = 32;
-    bufferInfo.bmiHeader.biCompression = BI_RGB;
-    renderer->handle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&renderer->colorBuffer, 0, 0);
-    renderer->hdc = hdc;
-    renderer->depthBuffer = (f32 *)malloc(window->width * window->height * sizeof(f32));
-    renderer->bufferWidth = window->width;
-    renderer->bufferHeight = window->height;
-    renderer->view = Mat4Identity();
-    renderer->proj = Mat4Identity();
-    renderer->workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
-    renderer->workArray2 = (RenderWork2 *)malloc(sizeof(RenderWork2) * 65536);
-    renderer->workCount = 0;
-    return renderer;
-}
-
-void RendererDestroy(Renderer *renderer) {
-    ASSERT(renderer);
-    free(renderer->workArray);
-    free(renderer->workArray2);
-    DeleteObject(renderer->handle);
-    free(renderer->depthBuffer);
-    free(renderer);
-    renderer = 0;
-}
-
-void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth) {
-#if 1
-    // TODO: test the cycles on this function
-    __m128i pixelColor = _mm_set1_epi32(color);
-    __m128 depthValue = _mm_set1_ps(depth);
-    for(i32 y = 0; y < renderer->bufferHeight; ++y) {
-        for(i32 x = 0; x < renderer->bufferWidth; x += 4) {
-            u32 *pixelPt = renderer->colorBuffer + ((y * renderer->bufferWidth) + x);
-            f32 *depthPt = renderer->depthBuffer + ((y * renderer->bufferWidth) + x);
-            _mm_storeu_si128((__m128i *)pixelPt, pixelColor);
-            _mm_storeu_ps(depthPt, depthValue);
-        }
-    }
-#else
-    for(i32 i = 0; i < renderer->bufferWidth*renderer->bufferHeight; ++i) {
-        renderer->colorBuffer[i] = color;
-        renderer->depthBuffer[i] = depth;
-    }
-#endif
-}
-
-void RendererPresent(Renderer *renderer) {
-    HDC colorBufferDC = CreateCompatibleDC(renderer->hdc);
-    SelectObject(colorBufferDC, renderer->handle);
-    BitBlt(renderer->hdc, 0, 0, renderer->bufferWidth, renderer->bufferHeight, colorBufferDC, 0, 0, SRCCOPY);
-    DeleteDC(colorBufferDC);
-}
-
-void RendererSetProj(Renderer *renderer, mat4 proj) {
-    renderer->proj = proj;
-} 
-
-void RendererSetView(Renderer *renderer, mat4 view) {
-    renderer->view = view;
-}
-
-void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
+internal
+void RenderVertexArraySlow(Renderer *renderer, Vertex *vertices, i32 verticesCount,
                   BMP bitmap, vec3 lightDir) {
     local_persist f32 angle = 0.0f;
     mat4 rotY = Mat4RotateY(RAD(angle));
@@ -916,36 +817,21 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
             Point aPoint = {((newA.x / newA.w) * 400) + 400, ((newA.y / newA.w) * 300) + 300, newA.w};
             Point bPoint = {((newB.x / newB.w) * 400) + 400, ((newB.y / newB.w) * 300) + 300, newB.w};
             Point cPoint = {((newC.x / newC.w) * 400) + 400, ((newC.y / newC.w) * 300) + 300, newC.w};
-            DrawTextureLightTriangle(renderer,
-                                     aPoint, bPoint, cPoint,
-                                     newUvA, newUvB, newUvC,
-                                     newNormalA, newNormalB, newNormalC,
-                                     newFragPosA, newFragPosB, newFragPosC,
-                                     bitmap,
-                                     lightDir);
+            TriangleRasterizerScanLine(renderer,
+                                       aPoint, bPoint, cPoint,
+                                       newUvA, newUvB, newUvC,
+                                       newNormalA, newNormalB, newNormalC,
+                                       newFragPosA, newFragPosB, newFragPosC,
+                                       bitmap,
+                                       lightDir);
 
         }
     }
 }
 
-#include <stdio.h>
-#include <windows.h>
-
-void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
-    ThreadParam *param = (ThreadParam *)data;
-    Renderer *renderer = param->renderer;
-    for(i32 i = 0; i < renderer->workCount; ++i) {
-        RenderWork2 *work = renderer->workArray2 + i;
-        RenderBuffer(queue, renderer, work->vertices, work->indices,
-                     work->indicesCount, work->bitmap, work->lightDir, work->world, param->clipRect);
-    }
-    //char buffer[256];
-    //sprintf(buffer, "Thread: %u, Render Work DONE\n", GetCurrentThreadId());
-    //OutputDebugString(buffer); 
-}
-
-void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
+internal
+void RenderVertexArrayFast(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                      i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -1065,20 +951,19 @@ void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices
     }
 }
 
-void PushBufferArray(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                     i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {
-    RenderWork2 *work = renderer->workArray2 + renderer->workCount++;
-    work->renderer = renderer;
-    work->vertices = vertices;
-    work->verticesCount = 0;
-    work->indices = indices;
-    work->indicesCount = indicesCount;
-    work->bitmap = bitmap;
-    work->lightDir = lightDir;
-    work->world = world;
+internal
+void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
+    ThreadParam *param = (ThreadParam *)data;
+    Renderer *renderer = param->renderer;
+    for(i32 i = 0; i < renderer->workCount; ++i) {
+        RenderWork *work = renderer->workArray + i;
+        RenderVertexArrayFast(queue, renderer, work->vertices, work->indices,
+                              work->indicesCount, work->bitmap, work->lightDir, work->world, param->clipRect);
+    }
 }
 
-void RendererFlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer) {
+internal
+void FlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer) {
 #if 1
     const i32 tileCountX = 4;
     const i32 tileCountY = 4;
@@ -1111,220 +996,97 @@ void RendererFlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer) {
 #else
     rectangle2i clipRect = {0, 0, renderer->bufferWidth - 1, renderer->bufferHeight - 1};
     for(i32 i = 0; i < renderer->workCount; ++i) {
-        RenderWork2 *work = renderer->workArray2 + i;
-        RenderBuffer(queue, renderer, work->vertices, work->indices,
-                     work->indicesCount, work->bitmap, work->lightDir, work->world, clipRect);
+        RenderWork *work = renderer->workArray + i;
+        RenderVertexArrayFast(queue, renderer, work->vertices, work->indices,
+                              work->indicesCount, work->bitmap, work->lightDir, work->world, clipRect);
     }
     renderer->workCount = 0;
 #endif
 }
 
 
+Renderer *RendererCreate(Window *window) {
+    Renderer *renderer = (Renderer *)malloc(sizeof(Renderer));
+    // TODO: create the renderer
 
+    i32 bufferPitch = Align16(window->width*4);
+    i32 rendererWidth = bufferPitch/4;
 
-
-#if 0
-
-            for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
-                for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
-                    rectangle2i clipRect;
-                    clipRect.minX = tileX*tileWidth;
-                    clipRect.maxX = clipRect.minX+tileWidth-4;
-                    clipRect.minY = tileY*tileHeight;
-                    clipRect.maxY = clipRect.minY+tileHeight-4;
-                    TriangleRasterizer(renderer,
-                           aPoint, bPoint, cPoint,
-                           newUvA, newUvB, newUvC,
-                           newNormalA, newNormalB, newNormalC,
-                           newFragPosA, newFragPosB, newFragPosC,
-                           bitmap,
-                           lightDir, clipRect);
-
-                }
-            }
-
-
-
-void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
-
-    TileRenderWork *work = (TileRenderWork *)data;
-    TriangleRasterizer(work->renderer,
-                       work->aPoint, work->bPoint, work->cPoint,
-                       work->newUvA, work->newUvB, work->newUvC,
-                       work->newNormalA, work->newNormalB, work->newNormalC,
-                       work->newFragPosA, work->newFragPosB, work->newFragPosC,
-                       work->bitmap, work->lightDir, work->clipRect);
+    HDC hdc = GetDC(window->hwnd);
+    BITMAPINFO bufferInfo = {};
+    bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
+    bufferInfo.bmiHeader.biWidth = rendererWidth;
+    bufferInfo.bmiHeader.biHeight = window->height;
+    bufferInfo.bmiHeader.biPlanes = 1;
+    bufferInfo.bmiHeader.biBitCount = 32;
+    bufferInfo.bmiHeader.biCompression = BI_RGB;
+    renderer->handle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&renderer->colorBuffer, 0, 0);
+    renderer->hdc = hdc;
+    renderer->depthBuffer = (f32 *)malloc(window->width * window->height * sizeof(f32));
+    renderer->bufferWidth = window->width;
+    renderer->bufferHeight = window->height;
+    renderer->view = Mat4Identity();
+    renderer->proj = Mat4Identity();
+    renderer->workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
+    renderer->workCount = 0;
+    return renderer;
 }
 
-void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {    
+void RendererDestroy(Renderer *renderer) {
+    ASSERT(renderer);
+    free(renderer->workArray);
+    DeleteObject(renderer->handle);
+    free(renderer->depthBuffer);
+    free(renderer);
+    renderer = 0;
+}
 
-    const i32 tileCountX = 6;
-    const i32 tileCountY = 6;
-    TileRenderWork workArray[tileCountX*tileCountY];
-    i32 tileWidth = renderer->bufferWidth / tileCountX;
-    i32 tileHeight = renderer->bufferHeight / tileCountY;
-    tileWidth = ((tileWidth + 3) / 4) * 4;
-    for(i32 i = 0; i < indicesCount; i += 3) {
-
-        Vertex *aVertex = vertices + indices[i + 0];
-        Vertex *bVertex = vertices + indices[i + 1];
-        Vertex *cVertex = vertices + indices[i + 2];
-        vec3 aTmp = aVertex->position;
-        vec3 bTmp = bVertex->position;
-        vec3 cTmp = cVertex->position;
-        vec2 aUv = aVertex->uv;
-        vec2 bUv = bVertex->uv;
-        vec2 cUv = cVertex->uv;
-        vec3 aNormal = aVertex->normal;
-        vec3 bNormal = bVertex->normal;
-        vec3 cNormal = cVertex->normal;
-
-        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
-        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
-        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
-
-        // multiply by the world matrix...
-        a = world * a;
-        b = world * b;
-        c = world * c;
-        
-        // normals in world space
-        aNormal = Vec4ToVec3(world * Vec3ToVec4(aNormal, 0.0f));
-        bNormal = Vec4ToVec3(world * Vec3ToVec4(bNormal, 0.0f));
-        cNormal = Vec4ToVec3(world * Vec3ToVec4(cNormal, 0.0f));
-
-        vec3 aFragPos = Vec4ToVec3(world * Vec3ToVec4(aTmp, 1.0f));
-        vec3 bFragPos = Vec4ToVec3(world * Vec3ToVec4(bTmp, 1.0f));
-        vec3 cFragPos = Vec4ToVec3(world * Vec3ToVec4(cTmp, 1.0f));
-
-        // transform the vertices relative to the camera
-        mat4 view = renderer->view;
-        a = view * a;
-        b = view * b;
-        c = view * c;
-        
-        // backface culling
-        vec3 vecA = Vec4ToVec3(a);
-        vec3 ab = Vec4ToVec3(b) - vecA;
-        vec3 ac = Vec4ToVec3(c) - vecA;
-        // TODO: standarize the cross product once we load 3d models
-        vec3 normal = normalized(cross(ab, ac));
-        vec3 origin = {0, 0, 0};
-        vec3 cameraRay = origin - vecA;
-        f32 normalDirection = dot(normal, cameraRay);
-        if(normalDirection < 0.0f) {
-            continue;
-        }
-
-        mat4 proj = renderer->proj;
-        a = proj * a;
-        b = proj * b;
-        c = proj * c;
-
-        i32 verticesACount = 3;
-        vec4 verticesToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {a, b, c};
-        vec2 uvsToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aUv, bUv, cUv};
-        vec3 normalsToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aNormal, bNormal, cNormal};
-        vec3 fragPosToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aFragPos, bFragPos, cFragPos};
-
-        i32 verticesBCount = 0;
-        vec4 verticesToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
-        vec2 uvsToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
-        vec3 normalsToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
-        vec3 fragPosToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
-        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
-                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
-                           0, -1.0f);
-        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
-                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
-                           0, 1.0f);
-        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
-                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
-                           1, -1.0f);
-        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
-                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
-                           1, 1.0f);
-        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
-                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
-                           2, -1.0f);
-        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
-                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
-                           2, 1.0f);
-
-        for(i32 j = 0; j < verticesACount - 2; ++j) {
-            vec4 newA = verticesToClipA[0];
-            vec4 newB = verticesToClipA[1 + j];
-            vec4 newC = verticesToClipA[2 + j];
-            vec2 newUvA = uvsToClipA[0];
-            vec2 newUvB = uvsToClipA[1 + j];
-            vec2 newUvC = uvsToClipA[2 + j];
-            vec3 newNormalA = normalsToClipA[0]; 
-            vec3 newNormalB = normalsToClipA[1 + j]; 
-            vec3 newNormalC = normalsToClipA[2 + j];
-            vec3 newFragPosA = fragPosToClipA[0]; 
-            vec3 newFragPosB = fragPosToClipA[1 + j]; 
-            vec3 newFragPosC = fragPosToClipA[2 + j]; 
-            f32 aInvW = 1.0f/newA.w;
-            f32 bInvW = 1.0f/newB.w;
-            f32 cInvW = 1.0f/newC.w;
-            i32 halfBufferWidth = renderer->bufferWidth/2;
-            i32 halfBufferHeight = renderer->bufferHeight/2;
-            Point aPoint = {((newA.x * aInvW) * halfBufferWidth) + halfBufferWidth, ((newA.y * aInvW) * halfBufferHeight) + halfBufferHeight, aInvW};
-            Point bPoint = {((newB.x * bInvW) * halfBufferWidth) + halfBufferWidth, ((newB.y * bInvW) * halfBufferHeight) + halfBufferHeight, bInvW};
-            Point cPoint = {((newC.x * cInvW) * halfBufferWidth) + halfBufferWidth, ((newC.y * cInvW) * halfBufferHeight) + halfBufferHeight, cInvW};
-
-            // TODO: remember that now Point z mean 1/w not w...
-#if 0
-            rectangle2i clipRect = {0, 0, renderer->bufferWidth - 1, renderer->bufferHeight - 1};
-            TriangleRasterizer(renderer,
-                   aPoint, bPoint, cPoint,
-                   newUvA, newUvB, newUvC,
-                   newNormalA, newNormalB, newNormalC,
-                   newFragPosA, newFragPosB, newFragPosC,
-                   bitmap,
-                   lightDir, clipRect);
-#else
-
-            i32 workCount = 0;
-            for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
-                for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
-                    TileRenderWork *work = workArray + workCount++;
-                    rectangle2i clipRect;
-                    clipRect.minX = (tileX * tileWidth);
-                    clipRect.maxX = ((tileX * tileWidth) + tileWidth);
-                    clipRect.minY = (tileY * tileHeight);
-                    clipRect.maxY = ((tileY * tileHeight) + tileHeight);
-                    // clamp the last tile to the color buffer size
-                    if(tileX == (tileCountX - 1)) {
-                        clipRect.maxX = renderer->bufferWidth - 1;
-                    }
-                    if(tileY == (tileCountY - 1)) {
-                        clipRect.maxY = renderer->bufferHeight - 1;
-                    }                    
-                    work->renderer = renderer;
-                    work->aPoint = aPoint;
-                    work->bPoint = bPoint;
-                    work->cPoint = cPoint;
-                    work->newUvA = newUvA;
-                    work->newUvB = newUvB;
-                    work->newUvC = newUvC;
-                    work->newNormalA = newNormalA;
-                    work->newNormalB = newNormalB;
-                    work->newNormalC = newNormalC;
-                    work->newFragPosA = newFragPosA;
-                    work->newFragPosB = newFragPosB;
-                    work->newFragPosC = newFragPosC;
-                    work->bitmap = bitmap;
-                    work->lightDir = lightDir;
-                    work->clipRect = clipRect;
-                    PlatformAddEntry(queue, DoTileRenderWork, work);
-                }
-            }
-            PlatformCompleteAllWork(queue);
-#endif
-
+void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth) {
+#if 1
+    // TODO: test the cycles on this function
+    __m128i pixelColor = _mm_set1_epi32(color);
+    __m128 depthValue = _mm_set1_ps(depth);
+    for(i32 y = 0; y < renderer->bufferHeight; ++y) {
+        for(i32 x = 0; x < renderer->bufferWidth; x += 4) {
+            u32 *pixelPt = renderer->colorBuffer + ((y * renderer->bufferWidth) + x);
+            f32 *depthPt = renderer->depthBuffer + ((y * renderer->bufferWidth) + x);
+            _mm_storeu_si128((__m128i *)pixelPt, pixelColor);
+            _mm_storeu_ps(depthPt, depthValue);
         }
     }
-}
+#else
+    for(i32 i = 0; i < renderer->bufferWidth*renderer->bufferHeight; ++i) {
+        renderer->colorBuffer[i] = color;
+        renderer->depthBuffer[i] = depth;
+    }
 #endif
+}
+
+void RendererPushWorkToQueue(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                             i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {
+    RenderWork *work = renderer->workArray + renderer->workCount++;
+    work->renderer = renderer;
+    work->vertices = vertices;
+    work->verticesCount = 0;
+    work->indices = indices;
+    work->indicesCount = indicesCount;
+    work->bitmap = bitmap;
+    work->lightDir = lightDir;
+    work->world = world;
+}
+
+void RendererPresent(Renderer *renderer, PlatformWorkQueue *queue) {
+    FlushWorkQueue(queue, renderer);
+    HDC colorBufferDC = CreateCompatibleDC(renderer->hdc);
+    SelectObject(colorBufferDC, renderer->handle);
+    BitBlt(renderer->hdc, 0, 0, renderer->bufferWidth, renderer->bufferHeight, colorBufferDC, 0, 0, SRCCOPY);
+    DeleteDC(colorBufferDC);
+}
+
+void RendererSetProj(Renderer *renderer, mat4 proj) {
+    renderer->proj = proj;
+} 
+
+void RendererSetView(Renderer *renderer, mat4 view) {
+    renderer->view = view;
+}

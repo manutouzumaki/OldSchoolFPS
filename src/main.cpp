@@ -228,7 +228,6 @@ void PlatformCompleteAllWork(Renderer *renderer, PlatformWorkQueue *queue) {
     }
     queue->completitionGloal = 0;
     queue->completitionCount = 0;
-    //OutputDebugString("Render Work COMPLETE\n");
 }
 
 DWORD WINAPI

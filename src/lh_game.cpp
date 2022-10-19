@@ -55,8 +55,8 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
     //RendererSetProj(gRenderer, Mat4Perspective(90.0f, 1920.0f/1080.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({0, 0, -2}, {0, 0, 0}, {0, 1, 0}));
-    //RendererSetView(gRenderer, Mat4LookAt({0, 0, -10}, {0, 0, 0}, {0, 1, 0}));
+    //RendererSetView(gRenderer, Mat4LookAt({0, 0, -2}, {0, 0, 0}, {0, 1, 0}));
+    RendererSetView(gRenderer, Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -68,33 +68,33 @@ void GameUpdate(f32 dt) {
 }
 
 void GameRender() {
-    RendererClearBuffers(gRenderer, 0xFF000000, 0.0f);
+    RendererClearBuffers(gRenderer, 0xFF021102, 0.0f);
    
 
-#if 1
+#if 0
     mat4 rotY = Mat4RotateY(RAD(gAngle));
     mat4 rotX = Mat4RotateX(RAD(gAngle));
     mat4 rotZ = Mat4RotateZ(RAD(gAngle));
     mat4 world = rotY * rotX * rotZ;
-    PushBufferArray(gQueue,
-                    gRenderer, vertices, indices, ARRAY_LENGTH(indices),
-                    gGameState->bitmap, {0.5f, 0.2f, -1}, world);
+    RendererPushWorkToQueue(gQueue,
+                            gRenderer, vertices, indices, ARRAY_LENGTH(indices),
+                            gGameState->bitmap, {0.5f, 0.2f, -1}, world);
 #else 
     mat4 rotY = Mat4RotateY(RAD(gAngle));
     mat4 rotX = Mat4RotateX(RAD(gAngle));
     mat4 rotZ = Mat4RotateZ(RAD(gAngle));
-    for(i32 y = -10; y < 10; y++) {
-        for(i32 x = -10; x < 10; x++) {
-            mat4 translation = Mat4Translate(x*2, y*2,  0);
+    for(i32 y = -1; y < 1; y++) {
+        for(i32 x = -2; x < 2; x++) {
+            mat4 translation = Mat4Translate(x*4, y*4,  0);
             mat4 world = translation * rotY * rotX * rotZ;
-            PushBufferArray(gQueue,
-                            gRenderer, vertices, indices, ARRAY_LENGTH(indices),
-                            gGameState->bitmap, {0.5f, 0.2f, -1}, world);
+            RendererPushWorkToQueue(gQueue,
+                                    gRenderer, vertices, indices, ARRAY_LENGTH(indices),
+                                    gGameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
 #endif
-    RendererFlushWorkQueue(gQueue, gRenderer); 
-    RendererPresent(gRenderer);
+    //RendererFlushWorkQueue(gQueue, gRenderer); 
+    RendererPresent(gRenderer, gQueue);
 }
 
 void GameShutdown() {

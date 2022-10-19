@@ -48,15 +48,13 @@ struct Mesh;
 Renderer *RendererCreate(Window *window);
 void RendererDestroy(Renderer *renderer);
 void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth);
-void RendererPresent(Renderer *renderer);
+void RendererPushWorkToQueue(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                             i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world);
+void RendererPresent(Renderer *renderer, PlatformWorkQueue *queue);
 void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
-void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount, BMP bitmap, vec3 lightDir);
-void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect); 
-void PushBufferArray(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                     i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world);
-void RendererFlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer);
+
+
 struct Counter {
     u64 count;
     u64 hit;
