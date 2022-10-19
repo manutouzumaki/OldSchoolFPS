@@ -3,7 +3,7 @@
 
 #include "lh_defines.h"
 #include <limits.h>
-
+#include <xmmintrin.h>
 
 #define EPSILON 0.000001f
 #define PI 3.14159265359f
@@ -42,6 +42,7 @@ struct vec4 {
             f32 w;
         };
         f32 v[4];
+        __m128 wide;
     }; 
 };
 
@@ -77,6 +78,8 @@ struct mat4 {
             f32 m30; f32 m31; f32 m32; f32 m33;
         };
         f32 m[16];
+        __m128 row[4];
+
     };
 };
 
@@ -164,6 +167,7 @@ mat4 operator+(mat4 a, mat4 b);
 mat4 operator*(mat4 m, f32 f);
 vec4 operator*(mat4 m, vec4 v);
 mat4 operator*(mat4 a, mat4 b);
+mat4 Mat4MulSSE(mat4 a, mat4 b);
 
 vec3 Vec4ToVec3(vec4 v);
 vec4 Vec3ToVec4(vec3 v, f32 w);

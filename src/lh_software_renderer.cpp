@@ -1,9 +1,8 @@
 #include <windows.h>
 #include "lh_platform.h"
 #include <math.h>
-#include <emmintrin.h>
-//#include <xmmintrin.h>
 #include <immintrin.h>
+#include <xmmintrin.h>
 
 // TODO: implement the new trianglel rasterizer and SIMD omptimized it.
 
@@ -19,6 +18,28 @@ struct Window {
     char *title;
 };
 
+struct RenderWork {
+    Renderer *renderer;
+    vec3 aPoint, bPoint, cPoint;
+    vec2 newUvA, newUvB, newUvC;
+    vec3 newNormalA, newNormalB, newNormalC;
+    vec3 newFragPosA, newFragPosB, newFragPosC;
+    BMP bitmap;
+    vec3 lightDir;
+    rectangle2i clipRect;
+};
+
+struct RenderWork2 {
+    Renderer *renderer;
+    Vertex *vertices;
+    i32 verticesCount;
+    u32 *indices;
+    i32 indicesCount;
+    BMP bitmap;
+    vec3 lightDir;
+    mat4 world;
+};
+
 struct Renderer {
     HBITMAP handle;
     HDC hdc;
@@ -28,6 +49,14 @@ struct Renderer {
     i32 bufferHeight;
     mat4 view;
     mat4 proj;
+    RenderWork *workArray;
+    RenderWork2 *workArray2;
+    i32 workCount;
+};
+
+struct ThreadParam {
+    Renderer *renderer;
+    rectangle2i clipRect;
 };
 
 struct Mesh {
@@ -369,7 +398,6 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
         __m128 two = _mm_set1_ps(2.0f);
         __m128 m255 = _mm_set1_ps(255.0f);
         __m128 minusOne = _mm_set1_ps(-1.0f);
-        __m128 specComponent = _mm_set1_ps(64.0f);
         __m128i maskFF = _mm_set1_epi32(0xFF);
 
         __m128 v0x = _mm_sub_ps(bPointX, aPointX);
@@ -385,11 +413,11 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
         // vec3 viewPos = {0, -3, -8};
         __m128 viewPosX = _mm_set1_ps(0);
         __m128 viewPosY = _mm_set1_ps(0);
-        __m128 viewPosZ = _mm_set1_ps(-8);
+        __m128 viewPosZ = _mm_set1_ps(-5);
 
         //vec3 lightPos = {3, -3.5f, -4};
-        __m128 lightPosX = _mm_set1_ps(0);
-        __m128 lightPosY = _mm_set1_ps(0);
+        __m128 lightPosX = _mm_set1_ps(3);
+        __m128 lightPosY = _mm_set1_ps(0.5f);
         __m128 lightPosZ = _mm_set1_ps(-8);
 
         //vec3 lightColor = {1, 1, 1};
@@ -397,9 +425,20 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
         __m128 lightColorY = _mm_set1_ps(1);
         __m128 lightColorZ = _mm_set1_ps(1);
 
+        __m128 diffuseColorX = _mm_set1_ps(0.5f);
+        __m128 diffuseColorY = _mm_set1_ps(1);
+        __m128 diffuseColorZ = _mm_set1_ps(0.5f);
+        
+       //vec3 lightColor = {1, 1, 1};
+        __m128 specularColorX = _mm_set1_ps(0);
+        __m128 specularColorY = _mm_set1_ps(1);
+        __m128 specularColorZ = _mm_set1_ps(0);
+        
+        __m128 specComponent = _mm_set1_ps(2.0f);
+
         __m128 ambientStrength  = _mm_set1_ps(0.1f);
         __m128 specularStrength = _mm_set1_ps(0.8f);
-        __m128 diffuseStrength = _mm_set1_ps(0.4f);
+        __m128 diffuseStrength = _mm_set1_ps(0.2f);
 
 
         i32 minX = fillRect.minX;
@@ -414,10 +453,10 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
 
                 // get the old data for the maskout
                 u32 *pixelPt = renderer->colorBuffer + ((y * renderer->bufferWidth) + x);
-                __m128i originalDest = _mm_loadu_si128((__m128i *)pixelPt);
+                __m128i originalDest = _mm_load_si128((__m128i *)pixelPt);
                 
                 f32 *depthPt = renderer->depthBuffer + ((y * renderer->bufferWidth) + x);
-                __m128 depth = _mm_loadu_ps(depthPt);
+                __m128 depth = _mm_load_ps(depthPt);
                 __m128 pixelsToTestX = _mm_set_ps(x + 3, x + 2, x + 1, x);
                 // TODO: standarize the conditional once we load 3d models
                 // ORIENTED2D SSE2 version
@@ -568,19 +607,24 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
                                         _mm_mul_ps(normalizeInterpolatedNormalZ, lightDirZ)),
                                        zero), one);
 
-                        __m128 diffuseX = _mm_mul_ps(_mm_mul_ps(lightColorX, diff), diffuseStrength);
-                        __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(lightColorY, diff), diffuseStrength);
-                        __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(lightColorZ, diff), diffuseStrength);
+                        __m128 diffuseX = _mm_mul_ps(_mm_mul_ps(diffuseColorX, diff), diffuseStrength);
+                        __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(diffuseColorY, diff), diffuseStrength);
+                        __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(diffuseColorZ, diff), diffuseStrength);
 
                         __m128 dotProduct = _mm_add_ps(
                                             _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
                                                        _mm_mul_ps(viewDirY, reflectDirY)),
                                                        _mm_mul_ps(viewDirZ, reflectDirZ));
+#if 0
                         __m128 spec = _mm_pow_ps(_mm_max_ps(dotProduct, zero), specComponent);
+#else
+                        dotProduct = _mm_max_ps(dotProduct, zero);
+                        __m128 spec = _mm_mul_ps(dotProduct, dotProduct);
+#endif
 
-                        __m128 specularX = _mm_mul_ps(_mm_mul_ps(lightColorX, spec), specularStrength);
-                        __m128 specularY = _mm_mul_ps(_mm_mul_ps(lightColorY, spec), specularStrength);
-                        __m128 specularZ = _mm_mul_ps(_mm_mul_ps(lightColorZ, spec), specularStrength);
+                        __m128 specularX = _mm_mul_ps(_mm_mul_ps(specularColorX, spec), specularStrength);
+                        __m128 specularY = _mm_mul_ps(_mm_mul_ps(specularColorY, spec), specularStrength);
+                        __m128 specularZ = _mm_mul_ps(_mm_mul_ps(specularColorZ, spec), specularStrength);
 
                         __m128 resultX = _mm_mul_ps(_mm_add_ps(_mm_add_ps(ambientX, diffuseX), specularX), red);
                         __m128 resultY = _mm_mul_ps(_mm_add_ps(_mm_add_ps(ambientY, diffuseY), specularY), green);
@@ -606,8 +650,8 @@ void TriangleRasterizer(Renderer *renderer, Point a, Point b, Point c, vec2 aUv,
 
                         __m128i colorMaskedOut = _mm_or_si128(_mm_and_si128(writeMaski, color), _mm_andnot_si128(writeMaski, originalDest));
                         __m128 depthMaskOut = _mm_or_ps(_mm_and_ps(writeMask, interReciZ), _mm_andnot_ps(writeMask, depth));
-                        _mm_storeu_si128((__m128i *)pixelPt, colorMaskedOut);
-                        _mm_storeu_ps(depthPt, depthMaskOut);
+                        _mm_store_si128((__m128i *)pixelPt, colorMaskedOut);
+                        _mm_store_ps(depthPt, depthMaskOut);
                     }
                 }
                 if((x + 4) >= maxX) {
@@ -708,11 +752,16 @@ Renderer *RendererCreate(Window *window) {
     renderer->bufferHeight = window->height;
     renderer->view = Mat4Identity();
     renderer->proj = Mat4Identity();
+    renderer->workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
+    renderer->workArray2 = (RenderWork2 *)malloc(sizeof(RenderWork2) * 65536);
+    renderer->workCount = 0;
     return renderer;
 }
 
 void RendererDestroy(Renderer *renderer) {
     ASSERT(renderer);
+    free(renderer->workArray);
+    free(renderer->workArray2);
     DeleteObject(renderer->handle);
     free(renderer->depthBuffer);
     free(renderer);
@@ -753,15 +802,6 @@ void RendererSetProj(Renderer *renderer, mat4 proj) {
 
 void RendererSetView(Renderer *renderer, mat4 view) {
     renderer->view = view;
-}
-
-void RenderMesh(PlatformWorkQueue *queue, Renderer *renderer, Mesh *mesh, BMP bitmap, vec3 lightDir) {
-    if(mesh->indicesCount > 0) {
-        RenderBuffer(queue, renderer, mesh->vertices, mesh->indices, mesh->indicesCount, bitmap, lightDir, Mat4Identity());
-    }
-    else {
-        RenderBuffer(renderer, mesh->vertices, mesh->verticesCount, bitmap, lightDir);
-    }
 }
 
 void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
@@ -888,19 +928,222 @@ void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount,
     }
 }
 
-struct TileRenderWork {
-    Renderer *renderer;
-    vec3 aPoint, bPoint, cPoint;
-    vec2 newUvA, newUvB, newUvC;
-    vec3 newNormalA, newNormalB, newNormalC;
-    vec3 newFragPosA, newFragPosB, newFragPosC;
-    BMP bitmap;
-    vec3 lightDir;
-    rectangle2i clipRect;
-};
-
-#include <windows.h>
 #include <stdio.h>
+#include <windows.h>
+
+void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
+    ThreadParam *param = (ThreadParam *)data;
+    Renderer *renderer = param->renderer;
+    for(i32 i = 0; i < renderer->workCount; ++i) {
+        RenderWork2 *work = renderer->workArray2 + i;
+        RenderBuffer(queue, renderer, work->vertices, work->indices,
+                     work->indicesCount, work->bitmap, work->lightDir, work->world, param->clipRect);
+    }
+    //char buffer[256];
+    //sprintf(buffer, "Thread: %u, Render Work DONE\n", GetCurrentThreadId());
+    //OutputDebugString(buffer); 
+}
+
+void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
+    for(i32 i = 0; i < indicesCount; i += 3) {
+
+        Vertex *aVertex = vertices + indices[i + 0];
+        Vertex *bVertex = vertices + indices[i + 1];
+        Vertex *cVertex = vertices + indices[i + 2];
+        vec3 aTmp = aVertex->position;
+        vec3 bTmp = bVertex->position;
+        vec3 cTmp = cVertex->position;
+        vec2 aUv = aVertex->uv;
+        vec2 bUv = bVertex->uv;
+        vec2 cUv = cVertex->uv;
+        vec3 aNormal = aVertex->normal;
+        vec3 bNormal = bVertex->normal;
+        vec3 cNormal = cVertex->normal;
+
+        vec4 a = {aTmp.x, aTmp.y, aTmp.z, 1.0f};
+        vec4 b = {bTmp.x, bTmp.y, bTmp.z, 1.0f};
+        vec4 c = {cTmp.x, cTmp.y, cTmp.z, 1.0f};
+
+        // multiply by the world matrix...
+        a = world * a;
+        b = world * b;
+        c = world * c;
+        
+        // normals in world space
+        aNormal = Vec4ToVec3(world * Vec3ToVec4(aNormal, 0.0f));
+        bNormal = Vec4ToVec3(world * Vec3ToVec4(bNormal, 0.0f));
+        cNormal = Vec4ToVec3(world * Vec3ToVec4(cNormal, 0.0f));
+
+        vec3 aFragPos = Vec4ToVec3(world * Vec3ToVec4(aTmp, 1.0f));
+        vec3 bFragPos = Vec4ToVec3(world * Vec3ToVec4(bTmp, 1.0f));
+        vec3 cFragPos = Vec4ToVec3(world * Vec3ToVec4(cTmp, 1.0f));
+
+        // transform the vertices relative to the camera
+        mat4 view = renderer->view;
+        a = view * a;
+        b = view * b;
+        c = view * c;
+        
+        // backface culling
+        vec3 vecA = Vec4ToVec3(a);
+        vec3 ab = Vec4ToVec3(b) - vecA;
+        vec3 ac = Vec4ToVec3(c) - vecA;
+        // TODO: standarize the cross product once we load 3d models
+        vec3 normal = normalized(cross(ab, ac));
+        vec3 origin = {0, 0, 0};
+        vec3 cameraRay = origin - vecA;
+        f32 normalDirection = dot(normal, cameraRay);
+        if(normalDirection < 0.0f) {
+            continue;
+        }
+
+        mat4 proj = renderer->proj;
+        a = proj * a;
+        b = proj * b;
+        c = proj * c;
+
+        i32 verticesACount = 3;
+        vec4 verticesToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {a, b, c};
+        vec2 uvsToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aUv, bUv, cUv};
+        vec3 normalsToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aNormal, bNormal, cNormal};
+        vec3 fragPosToClipA[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {aFragPos, bFragPos, cFragPos};
+
+        i32 verticesBCount = 0;
+        vec4 verticesToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        vec2 uvsToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        vec3 normalsToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        vec3 fragPosToClipB[MAX_VERTICES_PER_CLIPPED_TRIANGLE] = {};
+        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
+                           0, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
+                           0, 1.0f);
+        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
+                           1, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
+                           1, 1.0f);
+        HomogenousClipping(verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, verticesACount,
+                           verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, &verticesBCount,
+                           2, -1.0f);
+        HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
+                           verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
+                           2, 1.0f);
+
+        for(i32 j = 0; j < verticesACount - 2; ++j) {
+            vec4 newA = verticesToClipA[0];
+            vec4 newB = verticesToClipA[1 + j];
+            vec4 newC = verticesToClipA[2 + j];
+            vec2 newUvA = uvsToClipA[0];
+            vec2 newUvB = uvsToClipA[1 + j];
+            vec2 newUvC = uvsToClipA[2 + j];
+            vec3 newNormalA = normalsToClipA[0]; 
+            vec3 newNormalB = normalsToClipA[1 + j]; 
+            vec3 newNormalC = normalsToClipA[2 + j];
+            vec3 newFragPosA = fragPosToClipA[0]; 
+            vec3 newFragPosB = fragPosToClipA[1 + j]; 
+            vec3 newFragPosC = fragPosToClipA[2 + j]; 
+            f32 aInvW = 1.0f/newA.w;
+            f32 bInvW = 1.0f/newB.w;
+            f32 cInvW = 1.0f/newC.w;
+            i32 halfBufferWidth = renderer->bufferWidth/2;
+            i32 halfBufferHeight = renderer->bufferHeight/2;
+            Point aPoint = {((newA.x * aInvW) * halfBufferWidth) + halfBufferWidth, ((newA.y * aInvW) * halfBufferHeight) + halfBufferHeight, aInvW};
+            Point bPoint = {((newB.x * bInvW) * halfBufferWidth) + halfBufferWidth, ((newB.y * bInvW) * halfBufferHeight) + halfBufferHeight, bInvW};
+            Point cPoint = {((newC.x * cInvW) * halfBufferWidth) + halfBufferWidth, ((newC.y * cInvW) * halfBufferHeight) + halfBufferHeight, cInvW};
+            TriangleRasterizer(renderer,
+                   aPoint, bPoint, cPoint,
+                   newUvA, newUvB, newUvC,
+                   newNormalA, newNormalB, newNormalC,
+                   newFragPosA, newFragPosB, newFragPosC,
+                   bitmap,
+                   lightDir, clipRect);
+        }
+    }
+}
+
+void PushBufferArray(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                     i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {
+    RenderWork2 *work = renderer->workArray2 + renderer->workCount++;
+    work->renderer = renderer;
+    work->vertices = vertices;
+    work->verticesCount = 0;
+    work->indices = indices;
+    work->indicesCount = indicesCount;
+    work->bitmap = bitmap;
+    work->lightDir = lightDir;
+    work->world = world;
+}
+
+void RendererFlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer) {
+#if 1
+    const i32 tileCountX = 4;
+    const i32 tileCountY = 4;
+    ThreadParam paramArray[tileCountX*tileCountY];
+    i32 tileWidth = renderer->bufferWidth / tileCountX;
+    i32 tileHeight = renderer->bufferHeight / tileCountY;
+    tileWidth = ((tileWidth + 3) / 4) * 4;
+    i32 paramCount = 0;
+    for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
+        for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
+            ThreadParam *param = paramArray + paramCount++;
+            rectangle2i clipRect;
+            clipRect.minX = (tileX * tileWidth);
+            clipRect.maxX = (clipRect.minX + tileWidth);
+            clipRect.minY = (tileY * tileHeight);
+            clipRect.maxY = (clipRect.minY + tileHeight);
+            if(tileX == (tileCountX - 1)) {
+                clipRect.maxX = renderer->bufferWidth - 1;
+            }
+            if(tileY == (tileCountY - 1)) {
+                clipRect.maxY = renderer->bufferHeight - 1;
+            }
+            param->renderer = renderer;
+            param->clipRect = clipRect; 
+            PlatformAddEntry(queue, DoTileRenderWork, param);
+        }
+    }
+    PlatformCompleteAllWork(renderer, queue);
+    renderer->workCount = 0;
+#else
+    rectangle2i clipRect = {0, 0, renderer->bufferWidth - 1, renderer->bufferHeight - 1};
+    for(i32 i = 0; i < renderer->workCount; ++i) {
+        RenderWork2 *work = renderer->workArray2 + i;
+        RenderBuffer(queue, renderer, work->vertices, work->indices,
+                     work->indicesCount, work->bitmap, work->lightDir, work->world, clipRect);
+    }
+    renderer->workCount = 0;
+#endif
+}
+
+
+
+
+
+#if 0
+
+            for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
+                for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
+                    rectangle2i clipRect;
+                    clipRect.minX = tileX*tileWidth;
+                    clipRect.maxX = clipRect.minX+tileWidth-4;
+                    clipRect.minY = tileY*tileHeight;
+                    clipRect.maxY = clipRect.minY+tileHeight-4;
+                    TriangleRasterizer(renderer,
+                           aPoint, bPoint, cPoint,
+                           newUvA, newUvB, newUvC,
+                           newNormalA, newNormalB, newNormalC,
+                           newFragPosA, newFragPosB, newFragPosC,
+                           bitmap,
+                           lightDir, clipRect);
+
+                }
+            }
+
+
 
 void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
 
@@ -1084,3 +1327,4 @@ void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices
         }
     }
 }
+#endif

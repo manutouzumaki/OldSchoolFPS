@@ -24,10 +24,12 @@ struct BMP
 BMP LoadTexture(char *path, Arena *arena);
 
 
+struct Renderer;
+
 struct PlatformWorkQueue;
 typedef void PlatformWorkQueueCallback(PlatformWorkQueue *queue, void *data);
 void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callback, void *data);
-void PlatformCompleteAllWork(PlatformWorkQueue *queue);
+void PlatformCompleteAllWork(Renderer *renderer, PlatformWorkQueue *queue);
 
 struct Window;
 
@@ -41,7 +43,6 @@ struct Vertex {
     vec3 normal;
 };
 
-struct Renderer;
 struct Mesh;
 
 Renderer *RendererCreate(Window *window);
@@ -50,10 +51,12 @@ void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth);
 void RendererPresent(Renderer *renderer);
 void RendererSetProj(Renderer *renderer, mat4 proj);
 void RendererSetView(Renderer *renderer, mat4 view);
-void RenderMesh(Renderer *renderer, Mesh *mesh, BMP bitmap, vec3 lightDir);
 void RenderBuffer(Renderer *renderer, Vertex *vertices, i32 verticesCount, BMP bitmap, vec3 lightDir);
 void RenderBuffer(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
-                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world); 
+                  i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect); 
+void PushBufferArray(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+                     i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world);
+void RendererFlushWorkQueue(PlatformWorkQueue *queue, Renderer *renderer);
 struct Counter {
     u64 count;
     u64 hit;

@@ -549,6 +549,7 @@ mat4 operator*(mat4 m, f32 f) {
     return result;
 }
 
+#if 0
 vec4 operator*(mat4 m, vec4 v) {
     vec4 result = {
         m.m00 * v.x + m.m01 * v.y + m.m02 * v.z + m.m03 * v.w, 
@@ -578,6 +579,54 @@ mat4 operator*(mat4 a, mat4 b) {
         a.m30 * b.m02 + a.m31 * b.m12 + a.m32 * b.m22 + a.m33 * b.m32,
         a.m30 * b.m03 + a.m31 * b.m13 + a.m32 * b.m23 + a.m33 * b.m33
     };
+    return result;
+}
+#endif
+
+vec4 operator*(mat4 m, vec4 v) {
+    vec4 result;
+    __m128 vX = _mm_shuffle_ps(v.wide, v.wide, 0x00); // (vx,vx,vx,vx)
+    __m128 vY = _mm_shuffle_ps(v.wide, v.wide, 0x55); // (vy,vy,vy,vy)
+    __m128 vZ = _mm_shuffle_ps(v.wide, v.wide, 0xAA); // (vz,vz,vz,vz)
+    __m128 vW = _mm_shuffle_ps(v.wide, v.wide, 0xFF); // (vw,vw,vw,vw)
+    _MM_TRANSPOSE4_PS(m.row[0], m.row[1], m.row[2], m.row[3]);
+    result.wide = _mm_mul_ps(vX, m.row[0]);
+    result.wide = _mm_add_ps(result.wide, _mm_mul_ps(vY, m.row[1]));
+    result.wide = _mm_add_ps(result.wide, _mm_mul_ps(vZ, m.row[2]));
+    result.wide = _mm_add_ps(result.wide, _mm_mul_ps(vW, m.row[3]));
+    return result;
+}
+
+internal
+__m128 Vec4Mat4MulSSE(__m128 v, mat4 m) {
+    // first transpose v
+    __m128 vX = _mm_shuffle_ps(v, v, 0x00); // (vx,vx,vx,vx)
+    __m128 vY = _mm_shuffle_ps(v, v, 0x55); // (vy,vy,vy,vy)
+    __m128 vZ = _mm_shuffle_ps(v, v, 0xAA); // (vz,vz,vz,vz)
+    __m128 vW = _mm_shuffle_ps(v, v, 0xFF); // (vw,vw,vw,vw)
+    _MM_TRANSPOSE4_PS(m.row[0], m.row[1], m.row[2], m.row[3]);
+    __m128 result = _mm_mul_ps(vX, m.row[0]);
+    result = _mm_add_ps(result, _mm_mul_ps(vY, m.row[1]));
+    result = _mm_add_ps(result, _mm_mul_ps(vZ, m.row[2]));
+    result = _mm_add_ps(result, _mm_mul_ps(vW, m.row[3]));
+    return result;
+}
+
+mat4 operator*(mat4 a, mat4 b) {
+    mat4 result;
+    result.row[0] = Vec4Mat4MulSSE(a.row[0], b);
+    result.row[1] = Vec4Mat4MulSSE(a.row[1], b);
+    result.row[2] = Vec4Mat4MulSSE(a.row[2], b);
+    result.row[3] = Vec4Mat4MulSSE(a.row[3], b);
+    return result;
+}
+
+mat4 Mat4MulSSE(mat4 a, mat4 b) {
+    mat4 result;
+    result.row[0] = Vec4Mat4MulSSE(a.row[0], b);
+    result.row[1] = Vec4Mat4MulSSE(a.row[1], b);
+    result.row[2] = Vec4Mat4MulSSE(a.row[2], b);
+    result.row[3] = Vec4Mat4MulSSE(a.row[3], b);
     return result;
 }
 

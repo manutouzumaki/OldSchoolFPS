@@ -222,12 +222,13 @@ void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callb
     ReleaseSemaphore(queue->semaphoreHandle, 1, 0);
 }
 
-void PlatformCompleteAllWork(PlatformWorkQueue *queue) {
+void PlatformCompleteAllWork(Renderer *renderer, PlatformWorkQueue *queue) {
     while(queue->completitionGloal != queue->completitionCount) {
         DoNextWorkQueueEntry(queue);
     }
     queue->completitionGloal = 0;
     queue->completitionCount = 0;
+    //OutputDebugString("Render Work COMPLETE\n");
 }
 
 DWORD WINAPI
@@ -268,32 +269,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         HANDLE threadHandle = CreateThread(0, 0, ThreadProc, info, 0, &threadId);
         CloseHandle(threadHandle);
     }
-
-    PlatformAddEntry(&queue, TestCallback, "String A0");
-    PlatformAddEntry(&queue, TestCallback, "String A1");
-    PlatformAddEntry(&queue, TestCallback, "String A2");
-    PlatformAddEntry(&queue, TestCallback, "String A3");
-    PlatformAddEntry(&queue, TestCallback, "String A4");
-    PlatformAddEntry(&queue, TestCallback, "String A5");
-    PlatformAddEntry(&queue, TestCallback, "String A6");
-    PlatformAddEntry(&queue, TestCallback, "String A7");
-    PlatformAddEntry(&queue, TestCallback, "String A8");
-    PlatformAddEntry(&queue, TestCallback, "String A9");
-
-    PlatformAddEntry(&queue, TestCallback, "String B0");
-    PlatformAddEntry(&queue, TestCallback, "String B1");
-    PlatformAddEntry(&queue, TestCallback, "String B2");
-    PlatformAddEntry(&queue, TestCallback, "String B3");
-    PlatformAddEntry(&queue, TestCallback, "String B4");
-    PlatformAddEntry(&queue, TestCallback, "String B5");
-    PlatformAddEntry(&queue, TestCallback, "String B6");
-    PlatformAddEntry(&queue, TestCallback, "String B7");
-    PlatformAddEntry(&queue, TestCallback, "String B8");
-    PlatformAddEntry(&queue, TestCallback, "String B9");
-
-    PlatformCompleteAllWork(&queue);
-
-
     // allocate memory for the entire game
     Memory memory = MemoryCreate(Megabytes(10));
     GameInit(&memory, &queue); 
@@ -333,7 +308,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 #if 1
         char buffer[256];
-        //sprintf(buffer, "MS: %d\n", (i32)(deltaTime * 1000));
+        sprintf(buffer, "MS: %f\n", deltaTime * 1000.0f);
+        OutputDebugString(buffer);
         sprintf(buffer, "FPS: %d\n", (i32)(1.0f/deltaTime));
         OutputDebugString(buffer);
 #endif
