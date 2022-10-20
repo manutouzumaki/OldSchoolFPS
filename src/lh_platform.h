@@ -4,7 +4,7 @@
 #include "lh_defines.h"
 #include "lh_memory.h"
 #include "lh_math.h"
-
+#include "lh_input.h"
 
 struct ReadFileResult {
     void *data;

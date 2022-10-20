@@ -1,6 +1,9 @@
 #include <math.h>
 #include "lh_math.h"
 
+#include <windows.h>
+#include <stdio.h>
+
 // F32 FUNCTIONS
 
 f32 lerp(f32 a, f32 b, f32 t) {
@@ -289,14 +292,12 @@ mat2 Mat2Identity() {
 }
 
 void Mat2Print(mat2 m) {
-/*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f|\n", m.m00, m.m01);
     OutputDebugString(buffer);
     sprintf(buffer, "|%.1f  %.1f|\n", m.m10, m.m11);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
-*/
 }
 
 mat2 Mat2Rotate(f32 angle) {
@@ -352,7 +353,6 @@ mat3 Mat3Identity() {
 }
 
 void Mat3Print(mat3 m) {
-/*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02);
     OutputDebugString(buffer);
@@ -361,7 +361,6 @@ void Mat3Print(mat3 m) {
     sprintf(buffer, "|%.1f  %.1f  %.1f|\n", m.m20, m.m21, m.m22);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
-*/
 }
 
 mat3 Mat3Scale(f32 x, f32 y, f32 z) {
@@ -455,7 +454,6 @@ mat4 Mat4Identity() {
 }
 
 void Mat4Print(mat4 m) {
-    /*
     char buffer[256];
     sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m00, m.m01, m.m02, m.m03);
     OutputDebugString(buffer);
@@ -466,7 +464,6 @@ void Mat4Print(mat4 m) {
     sprintf(buffer, "|%.1f  %.1f  %.1f  %.1f|\n", m.m30, m.m31, m.m32, m.m33);
     OutputDebugString(buffer);
     OutputDebugString("##########################################\n");
-    */
 }
 
 mat4 Mat4Translate(f32 x, f32 y, f32 z) {
@@ -549,7 +546,32 @@ mat4 operator*(mat4 m, f32 f) {
     return result;
 }
 
+internal
+__m128 Vec4Mat4MulSSE(__m128 v, mat4 m) {
+    // first transpose v
+    __m128 vX = _mm_shuffle_ps(v, v, 0x00); // (vx,vx,vx,vx)
+    __m128 vY = _mm_shuffle_ps(v, v, 0x55); // (vy,vy,vy,vy)
+    __m128 vZ = _mm_shuffle_ps(v, v, 0xAA); // (vz,vz,vz,vz)
+    __m128 vW = _mm_shuffle_ps(v, v, 0xFF); // (vw,vw,vw,vw)
+    _MM_TRANSPOSE4_PS(m.row[0], m.row[1], m.row[2], m.row[3]);
+    __m128 result = _mm_mul_ps(vX, m.row[0]);
+    result = _mm_add_ps(result, _mm_mul_ps(vY, m.row[1]));
+    result = _mm_add_ps(result, _mm_mul_ps(vZ, m.row[2]));
+    result = _mm_add_ps(result, _mm_mul_ps(vW, m.row[3]));
+    return result;
+}
+
+mat4 Mat4MulSSE(mat4 a, mat4 b) {
+    mat4 result;
+    result.row[0] = Vec4Mat4MulSSE(a.row[0], b);
+    result.row[1] = Vec4Mat4MulSSE(a.row[1], b);
+    result.row[2] = Vec4Mat4MulSSE(a.row[2], b);
+    result.row[3] = Vec4Mat4MulSSE(a.row[3], b);
+    return result;
+}
+
 #if 0
+
 vec4 operator*(mat4 m, vec4 v) {
     vec4 result = {
         m.m00 * v.x + m.m01 * v.y + m.m02 * v.z + m.m03 * v.w, 
@@ -581,7 +603,7 @@ mat4 operator*(mat4 a, mat4 b) {
     };
     return result;
 }
-#endif
+#else
 
 vec4 operator*(mat4 m, vec4 v) {
     vec4 result;
@@ -597,20 +619,7 @@ vec4 operator*(mat4 m, vec4 v) {
     return result;
 }
 
-internal
-__m128 Vec4Mat4MulSSE(__m128 v, mat4 m) {
-    // first transpose v
-    __m128 vX = _mm_shuffle_ps(v, v, 0x00); // (vx,vx,vx,vx)
-    __m128 vY = _mm_shuffle_ps(v, v, 0x55); // (vy,vy,vy,vy)
-    __m128 vZ = _mm_shuffle_ps(v, v, 0xAA); // (vz,vz,vz,vz)
-    __m128 vW = _mm_shuffle_ps(v, v, 0xFF); // (vw,vw,vw,vw)
-    _MM_TRANSPOSE4_PS(m.row[0], m.row[1], m.row[2], m.row[3]);
-    __m128 result = _mm_mul_ps(vX, m.row[0]);
-    result = _mm_add_ps(result, _mm_mul_ps(vY, m.row[1]));
-    result = _mm_add_ps(result, _mm_mul_ps(vZ, m.row[2]));
-    result = _mm_add_ps(result, _mm_mul_ps(vW, m.row[3]));
-    return result;
-}
+
 
 mat4 operator*(mat4 a, mat4 b) {
     mat4 result;
@@ -621,14 +630,7 @@ mat4 operator*(mat4 a, mat4 b) {
     return result;
 }
 
-mat4 Mat4MulSSE(mat4 a, mat4 b) {
-    mat4 result;
-    result.row[0] = Vec4Mat4MulSSE(a.row[0], b);
-    result.row[1] = Vec4Mat4MulSSE(a.row[1], b);
-    result.row[2] = Vec4Mat4MulSSE(a.row[2], b);
-    result.row[3] = Vec4Mat4MulSSE(a.row[3], b);
-    return result;
-}
+#endif
 
 mat4 Mat4Frustum(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {	
     mat4 result = {

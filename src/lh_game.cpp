@@ -49,37 +49,30 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
     memory->used += sizeof(GameState);
 
     gWindow = WindowCreate(960, 540, "Last Hope 3D");
-    //gWindow = WindowCreate(1920, 1080, "Last Hope 3D");
     gQueue = queue;
 
     gRenderer = RendererCreate(gWindow);
     RendererSetProj(gRenderer, Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
-    //RendererSetProj(gRenderer, Mat4Perspective(90.0f, 1920.0f/1080.0f, 0.1f, 100.0f));
-    //RendererSetView(gRenderer, Mat4LookAt({0, 0, -2}, {0, 0, 0}, {0, 1, 0}));
     RendererSetView(gRenderer, Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
 }
 
+#include <windows.h>
 global_variable f32 gAngle = 0.0f;
 void GameUpdate(f32 dt) {
     gAngle += 20.0f * dt;
+
+    if(JoysickGetButtonJustUp(JOYSTICK_BUTTON_A)) {
+        OutputDebugString("'A Button' was press\n");    
+    }
+
 }
 
 void GameRender() {
     RendererClearBuffers(gRenderer, 0xFF021102, 0.0f);
-   
-
-#if 0
-    mat4 rotY = Mat4RotateY(RAD(gAngle));
-    mat4 rotX = Mat4RotateX(RAD(gAngle));
-    mat4 rotZ = Mat4RotateZ(RAD(gAngle));
-    mat4 world = rotY * rotX * rotZ;
-    RendererPushWorkToQueue(gQueue,
-                            gRenderer, vertices, indices, ARRAY_LENGTH(indices),
-                            gGameState->bitmap, {0.5f, 0.2f, -1}, world);
-#else 
+ 
     mat4 rotY = Mat4RotateY(RAD(gAngle));
     mat4 rotX = Mat4RotateX(RAD(gAngle));
     mat4 rotZ = Mat4RotateZ(RAD(gAngle));
@@ -92,8 +85,7 @@ void GameRender() {
                                     gGameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
-#endif
-    //RendererFlushWorkQueue(gQueue, gRenderer); 
+
     RendererPresent(gRenderer, gQueue);
 }
 
