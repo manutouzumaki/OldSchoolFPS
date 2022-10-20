@@ -5,6 +5,7 @@
 #include "lh_memory.h"
 #include "lh_math.h"
 #include "lh_input.h"
+#include "lh_sound.h"
 
 struct ReadFileResult {
     void *data;

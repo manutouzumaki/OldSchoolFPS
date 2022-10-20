@@ -483,79 +483,14 @@ f32 JoysickGetRightStickY() {
 }
 
 
-// TODO: Parse the Audio file
-#define fourccRIFF 'FFIR'
-#define fourccDATA 'atad'
-#define fourccFMT ' tmf'
-#define fourccWAVE 'EVAW'
-#define fourccXWMA 'AMWX'
-#define fourccDPDS 'sdpd'
-
-HRESULT FindChunk(HANDLE hFile, DWORD fourcc, DWORD *chunkSize, DWORD *chunkDataPosition) {
-    HRESULT result = S_OK;
-    if(INVALID_SET_FILE_POINTER == SetFilePointer(hFile, 0, NULL, FILE_BEGIN)) {
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    DWORD chunkType;
-    DWORD chunkDataSize;
-    DWORD RIFFDataSize = 0;
-    DWORD fileType;
-    DWORD bytesRead = 0;
-    DWORD offset = 0;
-
-    while(result == S_OK) {
-        DWORD read;
-        if(ReadFile(hFile, &chunkType, sizeof(DWORD), &read, NULL) == 0) {
-            result = HRESULT_FROM_WIN32(GetLastError());
-        }
-        if(ReadFile(hFile, &chunkDataSize, sizeof(DWORD), &read, NULL) == 0) {
-            result = HRESULT_FROM_WIN32(GetLastError());
-        }
-        switch(chunkType) {
-            case fourccRIFF: {
-                RIFFDataSize = chunkDataSize;
-                chunkDataSize = 4;
-                if(ReadFile(hFile, &fileType, sizeof(DWORD), &read, NULL) == 0) {
-                    result = HRESULT_FROM_WIN32(GetLastError());
-                }       
-            }break;
-            default: {
-                if( INVALID_SET_FILE_POINTER == SetFilePointer(hFile, chunkDataSize, NULL, FILE_CURRENT)) {
-                    return HRESULT_FROM_WIN32( GetLastError() );    
-                }
-            }
-        }
-
-        offset += sizeof(DWORD) * 2;
-        if(chunkType == fourcc) {
-            *chunkSize = chunkDataSize;
-            *chunkDataPosition = offset;
-            return S_OK;
-        }
-        offset += chunkDataSize;
-        if(bytesRead > RIFFDataSize) return S_FALSE;
-    }
-
-    return S_OK;
-}
-
-HRESULT ReadChunkData(HANDLE hFile, void *buffer, DWORD bufferSize, DWORD bufferOffset) {
-    HRESULT result = S_OK;
-    if(INVALID_SET_FILE_POINTER == SetFilePointer(hFile, bufferOffset, NULL, FILE_BEGIN)) {
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-    DWORD read;
-    if(ReadFile(hFile, buffer, bufferSize, &read, NULL) == 0) {
-        result = HRESULT_FROM_WIN32(GetLastError());
-    }
-    return result;
-}
-
-
-
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow) {
     OutputDebugString("Hi LastHope...\n"); 
+
+    HRESULT result = CoInitializeEx( nullptr, COINIT_MULTITHREADED );
+    if (FAILED(result)) {
+        OutputDebugString("COM Initialization FAILED\n");
+        return result;
+    }
 
     PlatformThreadInfo threadInfo[7];
     PlatformWorkQueue queue = {};
@@ -591,84 +526,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
     MSG msg = {};
     gRunning = true;
-
-    // TODO: XAudio2 test...
-    HRESULT result = CoInitializeEx( nullptr, COINIT_MULTITHREADED );
-    if (FAILED(result)) {
-        OutputDebugString("COM Initialization FAILED\n");
-        return result;
-    }
-    
-    IXAudio2 *pXAudio2 = 0;
-    result = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-    if(FAILED(result)) {
-        OutputDebugString("pXAudio2 Initialization FAILED\n");
-        return result;
-    }
-
-    IXAudio2MasteringVoice *pMasterVoice = 0;
-    result = pXAudio2->CreateMasteringVoice(&pMasterVoice);
-    if(FAILED(result)) {
-        OutputDebugString("pMasterVoice Initialization FAILED\n");
-        return result;
-    }
-
-    // TODO: Load Audio Data to XAUDIO2_BUFFER
-    WAVEFORMATEXTENSIBLE wfx = {};
-    XAUDIO2_BUFFER buffer = {};
-
-    const char *fileName = "../assets/music.wav";
-    // open the file
-    HANDLE hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-    if(INVALID_HANDLE_VALUE == hFile) {
-        OutputDebugString("Error Reading 'music.wav'\n");
-    }
-    if(INVALID_SET_FILE_POINTER == SetFilePointer(hFile, 0, NULL, FILE_BEGIN)) {
-        OutputDebugString("Error SetFilePointer FILE_BEGIN\n");
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-    // locate the RIFF chunk in the audio file, and check the file type
-    DWORD chunkSize;
-    DWORD chunkPosition;
-    FindChunk(hFile, fourccRIFF, &chunkSize, &chunkPosition);
-    DWORD fileType;
-    ReadChunkData(hFile, &fileType, sizeof(DWORD), chunkPosition);
-    if(fileType != fourccWAVE) {
-        OutputDebugString("Error Sound file Not Supported\n");
-        return 1;
-    }
-    // locate the FMT chunk and copy its content into WAVEFORMATEXTENSIBLE structure
-    FindChunk(hFile, fourccFMT, &chunkSize, &chunkPosition);
-    ReadChunkData(hFile, &wfx, chunkSize, chunkPosition);
-    // locate the DATA chunk and read its contents into a buffer
-    FindChunk(hFile, fourccDATA, &chunkSize, &chunkPosition);
-    BYTE *pDataBuffer = new BYTE[chunkSize];
-    ReadChunkData(hFile, pDataBuffer, chunkSize, chunkPosition);
-    // populate an XAUDIO2_BUFFER structure
-    buffer.AudioBytes = chunkSize;
-    buffer.pAudioData = pDataBuffer;
-    buffer.Flags = XAUDIO2_END_OF_STREAM;
-
-    // Create a source voice
-    IXAudio2SourceVoice *pSourceVoice;
-    result = pXAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)&wfx);
-    if(FAILED(result)) {
-        OutputDebugString("Error Initialization IXAudio2SourceVoice FAILED\n");
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-    // submit an XAUDIO2_BUFFER to the source voice using the function SubmitSourceBuffer
-    result = pSourceVoice->SubmitSourceBuffer(&buffer);
-    if(FAILED(result)) {
-        OutputDebugString("Error submit XAUDIO2_BUFFER FAILED\n");
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-    // start the sound
-    result = pSourceVoice->Start(0);
-    if(FAILED(result)) {
-        OutputDebugString("Error Starting the AUDIO\n");
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
+        
     while(gRunning) {
         // if we have time left Sleep
 #if 1
@@ -708,6 +566,5 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     }
 
     GameShutdown();
-    pXAudio2->Release();
     return 0;
 }

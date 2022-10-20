@@ -41,6 +41,9 @@ u32 indices[] =
     22, 20, 21, 23, 20, 22
 };
 
+Sound *chocolate;
+Sound *music;    
+Sound *shoot;    
 
 void GameInit(Memory *memory, PlatformWorkQueue *queue) {
     // The GameState has to be the first element on the memory
@@ -57,6 +60,14 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
+    
+    SoundSystemInitialize();
+
+    chocolate = SoundCreate("../assets/chocolate.wav");
+    music     = SoundCreate("../assets/music.wav");
+    shoot     = SoundCreate("../assets/shoot.wav");
+
+    SoundPlay(music, true);
 }
 
 #include <windows.h>
@@ -64,10 +75,10 @@ global_variable f32 gAngle = 0.0f;
 void GameUpdate(f32 dt) {
     gAngle += 20.0f * dt;
 
-    if(JoysickGetButtonJustUp(JOYSTICK_BUTTON_A)) {
+    if(JoysickGetButtonJustDown(JOYSTICK_BUTTON_A)) {
+        SoundPlay(shoot, false);
         OutputDebugString("'A Button' was press\n");    
     }
-
 }
 
 void GameRender() {
@@ -90,6 +101,11 @@ void GameRender() {
 }
 
 void GameShutdown() {
+    SoundDestroy(shoot);
+    SoundDestroy(music);
+    SoundDestroy(chocolate);
+
+    SoundSystemShudown();
     RendererDestroy(gRenderer);
     WindowDestroy(gWindow);
 }
