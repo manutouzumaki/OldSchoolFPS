@@ -159,6 +159,7 @@ void SoundDestroy(Sound *sound) {
 
 void SoundPlay(Sound *sound, bool loop) {
     // submit an XAUDIO2_BUFFER to the source voice using the function SubmitSourceBuffer
+    sound->sourceVoice->Stop(0);
     sound->sourceVoice->FlushSourceBuffers();
     XAUDIO2_BUFFER buffer = {0};
     buffer.AudioBytes = sound->bufferSize;

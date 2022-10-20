@@ -1,8 +1,18 @@
 #include "lh_game.h"
 
+//////////////////////////////////////////////////////////////////////
+// TODO (manuto):
+//////////////////////////////////////////////////////////////////////
+// - Fix XAudio bug (closing the game fast make it go boom)
+// - Move SoundSystemInitialize and SoundSystemShudown to the engine
+// - ...
+// - ...
+// - ...
+// - ...
+//////////////////////////////////////////////////////////////////////
+
+
 global_variable GameState *gGameState;
-global_variable Window *gWindow;
-global_variable Renderer *gRenderer;
 global_variable PlatformWorkQueue *gQueue;
 Vertex vertices[] = {
     -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
@@ -51,12 +61,12 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
     gGameState = (GameState *)((u8 *)memory->data + memory->used);
     memory->used += sizeof(GameState);
 
-    gWindow = WindowCreate(960, 540, "Last Hope 3D");
+    WindowSystemInitialize(960, 540, "Last Hope 3D");
     gQueue = queue;
+    RendererSystemInitialize();
 
-    gRenderer = RendererCreate(gWindow);
-    RendererSetProj(gRenderer, Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
-    RendererSetView(gRenderer, Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
+    RendererSetProj(Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
+    RendererSetView(Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
 
     gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
     gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
@@ -64,7 +74,7 @@ void GameInit(Memory *memory, PlatformWorkQueue *queue) {
     SoundSystemInitialize();
 
     chocolate = SoundCreate("../assets/chocolate.wav");
-    music     = SoundCreate("../assets/music.wav");
+    music     = SoundCreate("../assets/lugia.wav");
     shoot     = SoundCreate("../assets/shoot.wav");
 
     SoundPlay(music, true);
@@ -82,7 +92,7 @@ void GameUpdate(f32 dt) {
 }
 
 void GameRender() {
-    RendererClearBuffers(gRenderer, 0xFF021102, 0.0f);
+    RendererClearBuffers(0xFF021102, 0.0f);
  
     mat4 rotY = Mat4RotateY(RAD(gAngle));
     mat4 rotX = Mat4RotateX(RAD(gAngle));
@@ -92,12 +102,12 @@ void GameRender() {
             mat4 translation = Mat4Translate(x*4, y*4,  0);
             mat4 world = translation * rotY * rotX * rotZ;
             RendererPushWorkToQueue(gQueue,
-                                    gRenderer, vertices, indices, ARRAY_LENGTH(indices),
+                                    vertices, indices, ARRAY_LENGTH(indices),
                                     gGameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
 
-    RendererPresent(gRenderer, gQueue);
+    RendererPresent(gQueue);
 }
 
 void GameShutdown() {
@@ -106,6 +116,6 @@ void GameShutdown() {
     SoundDestroy(chocolate);
 
     SoundSystemShudown();
-    RendererDestroy(gRenderer);
-    WindowDestroy(gWindow);
+    RendererSystemShutdown();
+    WindowSystemShutdown();
 }

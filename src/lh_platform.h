@@ -30,12 +30,11 @@ struct Renderer;
 struct PlatformWorkQueue;
 typedef void PlatformWorkQueueCallback(PlatformWorkQueue *queue, void *data);
 void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callback, void *data);
-void PlatformCompleteAllWork(Renderer *renderer, PlatformWorkQueue *queue);
+void PlatformCompleteAllWork(PlatformWorkQueue *queue);
 
-struct Window;
 
-Window *WindowCreate(i32 width, i32 height, char *title);
-void WindowDestroy(Window *window);
+void WindowSystemInitialize(i32 width, i32 height, char *title);
+void WindowSystemShutdown();
 void WindowSetSize(i32 width, i32 height);
 
 struct Vertex {
@@ -46,14 +45,14 @@ struct Vertex {
 
 struct Mesh;
 
-Renderer *RendererCreate(Window *window);
-void RendererDestroy(Renderer *renderer);
-void RendererClearBuffers(Renderer *renderer, u32 color, f32 depth);
-void RendererPushWorkToQueue(PlatformWorkQueue *queue, Renderer *renderer, Vertex *vertices, u32 *indices,
+void RendererSystemInitialize();
+void RendererSystemShutdown();
+void RendererClearBuffers(u32 color, f32 depth);
+void RendererPushWorkToQueue(PlatformWorkQueue *queue, Vertex *vertices, u32 *indices,
                              i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world);
-void RendererPresent(Renderer *renderer, PlatformWorkQueue *queue);
-void RendererSetProj(Renderer *renderer, mat4 proj);
-void RendererSetView(Renderer *renderer, mat4 view);
+void RendererPresent(PlatformWorkQueue *queue);
+void RendererSetProj(mat4 proj);
+void RendererSetView(mat4 view);
 
 
 struct Counter {

@@ -13,6 +13,8 @@ struct Window {
     char *title;
 };
 
+Window gWindow;
+
 #pragma pack(push, 1)
 struct BitmapHeader
 {
@@ -115,9 +117,8 @@ LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return result;
 }
 
-Window *WindowCreate(i32 width, i32 height, char *title) { 
+void WindowSystemInitialize(i32 width, i32 height, char *title) { 
     HINSTANCE hInstance = GetModuleHandleA(0);
-    Window *window = (Window *)malloc(sizeof(Window));
     WNDCLASSA wndClass = {};
     wndClass.style = CS_HREDRAW|CS_VREDRAW;
     wndClass.lpfnWndProc = WindowProcA;
@@ -131,24 +132,23 @@ Window *WindowCreate(i32 width, i32 height, char *title) {
                               CW_USEDEFAULT, CW_USEDEFAULT,
                               width, height,
                               0, 0, hInstance, 0);
-    window->width = width;
-    window->height =  height;
-    window->title = title;
-    window->hwnd = hwnd;
-    return window;
+    gWindow.width = width;
+    gWindow.height =  height;
+    gWindow.title = title;
+    gWindow.hwnd = hwnd;
+    
+
+    i32 stopHere =0;
 }
 
-void WindowDestroy(Window *window) {
-    ASSERT(window);
-    DestroyWindow(window->hwnd);
-    free(window);
-    window = 0;
+void WindowSystemShutdown() {
+    DestroyWindow(gWindow.hwnd);
 }
 
-void WindowSetSize(Window *window, i32 width, i32 height) {
+void WindowSetSize(i32 width, i32 height) {
     RECT currentWindowDim;
-    GetWindowRect(window->hwnd, &currentWindowDim);
-    MoveWindow(window->hwnd,
+    GetWindowRect(gWindow.hwnd, &currentWindowDim);
+    MoveWindow(gWindow.hwnd,
                currentWindowDim.left,
                currentWindowDim.top,
                width, height, TRUE);
@@ -225,7 +225,7 @@ void PlatformAddEntry(PlatformWorkQueue *queue, PlatformWorkQueueCallback *callb
     ReleaseSemaphore(queue->semaphoreHandle, 1, 0);
 }
 
-void PlatformCompleteAllWork(Renderer *renderer, PlatformWorkQueue *queue) {
+void PlatformCompleteAllWork(PlatformWorkQueue *queue) {
     while(queue->completitionGloal != queue->completitionCount) {
         DoNextWorkQueueEntry(queue);
     }
@@ -529,7 +529,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         
     while(gRunning) {
         // if we have time left Sleep
-#if 1
+#if 0
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
