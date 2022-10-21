@@ -11,6 +11,12 @@
 #define fourccXWMA 'AMWX'
 #define fourccDPDS 'sdpd'
 
+struct Sound {
+    IXAudio2SourceVoice *sourceVoice;
+    u8 *buffer;
+    size_t bufferSize;
+};
+
 global_variable IXAudio2 *gXAudio2;
 global_variable IXAudio2MasteringVoice *gMasterVoice;
 
@@ -76,12 +82,6 @@ HRESULT ReadChunkData(HANDLE hFile, void *buffer, DWORD bufferSize, DWORD buffer
     }
     return result;
 }
-
-struct Sound {
-    IXAudio2SourceVoice *sourceVoice;
-    u8 *buffer;
-    size_t bufferSize;
-};
 
 bool SoundSystemInitialize() {
     HRESULT result = {};
@@ -150,6 +150,8 @@ Sound *SoundCreate(const char *fileName) {
 
 void SoundDestroy(Sound *sound) {
     if(sound) {
+        sound->sourceVoice->Stop(0);
+        sound->sourceVoice->FlushSourceBuffers();
         free(sound->buffer);
         sound->sourceVoice->DestroyVoice();
         free(sound);

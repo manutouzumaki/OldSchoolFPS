@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "lh_renderer.h"
 #include "lh_platform.h"
 #include <math.h>
 #include <immintrin.h>
@@ -55,28 +56,28 @@ struct Mesh {
 extern Window gWindow;
 global_variable Renderer gRenderer;
 
-internal
+inline internal
 void SwapPoint(Point *a, Point *b) {
     Point tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
-internal
+inline internal
 void SwapVec2(vec2 *a, vec2 *b) {
     vec2 tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
-internal
+inline internal
 void SwapVec3(vec3 *a, vec3 *b) {
     vec3 tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
-internal 
+inline internal 
 void SwapInt(i32 *a, i32 *b) {
     i32 tmp = *a;
     *a = *b;
@@ -829,8 +830,8 @@ void RenderVertexArraySlow(Vertex *vertices, i32 verticesCount,
 }
 
 internal
-void RenderVertexArrayFast(PlatformWorkQueue *queue, Vertex *vertices, u32 *indices,
-                      i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
+void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
+                           i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -950,17 +951,17 @@ void RenderVertexArrayFast(PlatformWorkQueue *queue, Vertex *vertices, u32 *indi
 }
 
 internal
-void DoTileRenderWork(PlatformWorkQueue *queue, void *data) {
+void DoTileRenderWork(void *data) {
     ThreadParam *param = (ThreadParam *)data;
     for(i32 i = 0; i < gRenderer.workCount; ++i) {
         RenderWork *work = gRenderer.workArray + i;
-        RenderVertexArrayFast(queue, work->vertices, work->indices,
+        RenderVertexArrayFast(work->vertices, work->indices,
                               work->indicesCount, work->bitmap, work->lightDir, work->world, param->clipRect);
     }
 }
 
 internal
-void FlushWorkQueue(PlatformWorkQueue *queue) {
+void FlushWorkQueue() {
 #if 1
     const i32 tileCountX = 4;
     const i32 tileCountY = 4;
@@ -984,10 +985,10 @@ void FlushWorkQueue(PlatformWorkQueue *queue) {
                 clipRect.maxY = gRenderer.bufferHeight - 1;
             }
             param->clipRect = clipRect; 
-            PlatformAddEntry(queue, DoTileRenderWork, param);
+            PlatformAddEntry(DoTileRenderWork, param);
         }
     }
-    PlatformCompleteAllWork(queue);
+    PlatformCompleteAllWork();
     gRenderer.workCount = 0;
 #else
     rectangle2i clipRect = {0, 0, gRenderer.bufferWidth - 1, gRenderer.bufferHeight - 1};
@@ -1051,7 +1052,7 @@ void RendererClearBuffers(u32 color, f32 depth) {
 #endif
 }
 
-void RendererPushWorkToQueue(PlatformWorkQueue *queue, Vertex *vertices, u32 *indices,
+void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
                              i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {
     RenderWork *work = gRenderer.workArray + gRenderer.workCount++;
     work->vertices = vertices;
@@ -1063,8 +1064,8 @@ void RendererPushWorkToQueue(PlatformWorkQueue *queue, Vertex *vertices, u32 *in
     work->world = world;
 }
 
-void RendererPresent(PlatformWorkQueue *queue) {
-    FlushWorkQueue(queue);
+void RendererPresent() {
+    FlushWorkQueue();
     HDC colorBufferDC = CreateCompatibleDC(gRenderer.hdc);
     SelectObject(colorBufferDC, gRenderer.handle);
     BitBlt(gRenderer.hdc, 0, 0, gRenderer.bufferWidth, gRenderer.bufferHeight, colorBufferDC, 0, 0, SRCCOPY);

@@ -11,9 +11,6 @@
 // - ...
 //////////////////////////////////////////////////////////////////////
 
-
-global_variable GameState *gGameState;
-global_variable PlatformWorkQueue *gQueue;
 Vertex vertices[] = {
     -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
@@ -51,47 +48,42 @@ u32 indices[] =
     22, 20, 21, 23, 20, 22
 };
 
-Sound *chocolate;
-Sound *music;    
-Sound *shoot;    
-
-void GameInit(Memory *memory, PlatformWorkQueue *queue) {
+void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
     ASSERT(memory->used + sizeof(GameState) <= memory->size);
-    gGameState = (GameState *)((u8 *)memory->data + memory->used);
+    GameState *gameState = (GameState *)memory->data;
     memory->used += sizeof(GameState);
 
     WindowSystemInitialize(960, 540, "Last Hope 3D");
-    gQueue = queue;
     RendererSystemInitialize();
+    SoundSystemInitialize();
+    InputSystemInitialize();
 
     RendererSetProj(Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
     RendererSetView(Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
+    gameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
+    gameState->bitmap = LoadTexture("../assets/test.bmp", &gameState->bitmapArena);
+    gameState->chocolate = SoundCreate("../assets/chocolate.wav");
+    gameState->music     = SoundCreate("../assets/lugia.wav");
+    gameState->shoot     = SoundCreate("../assets/shoot.wav");
 
-    gGameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
-    gGameState->bitmap = LoadTexture("../assets/test.bmp", &gGameState->bitmapArena);
-    
-    SoundSystemInitialize();
-
-    chocolate = SoundCreate("../assets/chocolate.wav");
-    music     = SoundCreate("../assets/lugia.wav");
-    shoot     = SoundCreate("../assets/shoot.wav");
-
-    SoundPlay(music, true);
+    SoundPlay(gameState->music, true);
 }
 
 #include <windows.h>
 global_variable f32 gAngle = 0.0f;
-void GameUpdate(f32 dt) {
+void GameUpdate(Memory *memory, f32 dt) {
+    GameState *gameState = (GameState *)memory->data;
     gAngle += 20.0f * dt;
 
     if(JoysickGetButtonJustDown(JOYSTICK_BUTTON_A)) {
-        SoundPlay(shoot, false);
+        SoundPlay(gameState->shoot, false);
         OutputDebugString("'A Button' was press\n");    
     }
 }
 
-void GameRender() {
+void GameRender(Memory *memory) {
+    GameState *gameState = (GameState *)memory->data;
     RendererClearBuffers(0xFF021102, 0.0f);
  
     mat4 rotY = Mat4RotateY(RAD(gAngle));
@@ -101,20 +93,21 @@ void GameRender() {
         for(i32 x = -2; x < 2; x++) {
             mat4 translation = Mat4Translate(x*4, y*4,  0);
             mat4 world = translation * rotY * rotX * rotZ;
-            RendererPushWorkToQueue(gQueue,
-                                    vertices, indices, ARRAY_LENGTH(indices),
-                                    gGameState->bitmap, {0.5f, 0.2f, -1}, world);
+            RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                    gameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
 
-    RendererPresent(gQueue);
+    RendererPresent();
 }
 
-void GameShutdown() {
-    SoundDestroy(shoot);
-    SoundDestroy(music);
-    SoundDestroy(chocolate);
+void GameShutdown(Memory * memory) {
+    GameState *gameState = (GameState *)memory->data;
+    SoundDestroy(gameState->shoot);
+    SoundDestroy(gameState->music);
+    SoundDestroy(gameState->chocolate);
 
+    InputSystemShutdown();
     SoundSystemShudown();
     RendererSystemShutdown();
     WindowSystemShutdown();

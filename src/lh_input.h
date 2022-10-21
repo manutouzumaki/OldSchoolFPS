@@ -121,8 +121,9 @@ struct Input {
     };
 };
 
-Input *InputCreate();
-void InputDestroy(Input *input);
+void InputSystemInitialize();
+void InputSystemShutdown();
+void ProcessInputAndMessages();
 
 bool KeyboardGetKeyDown(i32 key);
 bool KeyboardGetKeyJustDown(i32 key);
