@@ -9,13 +9,14 @@
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
 // - Fix XAudio bug (closing the game fast make it go boom)
-// - Move SoundSystemInitialize and SoundSystemShudown to the engine
-// - ...
-// - ...
+// - Create FPS camera
+// - Create a simple tile base Scene
+// - Try collision with the Scene
 // - ...
 // - ...
 //////////////////////////////////////////////////////////////////////
 
+#if 0
 Vertex vertices[] = {
     -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
@@ -52,6 +53,142 @@ u32 indices[] =
     19, 17, 16, 18, 17, 19,
     22, 20, 21, 23, 20, 22
 };
+#else
+Vertex vertices[] = {
+    // positio           // uv        // normal
+    -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+    -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+     0.5f,  0.5f, 0.0f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+     0.5f, -0.5f, 0.0f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f
+};
+
+u32 indices[] = {
+    0, 1, 3,
+    3, 1, 2
+};
+
+#endif
+
+
+// TODO: FPS camera
+vec3 cameraPosition = {2, 0, 1};
+vec3 cameraFront = {0, 0, 1};
+vec3 cameraRight = {1, 0, 0};
+vec3 cameraUp = {0, 1, 0};
+f32 cameraPitch = 0;
+f32 cameraYaw = RAD(90.0f);
+
+f32 playerSpeed = 10.0f;
+f32 sensitivity = 2.0f;
+
+void UpdateCamera(f32 dt) {
+    f32 leftStickX = JoysickGetLeftStickX();
+    f32 leftStickY = JoysickGetLeftStickY();
+    f32 rightStickX = JoysickGetRightStickX();
+    f32 rightStickY = JoysickGetRightStickY();
+    
+    // Right Stick movement
+    cameraYaw -= (rightStickX * sensitivity) * dt;
+    cameraPitch += (rightStickY * sensitivity) * dt;
+    f32 maxPitch = RAD(89.0f);
+    if(cameraPitch > maxPitch) {
+        cameraPitch = maxPitch;
+    }
+    else if(cameraPitch < -maxPitch) {
+        cameraPitch = -maxPitch;
+    }
+    cameraFront.x = cosf(cameraYaw) * cosf(cameraPitch);
+    cameraFront.y = sinf(cameraPitch);
+    cameraFront.z = sinf(cameraYaw) * cosf(cameraPitch);
+    cameraRight = cross(cameraUp, cameraFront);
+
+
+    // Left Stick movement
+    cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
+    cameraPosition = cameraPosition + (cameraFront * (leftStickY * playerSpeed)) * dt;
+
+    RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
+}
+
+// TODO: map test
+#if 0
+const i32 mapCountX = 6;
+const i32 mapCountY = 6;
+i32 map[mapCountY][mapCountX] = {
+    0, 3, 3, 3, 3, 0,
+    2, 1, 1, 1, 1, 4,
+    2, 1, 1, 1, 1, 4,
+    2, 1, 1, 1, 1, 4,
+    2, 1, 1, 1, 1, 4,
+    0, 5, 5, 5, 5, 0,
+};
+#else
+const i32 mapCountX = 16;
+const i32 mapCountY = 16;
+i32 map[mapCountY][mapCountX] = {
+    0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 4, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 5, 5, 5, 0, 0, 0, 0, 0,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+#endif
+
+void DrawMap(GameState *gameState) {
+
+    for(i32 y = 0; y < mapCountY; ++y) {
+        for(i32 x = 0; x < mapCountX; ++x) {
+            i32 tile = map[y][x];
+            mat4 world = Mat4Identity();
+            switch(tile) {
+                case 0: {
+                    continue; 
+                } break;
+                case 1: {
+                    mat4 translation = Mat4Translate(x, -0.5f, y);
+                    mat4 rotX = Mat4RotateX(RAD(90.0f));
+                    world = translation * rotX; 
+                } break;
+                case 2: {
+                    mat4 translation = Mat4Translate(x + 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(-90.0f));
+                    world = translation * rotY;    
+                } break;
+                case 4: {
+                    mat4 translation = Mat4Translate(x - 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(90.0f));
+                    world = translation * rotY;    
+                } break;
+                case 5: {
+                    mat4 translation = Mat4Translate(x, 0, y - 0.5f);
+                    world = translation;    
+                } break;
+                case 3: {
+                    mat4 translation = Mat4Translate(x, 0, y + 0.5f);
+                    mat4 rotY = Mat4RotateY(RAD(180.0f));
+                    world = translation * rotY;    
+                } break;
+
+            }; 
+
+            RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                    gameState->bitmap, {0.5f, 0.2f, -1}, world);
+        }
+    }
+
+
+}
 
 void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
@@ -68,8 +205,8 @@ void GameInit(Memory *memory) {
     gameState->soundArena = ArenaCreate(memory, Megabytes(1));
 
 
-    RendererSetProj(Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
-    RendererSetView(Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
+    RendererSetProj(Mat4Perspective(60.0f, 960.0f/540.0f, 0.1f, 100.0f));
+    RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
     // Load Assets
     gameState->bitmap = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -80,33 +217,31 @@ void GameInit(Memory *memory) {
     SoundPlay(gameState->music, true);
 }
 
-#include <windows.h>
-global_variable f32 gAngle = 0.0f;
 void GameUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
-    gAngle += 20.0f * dt;
+
+    UpdateCamera(dt);
 
     if(JoysickGetButtonJustDown(JOYSTICK_BUTTON_A)) {
         SoundPlay(gameState->shoot, false);
-        OutputDebugString("'A Button' was press\n");    
     }
 }
 
 void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     RendererClearBuffers(0xFF021102, 0.0f);
- 
-    mat4 rotY = Mat4RotateY(RAD(gAngle));
-    mat4 rotX = Mat4RotateX(RAD(gAngle));
-    mat4 rotZ = Mat4RotateZ(RAD(gAngle));
+#if 0
     for(i32 y = -1; y < 1; y++) {
         for(i32 x = -2; x < 2; x++) {
-            mat4 translation = Mat4Translate(x*4, y*4,  0);
-            mat4 world = translation * rotY * rotX * rotZ;
+            mat4 translation = Mat4Translate(x, y,  0);
+            mat4 world = translation;
             RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                                     gameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
+#else
+    DrawMap(gameState);
+#endif
     RendererPresent();
 }
 

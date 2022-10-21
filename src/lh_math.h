@@ -3,6 +3,7 @@
 
 #include "lh_defines.h"
 #include <xmmintrin.h>
+#include <math.h>
 
 #define EPSILON 0.000001f
 #define PI 3.14159265359f

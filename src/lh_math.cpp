@@ -1,6 +1,5 @@
 #include "lh_math.h"
 
-#include <math.h>
 #include <windows.h>
 #include <stdio.h>
 #include <limits.h>

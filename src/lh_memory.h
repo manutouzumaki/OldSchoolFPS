@@ -14,6 +14,7 @@ struct Arena {
 };
 
 Memory MemoryCreate(size_t size);
+void MemoryDestroy(Memory memory);
 Arena ArenaCreate(Memory *memory, size_t size);
 void *ArenaPush(Arena *arena, size_t size);
 #define ArenaPushStruct(arena, type) (type *)ArenaPush(arena, sizeof(type))

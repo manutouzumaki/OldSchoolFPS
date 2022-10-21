@@ -162,7 +162,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         
     while(gRunning) {
         // if we have time left Sleep
-#if 0
+#if 1
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
@@ -198,5 +198,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     }
 
     GameShutdown(&memory);
+    MemoryDestroy(memory);
     return 0;
 }

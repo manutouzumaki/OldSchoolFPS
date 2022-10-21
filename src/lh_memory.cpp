@@ -12,6 +12,12 @@ Memory MemoryCreate(size_t size) {
     return memory;
 }
 
+void MemoryDestroy(Memory memory) {
+    if(memory.data) {
+        free(memory.data);
+    }
+}
+
 Arena ArenaCreate(Memory *memory, size_t size) {
     ASSERT(memory->used + size <= memory->size);
     Arena arena = {};
