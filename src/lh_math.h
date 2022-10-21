@@ -2,7 +2,6 @@
 #define _LH_MATH_H_
 
 #include "lh_defines.h"
-#include <limits.h>
 #include <xmmintrin.h>
 
 #define EPSILON 0.000001f

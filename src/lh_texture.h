@@ -29,7 +29,7 @@ struct BitmapHeader
 };
 #pragma pack(pop)
 
-struct BMP
+struct Texture
 {
     void *data;
     u32 width;
@@ -37,6 +37,6 @@ struct BMP
 };
 
 struct Arena;
-BMP LoadTexture(char *path, Arena *arena);
+Texture *TextureCreate(char *path, Arena *objArena, Arena *dataArena);
 
 #endif

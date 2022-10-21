@@ -10,19 +10,19 @@ u32 BitScanForward(u32 mask)
     return (u32)shift;
 }
 
-BMP LoadTexture(char *path, Arena *arena) {
-    ReadFileResult fileResult = ReadFile(path, arena);
+Texture *TextureCreate(char *path, Arena *objArena, Arena *dataArena) {
+    ReadFileResult fileResult = ReadFile(path, dataArena);
     BitmapHeader *header = (BitmapHeader *)fileResult.data;
-    BMP bitmap;
-    bitmap.data = (void *)((u8 *)fileResult.data + header->bitmapOffset);
-    bitmap.width = header->width;
-    bitmap.height = header->height;
+    Texture *texture = ArenaPushStruct(objArena, Texture);
+    texture->data = (void *)((u8 *)fileResult.data + header->bitmapOffset);
+    texture->width = header->width;
+    texture->height = header->height;
     u32 redShift = BitScanForward(header->redMask);
     u32 greenShift = BitScanForward(header->greenMask);
     u32 blueShift = BitScanForward(header->blueMask);
     u32 alphaShift = BitScanForward(header->alphaMask);
-    u32 *colorData = (u32 *)bitmap.data;
-    for(u32 i = 0; i < bitmap.width*bitmap.height; ++i)
+    u32 *colorData = (u32 *)texture->data;
+    for(u32 i = 0; i < texture->width*texture->height; ++i)
     {
         u32 red = (colorData[i] & header->redMask) >> redShift;       
         u32 green = (colorData[i] & header->greenMask) >> greenShift;       
@@ -30,5 +30,5 @@ BMP LoadTexture(char *path, Arena *arena) {
         u32 alpha = (colorData[i] & header->alphaMask) >> alphaShift;       
         colorData[i] = (alpha << 24) | (red << 16) | (green << 8) | (blue << 0);
     }
-    return bitmap;
+    return texture;
 }

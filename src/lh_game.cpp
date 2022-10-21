@@ -1,4 +1,9 @@
 #include "lh_game.h"
+#include "lh_platform.h"
+#include "lh_renderer.h"
+#include "lh_sound.h"
+#include "lh_texture.h"
+#include "lh_input.h"
 
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
@@ -57,15 +62,20 @@ void GameInit(Memory *memory) {
     WindowSystemInitialize(960, 540, "Last Hope 3D");
     RendererSystemInitialize();
     SoundSystemInitialize();
-    InputSystemInitialize();
+
+    gameState->dataArena = ArenaCreate(memory, Megabytes(500));
+    gameState->textureArena = ArenaCreate(memory, Megabytes(1));
+    gameState->soundArena = ArenaCreate(memory, Megabytes(1));
+
 
     RendererSetProj(Mat4Perspective(90.0f, 960.0f/540.0f, 0.1f, 100.0f));
     RendererSetView(Mat4LookAt({-2, -2, -5}, {-2, -2, 0}, {0, 1, 0}));
-    gameState->bitmapArena = ArenaCreate(memory, Megabytes(1));
-    gameState->bitmap = LoadTexture("../assets/test.bmp", &gameState->bitmapArena);
-    gameState->chocolate = SoundCreate("../assets/chocolate.wav");
-    gameState->music     = SoundCreate("../assets/lugia.wav");
-    gameState->shoot     = SoundCreate("../assets/shoot.wav");
+
+    // Load Assets
+    gameState->bitmap = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->chocolate = SoundCreate("../assets/chocolate.wav", &gameState->soundArena, &gameState->dataArena);
+    gameState->music     = SoundCreate("../assets/lugia.wav", &gameState->soundArena, &gameState->dataArena);
+    gameState->shoot     = SoundCreate("../assets/shoot.wav", &gameState->soundArena, &gameState->dataArena);
 
     SoundPlay(gameState->music, true);
 }
@@ -97,7 +107,6 @@ void GameRender(Memory *memory) {
                                     gameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
-
     RendererPresent();
 }
 
@@ -107,7 +116,6 @@ void GameShutdown(Memory * memory) {
     SoundDestroy(gameState->music);
     SoundDestroy(gameState->chocolate);
 
-    InputSystemShutdown();
     SoundSystemShudown();
     RendererSystemShutdown();
     WindowSystemShutdown();

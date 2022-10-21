@@ -2,6 +2,15 @@
 #define _PLATFORM_H_
 
 #include "lh_defines.h"
+#include <windows.h>
+
+struct Window {
+    HWND hwnd;
+    i32 width;
+    i32 height;
+    char *title;
+};
+
 
 typedef void PlatformWorkQueueCallback(void *data);
 void PlatformAddEntry(PlatformWorkQueueCallback *callback, void *data);

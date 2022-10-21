@@ -20,14 +20,6 @@ global_variable WORD XInputButtons[] =
 };
 extern bool gRunning;
 
-void InputSystemInitialize() {
-
-}
-
-void InputSystemShutdown() {
-
-}
-
 bool KeyboardGetKeyDown(i32 key) {
     return gInput.keys[key].isDown;
 }

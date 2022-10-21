@@ -1,5 +1,6 @@
 #include "lh_sound.h"
 #include "lh_defines.h"
+#include "lh_memory.h"
 #include <windows.h>
 #include <xaudio2.h>
 #include <malloc.h>
@@ -104,8 +105,8 @@ void SoundSystemShudown() {
 
 }
 
-Sound *SoundCreate(const char *fileName) {
-    Sound *sound = (Sound *)malloc(sizeof(Sound));
+Sound *SoundCreate(const char *fileName, Arena *objArena, Arena *dataArena) {
+    Sound *sound = ArenaPushStruct(objArena, Sound);
     WAVEFORMATEXTENSIBLE wfx = {0};
 
     // open the file
@@ -132,7 +133,7 @@ Sound *SoundCreate(const char *fileName) {
     ReadChunkData(hFile, &wfx, chunkSize, chunkPosition);
     // locate the DATA chunk and read its contents into a buffer
     FindChunk(hFile, fourccDATA, &chunkSize, &chunkPosition);
-    sound->buffer = (u8 *)malloc(chunkSize);
+    sound->buffer = ArenaPushArray(dataArena, chunkSize, u8);
     sound->bufferSize = chunkSize;
     ReadChunkData(hFile, sound->buffer, chunkSize, chunkPosition);
 
@@ -152,10 +153,7 @@ void SoundDestroy(Sound *sound) {
     if(sound) {
         sound->sourceVoice->Stop(0);
         sound->sourceVoice->FlushSourceBuffers();
-        free(sound->buffer);
         sound->sourceVoice->DestroyVoice();
-        free(sound);
-        sound = 0;
     }
 }
 

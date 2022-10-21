@@ -1,14 +1,8 @@
-#include <windows.h>
 #include <intrin.h>
 #include <stdio.h>
+#include "lh_platform.h"
 #include "lh_game.h"
-
-struct Window {
-    HWND hwnd;
-    i32 width;
-    i32 height;
-    char *title;
-};
+#include "lh_input.h"
 
 // TODO: start implementing multithreading code
 struct PlatformWorkQueueEntry {
@@ -150,7 +144,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         CloseHandle(threadHandle);
     }
     // allocate memory for the entire game
-    Memory memory = MemoryCreate(Megabytes(10));
+    Memory memory = MemoryCreate(Gigabytes(1));
     GameInit(&memory);
     
     // get messages and handle them
@@ -168,7 +162,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         
     while(gRunning) {
         // if we have time left Sleep
-#if 1
+#if 0
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;

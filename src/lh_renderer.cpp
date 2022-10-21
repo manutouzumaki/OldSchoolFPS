@@ -1,6 +1,7 @@
 #include <windows.h>
 #include "lh_renderer.h"
 #include "lh_platform.h"
+#include "lh_texture.h"
 #include <math.h>
 #include <immintrin.h>
 #include <xmmintrin.h>
@@ -10,21 +11,12 @@
 #define MAX_VERTICES_PER_CLIPPED_TRIANGLE 16
 #define Align16(value) ((value + 15) & ~15)
 
-// TODO: try to not define this struct in multiple places
-// if you change one you have to remember to change the other.
-struct Window {
-    HWND hwnd;
-    i32 width;
-    i32 height;
-    char *title;
-};
-
 struct RenderWork {
     Vertex *vertices;
     i32 verticesCount;
     u32 *indices;
     i32 indicesCount;
-    BMP bitmap;
+    Texture *bitmap;
     vec3 lightDir;
     mat4 world;
 };
@@ -164,7 +156,7 @@ void DrawLineTriangle(Point a, Point b, Point c, u32 color) {
 }
 
 internal
-u32 PhongLighting(u32 color, BMP bitmap, vec3 lightDir, vec3 interpolatedNormal, vec3 interpolatedFragPos) {
+u32 PhongLighting(u32 color, Texture *bitmap, vec3 lightDir, vec3 interpolatedNormal, vec3 interpolatedFragPos) {
     f32 red = (f32)((color & 0x00FF0000) >> 16);
     f32 green = (f32)((color & 0x0000FF00) >> 8);
     f32 blue = (f32)(color & 0x000000FF);
@@ -201,16 +193,16 @@ u32 PhongLighting(u32 color, BMP bitmap, vec3 lightDir, vec3 interpolatedNormal,
 internal
 void DrawScanLine(i32 xStart, i32 xEnd, i32 y,
                   Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
-                  vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, BMP bitmap, vec3 lightDir) {
+                  vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, Texture *bitmap, vec3 lightDir) {
     for(i32 x  = xStart; x < xEnd; x++) {
         vec3 weights = SolveBarycentric({a.x, a.y}, {b.x, b.y}, {c.x, c.y}, {(f32)x, (f32)y});
         f32 interpolatedReciprocalZ = a.z * weights.x + b.z * weights.y + c.z * weights.z; 
         if(interpolatedReciprocalZ >= gRenderer.depthBuffer[(i32)y * gRenderer.bufferWidth + (i32)x]) {
             f32 interpolatedU = ((aUv.x*a.z) * weights.x + (bUv.x*b.z) * weights.y + (cUv.x*c.z) * weights.z) / interpolatedReciprocalZ;
             f32 interpolatedV = ((aUv.y*a.z) * weights.x + (bUv.y*b.z) * weights.y + (cUv.y*c.z) * weights.z) / interpolatedReciprocalZ;
-            i32 bitmapX = abs((i32)(interpolatedU * bitmap.width)) % bitmap.width;
-            i32 bitmapY = abs((i32)(interpolatedV * bitmap.height)) % bitmap.height;
-            u32 color = ((u32 *)bitmap.data)[bitmapY * bitmap.width + bitmapX];
+            i32 bitmapX = abs((i32)(interpolatedU * bitmap->width)) % bitmap->width;
+            i32 bitmapY = abs((i32)(interpolatedV * bitmap->height)) % bitmap->height;
+            u32 color = ((u32 *)bitmap->data)[bitmapY * bitmap->width + bitmapX];
             vec3 interpolatedNormal = normalized((aNorm * weights.x) + (bNorm * weights.y) + (cNorm * weights.z));
             vec3 interpolatedFragPos = (aFragPos * weights.x) + (bFragPos * weights.y) + (cFragPos * weights.z);
             color = PhongLighting(color, bitmap, lightDir, interpolatedNormal, interpolatedFragPos);
@@ -225,7 +217,7 @@ void TriangleRasterizerScanLine(Point a, Point b, Point c,
                                 vec2 aUv, vec2 bUv, vec2 cUv,
                                 vec3 aNorm, vec3 bNorm, vec3 cNorm,
                                 vec3 aFragPos, vec3 bFragPos, vec3 cFragPos,
-                                BMP bitmap,
+                                Texture *bitmap,
                                 vec3 lightDir) {
     normalize(&lightDir);
     if(a.y > b.y) {
@@ -292,7 +284,7 @@ f32 ORIENTED2D(Point a, Point b, Point c) {
 
 internal
 void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
-                        vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, BMP bitmap, vec3 lightDir,
+                        vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, Texture *bitmap, vec3 lightDir,
                         rectangle2i clipRect) {
 
     ASSERT(((uintptr_t)gRenderer.colorBuffer & 15) == 0);
@@ -366,8 +358,8 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 cFragPosY = _mm_set1_ps(cFragPos.y);
         __m128 cFragPosZ = _mm_set1_ps(cFragPos.z);
 
-        __m128 bitmapWidth = _mm_set1_ps((f32)bitmap.width - 1);
-        __m128 bitmapHeight = _mm_set1_ps((f32)bitmap.height - 1);
+        __m128 bitmapWidth = _mm_set1_ps((f32)bitmap->width - 1);
+        __m128 bitmapHeight = _mm_set1_ps((f32)bitmap->height - 1);
         __m128 zero = _mm_set1_ps(0.0f);
         __m128 one = _mm_set1_ps(1.0f);
         __m128 two = _mm_set1_ps(2.0f);
@@ -491,7 +483,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         for(i32 i = 0; i < 4; ++i) {
                             i32 textureX = Mi(bitmapX, i);
                             i32 textureY = Mi(bitmapY, i);
-                            Mi(color, i) = ((u32 *)bitmap.data)[textureY * bitmap.width + textureX];
+                            Mi(color, i) = ((u32 *)bitmap->data)[textureY * bitmap->width + textureX];
                         }
 #if 1
                         // implement SSE2 version of the Phong Lighting Model.
@@ -707,7 +699,7 @@ void HomogenousClipping(vec4 *srcVertives, vec2 * srcUVs, vec3 *srcNormals, vec3
 
 internal
 void RenderVertexArraySlow(Vertex *vertices, i32 verticesCount,
-                  BMP bitmap, vec3 lightDir) {
+                  Texture *bitmap, vec3 lightDir) {
     local_persist f32 angle = 0.0f;
     mat4 rotY = Mat4RotateY(RAD(angle));
     mat4 rotX = Mat4RotateX(RAD(angle));
@@ -831,7 +823,7 @@ void RenderVertexArraySlow(Vertex *vertices, i32 verticesCount,
 
 internal
 void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
-                           i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
+                           i32 indicesCount, Texture *bitmap, vec3 lightDir, mat4 world, rectangle2i clipRect) {    
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -994,7 +986,7 @@ void FlushWorkQueue() {
     rectangle2i clipRect = {0, 0, gRenderer.bufferWidth - 1, gRenderer.bufferHeight - 1};
     for(i32 i = 0; i < gRenderer.workCount; ++i) {
         RenderWork *work = gRenderer.workArray + i;
-        RenderVertexArrayFast(queue, work->vertices, work->indices,
+        RenderVertexArrayFast(work->vertices, work->indices,
                               work->indicesCount, work->bitmap, work->lightDir, work->world, clipRect);
     }
     gRenderer.workCount = 0;
@@ -1053,7 +1045,7 @@ void RendererClearBuffers(u32 color, f32 depth) {
 }
 
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
-                             i32 indicesCount, BMP bitmap, vec3 lightDir, mat4 world) {
+                             i32 indicesCount, Texture *bitmap, vec3 lightDir, mat4 world) {
     RenderWork *work = gRenderer.workArray + gRenderer.workCount++;
     work->vertices = vertices;
     work->verticesCount = 0;
