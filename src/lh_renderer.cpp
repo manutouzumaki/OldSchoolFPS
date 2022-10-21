@@ -403,9 +403,9 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         
         __m128 specComponent = _mm_set1_ps(2.0f);
 
-        __m128 ambientStrength  = _mm_set1_ps(0.1f);
+        __m128 ambientStrength  = _mm_set1_ps(0.3f);
         __m128 specularStrength = _mm_set1_ps(0.8f);
-        __m128 diffuseStrength = _mm_set1_ps(0.2f);
+        __m128 diffuseStrength = _mm_set1_ps(0.6f);
 
 
         i32 minX = fillRect.minX;
@@ -413,10 +413,10 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         i32 maxX = fillRect.maxX;
         i32 maxY = fillRect.maxY;
 
-        for(i32 y = minY; y < maxY; ++y) {
+        for(i32 y = minY; y <= maxY; ++y) {
             __m128 pixelsToTestY = _mm_set1_ps(y);
             __m128i clipMask = startClipMask;
-            for(i32 x = minX; x < maxX; x += 4) {
+            for(i32 x = minX; x <= maxX; x += 4) {
 
                 // get the old data for the maskout
                 u32 *pixelPt = gRenderer.colorBuffer + ((y * gRenderer.bufferWidth) + x);

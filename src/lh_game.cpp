@@ -78,7 +78,7 @@ vec3 cameraUp = {0, 1, 0};
 f32 cameraPitch = 0;
 f32 cameraYaw = RAD(90.0f);
 
-f32 playerSpeed = 10.0f;
+f32 playerSpeed = 2.0f;
 f32 sensitivity = 2.0f;
 
 void UpdateCamera(f32 dt) {
@@ -106,23 +106,12 @@ void UpdateCamera(f32 dt) {
     // Left Stick movement
     cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
     cameraPosition = cameraPosition + (cameraFront * (leftStickY * playerSpeed)) * dt;
-
+    
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 }
 
 // TODO: map test
-#if 0
-const i32 mapCountX = 6;
-const i32 mapCountY = 6;
-i32 map[mapCountY][mapCountX] = {
-    0, 3, 3, 3, 3, 0,
-    2, 1, 1, 1, 1, 4,
-    2, 1, 1, 1, 1, 4,
-    2, 1, 1, 1, 1, 4,
-    2, 1, 1, 1, 1, 4,
-    0, 5, 5, 5, 5, 0,
-};
-#else
+
 const i32 mapCountX = 16;
 const i32 mapCountY = 16;
 i32 map[mapCountY][mapCountX] = {
@@ -131,22 +120,20 @@ i32 map[mapCountY][mapCountX] = {
     2, 1, 1, 4, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0,
     2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
     2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 5, 5, 5, 0, 0, 0, 0, 0,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 6, 3, 3, 3, 0,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 8, 5, 9, 1, 4,
+    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 2, 1, 4,
+    2, 1, 1, 6, 7, 1, 1, 1, 8, 5, 5, 0, 0, 2, 1, 4,
+    2, 1, 1, 1, 1, 1, 1, 8, 0, 0, 0, 0, 0, 2, 1, 4,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 2, 1, 4,
+    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 5, 0,
     2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
     2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
-#endif
 
 void DrawMap(GameState *gameState) {
-
     for(i32 y = 0; y < mapCountY; ++y) {
         for(i32 x = 0; x < mapCountX; ++x) {
             i32 tile = map[y][x];
@@ -159,35 +146,87 @@ void DrawMap(GameState *gameState) {
                     mat4 translation = Mat4Translate(x, -0.5f, y);
                     mat4 rotX = Mat4RotateX(RAD(90.0f));
                     world = translation * rotX; 
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
                 } break;
                 case 2: {
                     mat4 translation = Mat4Translate(x + 0.5f, 0, y);
                     mat4 rotY = Mat4RotateY(RAD(-90.0f));
                     world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
                 } break;
                 case 4: {
                     mat4 translation = Mat4Translate(x - 0.5f, 0, y);
                     mat4 rotY = Mat4RotateY(RAD(90.0f));
                     world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
                 } break;
                 case 5: {
                     mat4 translation = Mat4Translate(x, 0, y - 0.5f);
                     world = translation;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
                 } break;
                 case 3: {
                     mat4 translation = Mat4Translate(x, 0, y + 0.5f);
                     mat4 rotY = Mat4RotateY(RAD(180.0f));
                     world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
                 } break;
+                case 6: {
+                    mat4 translation = Mat4Translate(x - 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(90.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                    translation = Mat4Translate(x, 0, y + 0.5f);
+                    rotY = Mat4RotateY(RAD(180.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                } break;
+                case 7: {
+                    mat4 translation = Mat4Translate(x + 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(-90.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                    translation = Mat4Translate(x, 0, y + 0.5f);
+                    rotY = Mat4RotateY(RAD(180.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
 
+                } break;
+                case 8: {
+                    mat4 translation = Mat4Translate(x, 0, y - 0.5f);
+                    world = translation;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                    translation = Mat4Translate(x - 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(90.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                } break;
+                case 9: {
+                    mat4 translation = Mat4Translate(x + 0.5f, 0, y);
+                    mat4 rotY = Mat4RotateY(RAD(-90.0f));
+                    world = translation * rotY;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                    translation = Mat4Translate(x, 0, y - 0.5f);
+                    world = translation;    
+                    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                                            gameState->bitmap, {0.5f, 0.2f, -1}, world);
+                } break;
             }; 
 
-            RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                                    gameState->bitmap, {0.5f, 0.2f, -1}, world);
         }
     }
-
-
 }
 
 void GameInit(Memory *memory) {
@@ -230,18 +269,9 @@ void GameUpdate(Memory *memory, f32 dt) {
 void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     RendererClearBuffers(0xFF021102, 0.0f);
-#if 0
-    for(i32 y = -1; y < 1; y++) {
-        for(i32 x = -2; x < 2; x++) {
-            mat4 translation = Mat4Translate(x, y,  0);
-            mat4 world = translation;
-            RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                                    gameState->bitmap, {0.5f, 0.2f, -1}, world);
-        }
-    }
-#else
+
     DrawMap(gameState);
-#endif
+    
     RendererPresent();
 }
 
