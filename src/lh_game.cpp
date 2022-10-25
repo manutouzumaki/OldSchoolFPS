@@ -181,7 +181,6 @@ void DrawStaticEntityArray(StaticEntity *entities,i32 count, GameState *gameStat
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
             DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
-            
             mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
             DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
         }
@@ -386,35 +385,51 @@ void CameraCollisionResolutionOBB(OBB *obb) {
 #include <windows.h>
 #include <stdio.h>
 
-void SortOBBArray(OBB *obbs, i32 count) {
+void SortOBBArray(OBB **obbs, i32 count) {
     for(i32 j = 1;
         j < count;
         ++j)
     {
-        OBB key = obbs[j];
-        f32 keyDistance = lenSq(key.c - cameraPosition);
+        OBB *key = obbs[j];
+        f32 keyDistance = lenSq(key->c - cameraPosition);
         i32 i = j - 1;
         
-        OBB src = obbs[i];
-        f32 srcDistance = lenSq(src.c - cameraPosition);
+        OBB *src = obbs[i];
+        f32 srcDistance = lenSq(src->c - cameraPosition);
         while(i >= 0 && srcDistance > keyDistance)
         {
             obbs[i + 1] = obbs[i];
             --i;
             if(i >= 0) {
-                srcDistance = lenSq(obbs[i].c - cameraPosition);;
+                srcDistance = lenSq(obbs[i]->c - cameraPosition);;
             }
         }
         obbs[i + 1] = key;
     }
 }
 
-void CameraOBBsArray(StaticEntity *entities,i32 count) {
+void UpdateClosestPoints(StaticEntity *entities, i32 count) {
     for(i32 i = 0; i < count; ++i) {
         StaticEntity *staticEntity = entities + i;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
-            
+            f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
+            if(sqDistToClosestPoint > 0) {
+                obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+            }
+        }
+    }
+}
+
+
+#define MAX_SORTED_OBB 100
+void CameraOBBsArray(StaticEntity *entities,i32 count) {
+    OBB *sortedOBBs[MAX_SORTED_OBB];
+    i32 sortedCount = 0;
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntity *staticEntity = entities + i;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j; 
             f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
             if(sqDistToClosestPoint > 0) {
                 obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
@@ -422,10 +437,17 @@ void CameraOBBsArray(StaticEntity *entities,i32 count) {
             }
             if(sqDistToClosestPoint <= 0) {
                 obb->color = 0xFFFF0000;
-                CameraCollisionResolutionOBB(obb);
+                //CameraCollisionResolutionOBB(obb);
+                sortedOBBs[sortedCount++] = obb;
             }
         }
     }
+    SortOBBArray(sortedOBBs, sortedCount);
+    for(i32 i = 0; i < sortedCount; ++i) {
+        CameraCollisionResolutionOBB(sortedOBBs[i]);
+        UpdateClosestPoints(entities, count);
+    }
+
 }
 
 void GameInit(Memory *memory) {
