@@ -88,6 +88,12 @@ struct rectangle2i {
     i32 maxX, maxY;
 };
 
+struct Transform {
+    vec3 position;
+    vec3 rotation;
+    vec3 scale; 
+};
+
 rectangle2i RectangleInvertedInfinity();
 rectangle2i RectangleIntersect(rectangle2i a, rectangle2i b);
 rectangle2i RectangleUnion(rectangle2i a, rectangle2i b);

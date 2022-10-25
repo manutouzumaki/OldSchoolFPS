@@ -383,9 +383,9 @@ mat3 Mat3RotateX(f32 angle) {
 
 mat3 Mat3RotateY(f32 angle) {
     mat3 result = {
-        cosf(angle), 0, -sinf(angle),
+        cosf(angle), 0, sinf(angle),
         0, 1, 0,
-        sinf(angle), 0, cosf(angle),
+        -sinf(angle), 0, cosf(angle),
     };
     return result;
 }
@@ -498,9 +498,9 @@ mat4 Mat4RotateX(f32 angle) {
 
 mat4 Mat4RotateY(f32 angle) {
     mat4 result = {
-        cosf(angle), 0, -sinf(angle), 0,
+        cosf(angle), 0, sinf(angle), 0,
         0, 1, 0, 0,
-        sinf(angle), 0, cosf(angle), 0,
+        -sinf(angle), 0, cosf(angle), 0,
         0, 0, 0, 1 
     };
     return result;
