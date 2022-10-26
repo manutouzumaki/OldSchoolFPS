@@ -354,19 +354,19 @@ vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
         return b->u[0];
     }
     if(p.x == b->c.x - b->e.x) {
-        return b->u[0];
+        return b->u[0] * -1.0f;
     }
     if(p.y == b->c.y + b->e.y) {
         return b->u[1];
     }
     if(p.y == b->c.y - b->e.y) {
-        return b->u[1];
+        return b->u[1] * -1.0f;
     }
     if(p.z == b->c.z + b->e.z) {
         return b->u[2];
     }
     if(p.z == b->c.z - b->e.z) {
-        return b->u[2];
+        return b->u[2] * -1.0f;
     }
 }
 #endif
@@ -376,14 +376,11 @@ void CameraCollisionResolutionOBB(OBB *obb) {
         Plane collisionPlane;
         collisionPlane.n = normalized(collisionNormal);
         collisionPlane.p = obb->closestPoint;
-        vec3 closest = ClosestPtPointPlane(cameraPosition, collisionPlane);
+        vec3 closest = ClosestPtPointPlane(cameraPosition, collisionPlane) + collisionPlane.n * 0.001f;        
         cameraPosition.x = closest.x;
         cameraPosition.y = closest.y;
         cameraPosition.z = closest.z;
 }
-
-#include <windows.h>
-#include <stdio.h>
 
 void SortOBBArray(OBB **obbs, i32 count) {
     for(i32 j = 1;
@@ -437,7 +434,6 @@ void CameraOBBsArray(StaticEntity *entities,i32 count) {
             }
             if(sqDistToClosestPoint <= 0) {
                 obb->color = 0xFFFF0000;
-                //CameraCollisionResolutionOBB(obb);
                 sortedOBBs[sortedCount++] = obb;
             }
         }
