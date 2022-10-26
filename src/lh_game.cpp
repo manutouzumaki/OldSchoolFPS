@@ -8,9 +8,13 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - Try collision with the Scene
 // - platform independent Debug output 
-// - ...
+// - test the collision system using OBB normals
+// - test the collision system using rotated OBB
+// - implement mouse and keyboard camera movement
+// - optimize the renderer with octree 
+// - optimize the collision system with octree
+// - fix corner tiles OBB 
 //////////////////////////////////////////////////////////////////////
 
 Vertex verticesCube[] = {
@@ -320,56 +324,46 @@ i32 TestOBBOBB(OBB *a, OBB *b) {
 
 // TODO: implement this better
 const f32 NORMAL_EPSILON = 0.00001f;
-#if 0
 vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
     vec3 pRel = p - b->c;
-    f32 xDot = len(project(pRel, b->u[0]));
-    if(fabsf(xDot - b->e.x) <= NORMAL_EPSILON) {
+
+    f32 xDot = dot(pRel, b->u[0]);
+    f32 xPositive = (xDot - b->e.x);
+    if(xPositive <= NORMAL_EPSILON && xPositive >= -NORMAL_EPSILON) {
         return b->u[0];
     }
-    else if(fabs(xDot - -b->e.x) <= NORMAL_EPSILON) {
+    f32 xNegative = (xDot - -b->e.x);
+    if(xNegative <= NORMAL_EPSILON  && xNegative >= -NORMAL_EPSILON) {
         return b->u[0] * -1.0f;
     }
-    f32 zDot = len(project(pRel, b->u[2]));
-    if(fabs(zDot - b->e.z) <= NORMAL_EPSILON) {
-        return b->u[2];
-    }
-    else if(fabs(zDot - -b->e.z) <= NORMAL_EPSILON) {
-        return b->u[2] * -1.0f;
-    }
-    f32 yDot = len(project(pRel, b->u[1]));
-    if(fabs(yDot - b->e.y) <= NORMAL_EPSILON) {
+
+    f32 yDot = dot(pRel, b->u[1]);
+    f32 yPositive = (yDot - b->e.y);
+    if(yPositive <= NORMAL_EPSILON && yPositive >= -NORMAL_EPSILON) {
         return b->u[1];
     }
-    else if(fabs(yDot - -b->e.y) <= NORMAL_EPSILON) {
+    f32 yNegative = (yDot - -b->e.y);
+    if(yNegative <= NORMAL_EPSILON  && yNegative >= -NORMAL_EPSILON) {
         return b->u[1] * -1.0f;
     }
-    ASSERT(!"FAILED");
+
+    f32 zDot = dot(pRel, b->u[2]);
+    f32 zPositive = (zDot - b->e.z);
+    if(zPositive <= NORMAL_EPSILON && zPositive >= -NORMAL_EPSILON) {
+        return b->u[2];
+    }
+    f32 zNegative = (zDot - -b->e.z);
+    if(zNegative <= NORMAL_EPSILON  && zNegative >= -NORMAL_EPSILON) {
+        return b->u[2] * -1.0f;
+    }
+    
+    
+    ASSERT(!"FAILEDDDD!!!!");
     vec3 zero = {};
     return zero;
+    
 }
-#else
-vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
-    if(p.x == b->c.x + b->e.x) {
-        return b->u[0];
-    }
-    if(p.x == b->c.x - b->e.x) {
-        return b->u[0] * -1.0f;
-    }
-    if(p.y == b->c.y + b->e.y) {
-        return b->u[1];
-    }
-    if(p.y == b->c.y - b->e.y) {
-        return b->u[1] * -1.0f;
-    }
-    if(p.z == b->c.z + b->e.z) {
-        return b->u[2];
-    }
-    if(p.z == b->c.z - b->e.z) {
-        return b->u[2] * -1.0f;
-    }
-}
-#endif
+
 
 void CameraCollisionResolutionOBB(OBB *obb) {
         vec3 collisionNormal = GetOBBNormalFromPoint(obb->closestPoint, obb);
@@ -443,6 +437,19 @@ void CameraOBBsArray(StaticEntity *entities,i32 count) {
         CameraCollisionResolutionOBB(sortedOBBs[i]);
         UpdateClosestPoints(entities, count);
     }
+}
+
+
+void CameraCollisionDetectionAndResolutionOBB(OBB *obb) {
+    f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
+    if(sqDistToClosestPoint > 0) {
+        obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+        obb->color = 0xFF00FF00;
+    }
+    if(sqDistToClosestPoint <= 0) {
+        obb->color = 0xFFFF0000;
+        CameraCollisionResolutionOBB(obb);
+    }
 
 }
 
@@ -474,15 +481,16 @@ void GameInit(Memory *memory) {
     StaticEntitiesInitialized(&gameState->entities, &gameState->entitiesCount, &gameState->staticEntitiesArena,
                               vertices, indices, ARRAY_LENGTH(indices));
 
+
     
     // Init OBB
     vec3 cubeOBBRight = {1, 0, 0};
     vec3 cubeOBBUp    = {0, 1, 0};
     vec3 cubeOBBFront = {0, 0, 1};
     gameState->cubeOBB.c = {5, 0, 22};
-    gameState->cubeOBB.u[0] = Mat3RotateY(RAD(45.0f)) * cubeOBBRight;
-    gameState->cubeOBB.u[1] = Mat3RotateY(RAD(45.0f)) * cubeOBBUp;
-    gameState->cubeOBB.u[2] = Mat3RotateY(RAD(45.0f)) * cubeOBBFront;
+    gameState->cubeOBB.u[0] = normalized(Mat3RotateY(RAD(45.0f)) * cubeOBBRight);
+    gameState->cubeOBB.u[1] = normalized(Mat3RotateY(RAD(45.0f)) * cubeOBBUp);
+    gameState->cubeOBB.u[2] = normalized(Mat3RotateY(RAD(45.0f)) * cubeOBBFront);
     gameState->cubeOBB.e = {2, 1, 1};
     mat4 translationMat = Mat4Translate(gameState->cubeOBB.c.x, gameState->cubeOBB.c.y, gameState->cubeOBB.c.z);
     mat4 rotationMat = Mat4RotateX(RAD(0.0f)) * Mat4RotateY(RAD(45.0f)) * Mat4RotateZ(RAD(0.0f));
@@ -502,9 +510,9 @@ void GameUpdate(Memory *memory, f32 dt) {
         SoundPlay(gameState->shoot, false);
     }
 
-    //CameraCollisionDetectionAndResolutionOBB(&gameState->cubeOBB);
     UpdateCamera(dt);
     CameraOBBsArray(gameState->entities, gameState->entitiesCount);
+    CameraCollisionDetectionAndResolutionOBB(&gameState->cubeOBB);
 
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
@@ -516,7 +524,7 @@ void GameRender(Memory *memory) {
 
     DrawStaticEntityArray(gameState->entities, gameState->entitiesCount, gameState);
     
-    //DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), gameState->cubeOBB.color, gameState->cubeOBB.world);
+    DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), gameState->cubeOBB.color, gameState->cubeOBB.world);
     
     RendererPresent();
 }

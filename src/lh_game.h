@@ -54,7 +54,7 @@ struct GameState {
     StaticEntity *entities;
     i32 entitiesCount;
 
-    OBB cubeOBB;    
+    OBB cubeOBB;
 };
 
 void GameInit(Memory *memory);
