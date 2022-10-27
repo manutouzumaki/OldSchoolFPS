@@ -35,3 +35,8 @@ void *ArenaPush(Arena *arena, size_t size) {
     arena->used += size;
     return result;
 }
+
+
+void ArenaReset(Arena *arena) {
+    arena->used = 0;
+}

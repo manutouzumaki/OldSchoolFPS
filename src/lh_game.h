@@ -14,9 +14,6 @@ struct Sound;
 struct Texture;
 struct Mesh;
 
-
-
-// TODO: start implementing simple collision detection and resolution
 struct OBB {
     vec3 c;    // center point
     vec3 u[3]; // local x, y, and z axes
@@ -40,8 +37,23 @@ struct StaticEntity {
     i32 meshCount;
 };
 
+struct StaticEntityNode {
+    StaticEntity *object;
+    StaticEntityNode *next;
+};
+
+
+// octree node data structure
+struct OctreeNode {
+    vec3 center;                // center point of the octree
+    f32 halfWidth;              // half the width of the node volumen
+    OctreeNode *child[8];       // pointers to the eight children nodes
+    StaticEntityNode *objList;  // linked list of the object in this node
+};
+
 struct GameState {
     Arena dataArena;
+    Arena frameArena;
     Arena textureArena; 
     Arena soundArena;
     Arena staticEntitiesArena;
@@ -56,9 +68,10 @@ struct GameState {
 
     OBB cubeOBB;
 
-
     i32 mouseDefaultScreenX;
     i32 mouseDefaultScreenY;
+
+    OctreeNode *tree;
 };
 
 void GameInit(Memory *memory);

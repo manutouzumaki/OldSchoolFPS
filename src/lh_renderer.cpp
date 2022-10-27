@@ -887,7 +887,6 @@ void DEBUG_RendererDrawWireframeBuffer(Vertex *vertices, i32 verticesCount, u32 
         HomogenousClipping(verticesToClipB, uvsToClipB, normalsToClipB, fragPosToClipB, verticesBCount,
                            verticesToClipA, uvsToClipA, normalsToClipA, fragPosToClipA, &verticesACount,
                            2, 1.0f);
-
         for(i32 j = 0; j < verticesACount - 2; ++j) {
             vec4 newA = verticesToClipA[0];
             vec4 newB = verticesToClipA[1 + j];

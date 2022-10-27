@@ -8,10 +8,10 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - platform independent Debug output 
-// - optimize the renderer with octree 
 // - optimize the collision system with octree
 // - fix corner tiles OBB 
+// - change the renderer to use a directX texure instead
+// - platform independent Debug output 
 //////////////////////////////////////////////////////////////////////
 
 Vertex verticesCube[] = {
@@ -207,22 +207,6 @@ OBB CreateOBB(vec3 position, vec3 rotation, vec3 scale) {
 #include "lh_map.h"
 
 internal
-void DrawStaticEntityArray(StaticEntity *entities,i32 count, GameState *gameState) {
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntity *staticEntity = entities + i;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            Mesh *mesh = staticEntity->meshes + j;
-            OBB *obb = staticEntity->obbs + j;
-            RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
-                                    gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
-            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
-            mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
-            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
-        }
-    }
-}
-
-internal
 vec3 ClosestPtPointPlane(vec3 q, Plane plane)
 {
     vec3 n = plane.n;
@@ -307,51 +291,53 @@ i32 TestOBBOBB(OBB *a, OBB *b) {
     
     // test axis L = AO x BO
     ra =  a->e.v[1] * AbsR.m[2 * 3 + 0] + a->e.v[2] * AbsR.m[1 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[0 * 3 + 2] + a->e.v[2] * AbsR.m[0 * 3 + 1];
+    rb =  b->e.v[1] * AbsR.m[0 * 3 + 2] + b->e.v[2] * AbsR.m[0 * 3 + 1];
     if(fabsf(t.v[2] *    R.m[1 * 3 + 0] -    t.v[1] *    R.m[2 * 3 + 0]) > ra + rb) return 0;
 
     // test axis L = AO x B1
     ra =  a->e.v[1] * AbsR.m[2 * 3 + 1] + a->e.v[2] * AbsR.m[1 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[0 * 3 + 2] + a->e.v[2] * AbsR.m[0 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[0 * 3 + 2] + b->e.v[2] * AbsR.m[0 * 3 + 0];
     if(fabsf(t.v[2] *    R.m[1 * 3 + 1] -    t.v[1] *    R.m[2 * 3 + 1]) > ra + rb) return 0;
 
     // test axis L = AO x B2
     ra =  a->e.v[1] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[1 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[0 * 3 + 1] + a->e.v[1] * AbsR.m[0 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[0 * 3 + 1] + b->e.v[1] * AbsR.m[0 * 3 + 0];
     if(fabsf(t.v[2] *    R.m[1 * 3 + 2] -    t.v[1] *    R.m[2 * 3 + 2]) > ra + rb) return 0;
 
     // test axis L = A1 x B0
     ra =  a->e.v[0] * AbsR.m[2 * 3 + 0] + a->e.v[2] * AbsR.m[0 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[1 * 3 + 2] + a->e.v[2] * AbsR.m[1 * 3 + 1];
+    rb =  b->e.v[1] * AbsR.m[1 * 3 + 2] + b->e.v[2] * AbsR.m[1 * 3 + 1];
     if(fabsf(t.v[0] *    R.m[2 * 3 + 0] -    t.v[2] *    R.m[0 * 3 + 0]) > ra + rb) return 0;
 
     // test axis L = A1 x B1
     ra =  a->e.v[0] * AbsR.m[2 * 3 + 1] + a->e.v[2] * AbsR.m[0 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[1 * 3 + 2] + a->e.v[2] * AbsR.m[1 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[1 * 3 + 2] + b->e.v[2] * AbsR.m[1 * 3 + 0];
     if(fabsf(t.v[0] *    R.m[2 * 3 + 1] -    t.v[2] *    R.m[0 * 3 + 1]) > ra + rb) return 0;
 
     // test axis L = A1 x B2
     ra =  a->e.v[0] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[0 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[1 * 3 + 1] + a->e.v[1] * AbsR.m[1 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[1 * 3 + 1] + b->e.v[1] * AbsR.m[1 * 3 + 0];
     if(fabsf(t.v[0] *    R.m[2 * 3 + 2] -    t.v[2] *    R.m[0 * 3 + 2]) > ra + rb) return 0;
 
     // test axis L = A2 x B0
     ra =  a->e.v[0] * AbsR.m[1 * 3 + 0] + a->e.v[1] * AbsR.m[0 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[2 * 3 + 1];
+    rb =  b->e.v[1] * AbsR.m[2 * 3 + 2] + b->e.v[2] * AbsR.m[2 * 3 + 1];
     if(fabsf(t.v[1] *    R.m[0 * 3 + 0] -    t.v[0] *    R.m[1 * 3 + 0]) > ra + rb) return 0;
 
     // test axis l = A2 X B1
     ra =  a->e.v[0] * AbsR.m[1 * 3 + 1] + a->e.v[1] * AbsR.m[0 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[2 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[2 * 3 + 2] + b->e.v[2] * AbsR.m[2 * 3 + 0];
     if(fabsf(t.v[1] *    R.m[0 * 3 + 1] -    t.v[0] *    R.m[1 * 3 + 1]) > ra + rb) return 0;
 
     // test axis L = A2 x B1
     ra =  a->e.v[0] * AbsR.m[1 * 3 + 2] + a->e.v[1] * AbsR.m[0 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[2 * 3 + 1] + a->e.v[1] * AbsR.m[2 * 3 + 0];
+    rb =  b->e.v[0] * AbsR.m[2 * 3 + 1] + b->e.v[1] * AbsR.m[2 * 3 + 0];
     if(fabsf(t.v[1] *    R.m[0 * 3 + 2] -    t.v[0] *    R.m[1 * 3 + 2]) > ra + rb) return 0;
     
     return 1;
-} 
+}
+
+
 
 const f32 NORMAL_EPSILON = 0.00001f;
 vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
@@ -482,6 +468,176 @@ void CameraCollisionDetectionAndResolutionOBB(OBB *obb) {
 
 }
 
+internal
+OctreeNode *OctreeCreate(vec3 center, f32 halfWidth, i32 stopDepth, Arena *arena) {
+    if(stopDepth < 0) {
+        return NULL;
+    }
+    else {
+        // construct and fill in 'root' of this subtree
+        OctreeNode *node = ArenaPushStruct(arena, OctreeNode);
+        node->center = center;
+        node->halfWidth = halfWidth;
+        node->objList = NULL;
+
+        // Recursively construct the eight children of the subtree
+        vec3 offset;
+        f32 step = halfWidth * 0.5f;
+        for(i32 i = 0; i < 8; ++i) {
+            offset.x = ((i & 1) ? step : -step); 
+            offset.y = ((i & 2) ? step : -step); 
+            offset.z = ((i & 4) ? step : -step);
+            node->child[i] = OctreeCreate(center + offset, step, stopDepth - 1, arena);
+        }
+        return node;
+    }
+}
+
+
+internal
+void OctreeInsertObject(OctreeNode *tree, StaticEntity *object, Arena *arena) {
+    // if the OBB intersect with the octant add it to the octant object list
+    bool intersect = false;
+    for(i32 i = 0; i < object->meshCount; ++i) {
+        OBB obb = {};
+        obb.c = tree->center;
+        obb.e = {tree->halfWidth, tree->halfWidth, tree->halfWidth};
+        obb.u[0] = {1, 0, 0};
+        obb.u[1] = {0, 1, 0};
+        obb.u[2] = {0, 0, 1};
+        if(TestOBBOBB(&object->obbs[i], &obb)) {
+            intersect = true; 
+        }
+    }
+    if(intersect) {
+        // only insert into leaf nodes
+        if(tree->child[0] == NULL) {
+            // add the object to the link list
+            if(tree->objList == NULL) {
+                tree->objList = ArenaPushStruct(arena, StaticEntityNode);
+                tree->objList->object = object;
+                tree->objList->next = NULL;
+            }
+            else {
+                StaticEntityNode *lastEntityNode = ArenaPushStruct(arena, StaticEntityNode);
+                lastEntityNode->object = tree->objList->object;
+                lastEntityNode->next = tree->objList->next;
+                tree->objList->object = object;
+                tree->objList->next = lastEntityNode;
+            }
+        }
+        else {
+            // if the node is not a leaf, recursively call inser in
+            // all the childrens of the nodes
+            for(i32 i = 0; i < 8; ++i) {
+                OctreeInsertObject(tree->child[i], object, arena);
+            }
+        }
+    }
+}
+
+void OctreeOBBQuery(OctreeNode *node, OBB *testOBB,
+                    StaticEntityNode **entitiesList, i32 *entitiesCount,
+                    Arena *outFrameArena) {
+    OBB obb = {};
+    obb.c = node->center;
+    obb.e = {node->halfWidth, node->halfWidth, node->halfWidth};
+    obb.u[0] = {1, 0, 0};
+    obb.u[1] = {0, 1, 0};
+    obb.u[2] = {0, 0, 1};
+    if(TestOBBOBB(testOBB, &obb)) {
+        if(node->child[0] ==  NULL) {
+            // add childs of the node
+            for(StaticEntityNode *entityNode = node->objList;
+                entityNode != NULL;
+                entityNode = entityNode->next) {
+                // if the entity is already on the list, not put in again
+                for(i32 i = 0; i < *entitiesCount; ++i) {
+                    if(entityNode == ((*entitiesList) + i)) {
+                        continue;
+                    }
+                }
+                *entitiesList = ArenaPushStruct(outFrameArena, StaticEntityNode);
+                *(*entitiesList) = *entityNode;
+                *entitiesCount = *entitiesCount + 1;
+            }
+        }
+        else {
+            for(i32 i = 0; i < 8; ++i) {
+                OctreeOBBQuery(node->child[i], testOBB, entitiesList, entitiesCount, outFrameArena);
+            }
+        }
+    }
+}
+
+u32 colorArray[] = {
+    0xFF0000FF,
+    0xFF00FF00,
+    0xFFFF0000,
+    0xFF00FFFF,
+    0xFFFFFF00,
+    0xFFFF00FF,
+    0xFF00F0F0
+};
+
+void DEBUG_DrawOctree(OctreeNode *tree, i32 colorIndex) {
+    OBB obb;
+    obb.c = tree->center;
+    obb.e = {tree->halfWidth, tree->halfWidth, tree->halfWidth};
+    mat4 translationMat = Mat4Translate(obb.c.x, obb.c.y, obb.c.z);
+    mat4 scaleMat =  Mat4Scale(obb.e.x, obb.e.y, obb.e.z);
+    obb.world = translationMat * scaleMat;
+    obb.color = colorArray[colorIndex];
+    DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb.color, obb.world);
+    if(tree->child[0] != NULL) {
+        for(i32 i = 0; i < 8; ++i) {
+            DEBUG_DrawOctree(tree->child[i], (colorIndex + 1) % ARRAY_LENGTH(colorArray));
+        }
+    }
+}
+
+
+internal
+void DrawAllObjectInsideOctree(OctreeNode *tree, GameState *gameState) {
+    for(StaticEntityNode *entityNode = tree->objList;
+        entityNode != NULL;
+        entityNode = entityNode->next) {
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            Mesh *mesh = staticEntity->meshes + j;
+            OBB *obb = staticEntity->obbs + j;
+            RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
+                                    gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
+            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
+            mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
+            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
+        } 
+    }
+    if(tree->child[0] != NULL) {
+        for(i32 i = 0; i < 8; ++i) {
+            DrawAllObjectInsideOctree(tree->child[i], gameState);
+        }
+    }
+}
+
+
+internal
+void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gameState) {
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            Mesh *mesh = staticEntity->meshes + j;
+            OBB *obb = staticEntity->obbs + j;
+            RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
+                                    gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
+            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
+            mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
+            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
+        }
+    }
+}
+
 void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
     ASSERT(memory->used + sizeof(GameState) <= memory->size);
@@ -493,6 +649,7 @@ void GameInit(Memory *memory) {
     SoundSystemInitialize();
     
     gameState->dataArena = ArenaCreate(memory, Megabytes(500));
+    gameState->frameArena = ArenaCreate(memory, Megabytes(10));
     gameState->textureArena = ArenaCreate(memory, Megabytes(1));
     gameState->soundArena = ArenaCreate(memory, Megabytes(1));
     gameState->staticEntitiesArena = ArenaCreate(memory, Megabytes(1));
@@ -527,6 +684,22 @@ void GameInit(Memory *memory) {
     gameState->cubeOBB.world = translationMat * rotationMat  *scaleMat;
     gameState->cubeOBB.color = 0xFF00FF00;
 
+    // TODO: test octree
+    f32 mapWidth = mapCountX*2.0f;
+    f32 mapHeight = mapCountY*2.0f; 
+    gameState->tree = OctreeCreate({mapWidth*0.5f, -2.0f, mapHeight*0.5f},
+                                    mapWidth*0.5f,
+                                    1,
+                                    &gameState->dataArena);
+
+    // add the StaticEntity to the octree
+    for(i32 i = 0; i < gameState->entitiesCount; ++i) {
+        StaticEntity *object = gameState->entities + i;
+        OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
+    }
+
+    i32 StopHere = 0;
+
 
     //SoundPlay(gameState->music, true);
 }
@@ -551,11 +724,28 @@ void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     RendererClearBuffers(0xFF021102, 0.0f);
 
-    DrawStaticEntityArray(gameState->entities, gameState->entitiesCount, gameState);
-    
+    OBB obb;
+    obb.c = cameraPosition;
+    obb.u[0] = {1, 0, 0};
+    obb.u[1] = {0, 1, 0};
+    obb.u[2] = {0, 0, 1};
+    obb.e = {1, 1, 1};
+    StaticEntityNode *entitiesToRender = NULL;
+    i32 entitiesToRenderCount = 0;  
+    OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
+
+    entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
+
+    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState);
+   
+
+    //DrawAllObjectInsideOctree(gameState->tree, gameState);
+    DEBUG_DrawOctree(gameState->tree, 0);
     DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), gameState->cubeOBB.color, gameState->cubeOBB.world);
     
     RendererPresent();
+
+    ArenaReset(&gameState->frameArena);
 }
 
 void GameShutdown(Memory * memory) {

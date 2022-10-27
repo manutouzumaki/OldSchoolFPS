@@ -17,6 +17,8 @@ Memory MemoryCreate(size_t size);
 void MemoryDestroy(Memory memory);
 Arena ArenaCreate(Memory *memory, size_t size);
 void *ArenaPush(Arena *arena, size_t size);
+void ArenaReset(Arena *arena);
+
 #define ArenaPushStruct(arena, type) (type *)ArenaPush(arena, sizeof(type))
 #define ArenaPushArray(arena, count, type) (type *)ArenaPush(arena, sizeof(type) * count)
 
