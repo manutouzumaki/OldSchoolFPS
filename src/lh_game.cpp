@@ -414,9 +414,10 @@ void SortOBBArray(OBB **obbs, i32 count) {
     }
 }
 
-void UpdateClosestPoints(StaticEntity *entities, i32 count) {
+void UpdateClosestPoints(StaticEntityNode *entities, i32 count) {
     for(i32 i = 0; i < count; ++i) {
-        StaticEntity *staticEntity = entities + i;
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
             f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
@@ -427,8 +428,9 @@ void UpdateClosestPoints(StaticEntity *entities, i32 count) {
     }
 }
 
-
 #define MAX_SORTED_OBB 100
+
+#if 0
 void CameraOBBsArray(StaticEntity *entities,i32 count) {
     OBB *sortedOBBs[MAX_SORTED_OBB];
     i32 sortedCount = 0;
@@ -453,6 +455,33 @@ void CameraOBBsArray(StaticEntity *entities,i32 count) {
         UpdateClosestPoints(entities, count);
     }
 }
+#else
+void CameraOBBsArray(StaticEntityNode *entities,i32 count) {
+    OBB *sortedOBBs[MAX_SORTED_OBB];
+    i32 sortedCount = 0;
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j; 
+            f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
+            if(sqDistToClosestPoint > 0) {
+                obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+                obb->color = 0xFF00FF00;
+            }
+            if(sqDistToClosestPoint <= 0) {
+                obb->color = 0xFFFF0000;
+                sortedOBBs[sortedCount++] = obb;
+            }
+        }
+    }
+    SortOBBArray(sortedOBBs, sortedCount);
+    for(i32 i = 0; i < sortedCount; ++i) {
+        CameraCollisionResolutionOBB(sortedOBBs[i]);
+        UpdateClosestPoints(entities, count);
+    }
+}
+#endif
 
 
 void CameraCollisionDetectionAndResolutionOBB(OBB *obb) {
@@ -713,7 +742,20 @@ void GameUpdate(Memory *memory, f32 dt) {
     }
 
     UpdateCamera(dt, gameState);
-    CameraOBBsArray(gameState->entities, gameState->entitiesCount);
+
+    OBB obb;
+    obb.c = cameraPosition;
+    obb.u[0] = {1, 0, 0};
+    obb.u[1] = {0, 1, 0};
+    obb.u[2] = {0, 0, 1};
+    obb.e = {1, 1, 1};
+    StaticEntityNode *entitiesToRender = NULL;
+    i32 entitiesToRenderCount = 0;  
+    OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
+    entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
+
+    CameraOBBsArray(entitiesToRender, entitiesToRenderCount);
+    
     CameraCollisionDetectionAndResolutionOBB(&gameState->cubeOBB);
 
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
@@ -733,14 +775,13 @@ void GameRender(Memory *memory) {
     StaticEntityNode *entitiesToRender = NULL;
     i32 entitiesToRenderCount = 0;  
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
-
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState);
    
 
     //DrawAllObjectInsideOctree(gameState->tree, gameState);
-    DEBUG_DrawOctree(gameState->tree, 0);
+    //DEBUG_DrawOctree(gameState->tree, 0);
     DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), gameState->cubeOBB.color, gameState->cubeOBB.world);
     
     RendererPresent();
