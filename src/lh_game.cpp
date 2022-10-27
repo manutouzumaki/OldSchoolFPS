@@ -9,9 +9,6 @@
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
 // - platform independent Debug output 
-// - test the collision system using OBB normals
-// - test the collision system using rotated OBB
-// - implement mouse and keyboard camera movement
 // - optimize the renderer with octree 
 // - optimize the collision system with octree
 // - fix corner tiles OBB 
@@ -81,17 +78,38 @@ bool cameraIsColliding = false;
 
 f32 playerSpeed = 2.0f;
 f32 sensitivity = 2.0f;
+f32 mouseSensitivity = 0.001f;
+
+#include <windows.h>
+#include <stdio.h>
 
 internal
-void UpdateCamera(f32 dt) {
+void UpdateCamera(f32 dt, GameState *gameState) {
     f32 leftStickX = JoysickGetLeftStickX();
     f32 leftStickY = JoysickGetLeftStickY();
     f32 rightStickX = JoysickGetRightStickX();
     f32 rightStickY = JoysickGetRightStickY();
     
+    if(MouseGetButtonJustDown(MOUSE_BUTTON_RIGHT)) {
+        MouseShowCursor(false);
+        gameState->mouseDefaultScreenX = MouseGetScreenX();
+        gameState->mouseDefaultScreenY = MouseGetScreenY();
+    }
+    if(MouseGetButtonJustUp(MOUSE_BUTTON_RIGHT)) {
+        MouseShowCursor(true);
+    }
+    if(MouseGetButtonDown(MOUSE_BUTTON_RIGHT)) {
+        f32 deltaMouseX = (f32)(MouseGetScreenX() - gameState->mouseDefaultScreenX);
+        f32 deltaMouseY = (f32)(MouseGetScreenY() - gameState->mouseDefaultScreenY);
+        MouseSetCursor(gameState->mouseDefaultScreenX, gameState->mouseDefaultScreenY);
+        cameraYaw -= (deltaMouseX * mouseSensitivity);
+        cameraPitch -= (deltaMouseY * mouseSensitivity); 
+    }
+    
     // Right Stick movement
     cameraYaw -= (rightStickX * sensitivity) * dt;
     cameraPitch += (rightStickY * sensitivity) * dt;
+
     f32 maxPitch = RAD(89.0f);
     if(cameraPitch > maxPitch) {
         cameraPitch = maxPitch;
@@ -104,6 +122,19 @@ void UpdateCamera(f32 dt) {
     cameraFront.z = sinf(cameraYaw) * cosf(cameraPitch);
     cameraRight = cross(cameraUp, cameraFront);
 
+
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
+        cameraPosition = cameraPosition + (cameraFront * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
+        cameraPosition = cameraPosition - (cameraFront * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
+        cameraPosition = cameraPosition + (cameraRight * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
+        cameraPosition = cameraPosition - (cameraRight * playerSpeed) * dt;
+    }
 
     // Left Stick movement
     cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
@@ -322,7 +353,6 @@ i32 TestOBBOBB(OBB *a, OBB *b) {
     return 1;
 } 
 
-// TODO: implement this better
 const f32 NORMAL_EPSILON = 0.00001f;
 vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
     vec3 pRel = p - b->c;
@@ -356,7 +386,6 @@ vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
     if(zNegative <= NORMAL_EPSILON  && zNegative >= -NORMAL_EPSILON) {
         return b->u[2] * -1.0f;
     }
-    
     
     ASSERT(!"FAILEDDDD!!!!");
     vec3 zero = {};
@@ -462,7 +491,7 @@ void GameInit(Memory *memory) {
     WindowSystemInitialize(960, 540, "Last Hope 3D");
     RendererSystemInitialize();
     SoundSystemInitialize();
-
+    
     gameState->dataArena = ArenaCreate(memory, Megabytes(500));
     gameState->textureArena = ArenaCreate(memory, Megabytes(1));
     gameState->soundArena = ArenaCreate(memory, Megabytes(1));
@@ -510,7 +539,7 @@ void GameUpdate(Memory *memory, f32 dt) {
         SoundPlay(gameState->shoot, false);
     }
 
-    UpdateCamera(dt);
+    UpdateCamera(dt, gameState);
     CameraOBBsArray(gameState->entities, gameState->entitiesCount);
     CameraCollisionDetectionAndResolutionOBB(&gameState->cubeOBB);
 

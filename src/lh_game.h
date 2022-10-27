@@ -55,6 +55,10 @@ struct GameState {
     i32 entitiesCount;
 
     OBB cubeOBB;
+
+
+    i32 mouseDefaultScreenX;
+    i32 mouseDefaultScreenY;
 };
 
 void GameInit(Memory *memory);

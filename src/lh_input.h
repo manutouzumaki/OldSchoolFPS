@@ -138,6 +138,10 @@ i32 MouseGetCursorY();
 i32 MouseGetWheel();
 i32 MouseGetLastCursorX();
 i32 MouseGetLastCursorY();
+void MouseSetCursor(i32 x, i32 y);
+i32 MouseGetScreenX();
+i32 MouseGetScreenY();
+void MouseShowCursor(bool value);
 
 bool JoysickGetButtonDown(i32 button);
 bool JoysickGetButtonJustDown(i32 button);

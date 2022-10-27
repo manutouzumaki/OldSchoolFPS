@@ -48,18 +48,36 @@ void WindowSystemInitialize(i32 width, i32 height, char *title) {
     wndClass.hCursor = LoadCursor(0, IDC_ARROW);
     wndClass.lpszClassName = "LastHope3D";
     RegisterClassA(&wndClass);
-    HWND hwnd = CreateWindowA("LastHope3D", title,
-                              WS_OVERLAPPEDWINDOW|WS_VISIBLE,
-                              CW_USEDEFAULT, CW_USEDEFAULT,
-                              width, height,
-                              0, 0, hInstance, 0);
+    
+    i32 screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    i32 screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    i32 clientWidth = width;
+    i32 clientHeight = height;
+    RECT windowRect = {};
+    SetRect(&windowRect,
+            (screenWidth / 2) - (clientWidth / 2),
+            (screenHeight / 2) - (clientHeight / 2),
+            (screenWidth / 2) + (clientWidth / 2),
+            (screenHeight / 2) + (clientHeight / 2));
+
+
+    DWORD style = WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX|WS_MAXIMIZEBOX; // WS_THICKFRAME to resize
+    AdjustWindowRectEx(&windowRect, style, FALSE, 0);
+    HWND hwnd = CreateWindowEx(0, "LastHope3D",
+                title, style, 
+                windowRect.left, windowRect.top,
+                windowRect.right - windowRect.left,
+                windowRect.bottom - windowRect.top,
+                NULL, NULL, hInstance, 0);
+
+
     gWindow.width = width;
     gWindow.height =  height;
     gWindow.title = title;
     gWindow.hwnd = hwnd;
-    
 
-    i32 stopHere =0;
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
 }
 
 void WindowSystemShutdown() {
@@ -73,6 +91,16 @@ void WindowSetSize(i32 width, i32 height) {
                currentWindowDim.left,
                currentWindowDim.top,
                width, height, TRUE);
+}
+
+i32 WindowGetScreenWidth() {
+    i32 screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    return screenWidth;
+}
+
+i32 WindowGetScreenHeight() {
+    i32 screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    return screenHeight;
 }
 
 bool DoNextWorkQueueEntry() {

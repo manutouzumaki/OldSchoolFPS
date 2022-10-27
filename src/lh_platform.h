@@ -19,5 +19,7 @@ void PlatformCompleteAllWork();
 void WindowSystemInitialize(i32 width, i32 height, char *title);
 void WindowSystemShutdown();
 void WindowSetSize(i32 width, i32 height);
+i32 WindowGetScreenWidth();
+i32 WindowGetScreenHeight();
 
 #endif

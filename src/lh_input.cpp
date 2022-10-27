@@ -1,4 +1,5 @@
 #include "lh_input.h"
+#include "lh_platform.h"
 #include <windows.h>
 #include <windowsx.h>
 #include <xinput.h>
@@ -19,6 +20,7 @@ global_variable WORD XInputButtons[] =
     XINPUT_GAMEPAD_Y
 };
 extern bool gRunning;
+extern Window gWindow;
 
 bool KeyboardGetKeyDown(i32 key) {
     return gInput.keys[key].isDown;
@@ -81,6 +83,26 @@ i32 MouseGetLastCursorX() {
 
 i32 MouseGetLastCursorY() {
     return gLastInput.mouseY;
+}
+
+i32 MouseGetScreenX() {
+    POINT point;
+    GetCursorPos(&point);
+    return point.x;
+}
+
+i32 MouseGetScreenY() {
+    POINT point;
+    GetCursorPos(&point);
+    return point.y;
+}
+
+void MouseSetCursor(i32 x, i32 y) {
+    SetCursorPos(x, y);
+}
+
+void MouseShowCursor(bool value) {
+    ShowCursor(value);
 }
 
 bool JoysickGetButtonDown(i32 button) {
