@@ -38,6 +38,7 @@ LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return result;
 }
 
+
 void WindowSystemInitialize(i32 width, i32 height, char *title) { 
     HINSTANCE hInstance = GetModuleHandleA(0);
     WNDCLASSA wndClass = {};
@@ -190,7 +191,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         
     while(gRunning) {
         // if we have time left Sleep
-#if 1
+#if 0
         LARGE_INTEGER workCounter = {};
         QueryPerformanceCounter(&workCounter);
         f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;

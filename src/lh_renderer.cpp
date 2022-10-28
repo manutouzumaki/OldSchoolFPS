@@ -6,7 +6,47 @@
 #include <immintrin.h>
 #include <xmmintrin.h>
 
+#include <d3d11.h>
+#include <d3dcompiler.h>
+
 // TODO: implement the new trianglel rasterizer and SIMD omptimized it.
+
+// Vertex Shader
+global_variable char *vertexShaderSource =
+"struct VS_Input\n"
+"{\n"
+"   float4 pos : POSITION;\n"
+"   float2 tex0 : TEXCOORD0;\n"
+"};\n"
+"struct PS_Input\n"
+"{\n"
+"   float4 pos : SV_POSITION;\n"
+"   float2 tex0 : TEXCOORD0;\n"
+"};\n"
+"PS_Input VS_Main( VS_Input vertex )\n"
+"{\n"
+"   PS_Input vsOut = ( PS_Input )0;\n"
+"   vsOut.pos = vertex.pos;\n"
+"   vsOut.tex0 = vertex.tex0;\n"
+"   return vsOut;\n"
+"}\0";
+
+
+// Pixel Shader
+global_variable char *pixelShaderSource  =
+"Texture2D colorMap : register( t0 );\n"
+"SamplerState colorSampler : register( s0 );\n"
+"struct PS_Input\n"
+"{\n"
+"   float4 pos : SV_POSITION;\n"
+"   float2 tex0 : TEXCOORD0;\n"
+"};\n"
+"float4 PS_Main( PS_Input frag ) : SV_TARGET\n"
+"{\n"
+"   float4 color = colorMap.Sample(colorSampler, frag.tex0.xy);"
+"   return float4(color.rgb, 1);\n"
+"}\0";
+
 
 #define MAX_VERTICES_PER_CLIPPED_TRIANGLE 16
 #define Align16(value) ((value + 15) & ~15)
@@ -22,8 +62,6 @@ struct RenderWork {
 };
 
 struct Renderer {
-    HBITMAP handle;
-    HDC hdc;
     u32 *colorBuffer;
     f32 *depthBuffer;
     i32 bufferWidth;
@@ -32,6 +70,25 @@ struct Renderer {
     mat4 proj;
     RenderWork *workArray;
     i32 workCount;
+
+    ID3D11Device *device;
+    ID3D11DeviceContext *deviceContext;
+    IDXGISwapChain *swapChain;
+    ID3D11RenderTargetView *renderTargetView;
+
+    ID3D11VertexShader *vertexShader;
+    ID3D11PixelShader  *pixelShader;
+    ID3D11InputLayout  *inputLayout;
+    ID3D11Buffer *vertexBuffer;
+
+    ID3D11Texture2D *backBuffer;
+    ID3D11ShaderResourceView *colorMap;
+    ID3D11SamplerState *colorMapSampler;
+};
+
+struct VertexD3D11 {
+    vec3 position;
+    vec2 uvs;
 };
 
 struct ThreadParam {
@@ -735,20 +792,227 @@ void FlushWorkQueue() {
 }
 
 
+internal
+i32 StringLength(char * String)
+{
+    i32 Count = 0;
+    while(*String++)
+    {
+        ++Count;
+    }
+    return Count;
+}
+
+internal
+void InitializeD3D11() {
+    RECT clientRect;
+    GetClientRect(gWindow.hwnd, &clientRect);
+    i32 clientWidth = clientRect.right - clientRect.left;
+    i32 clientHeight = clientRect.bottom - clientRect.top;
+
+    // - 1: Define the device types and feature level we want to check for.
+    D3D_DRIVER_TYPE driverTypes[] =
+    {
+        D3D_DRIVER_TYPE_HARDWARE,
+        D3D_DRIVER_TYPE_WARP,
+        D3D_DRIVER_TYPE_SOFTWARE
+    };
+    D3D_FEATURE_LEVEL featureLevels[] =
+    {
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0
+    };
+    i32 driverTypesCount = ARRAY_LENGTH(driverTypes);
+    i32 featureLevelsCount = ARRAY_LENGTH(featureLevels);
+
+
+    // - 2: create the d3d11 device, rendering context, and swap chain
+    DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+    swapChainDesc.BufferCount = 1;
+    swapChainDesc.BufferDesc.Width = clientWidth;
+    swapChainDesc.BufferDesc.Height = clientHeight;
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    swapChainDesc.BufferDesc.RefreshRate.Numerator = (i32)FPS;
+    swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.OutputWindow = gWindow.hwnd;
+    swapChainDesc.Windowed = true;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+
+    D3D_FEATURE_LEVEL featureLevel;
+    D3D_DRIVER_TYPE driverType;
+    HRESULT result;
+    for(u32 driver = 0; driver < driverTypesCount; ++driver) {
+        result = D3D11CreateDeviceAndSwapChain(NULL, driverTypes[driver], NULL, 0, featureLevels, featureLevelsCount, D3D11_SDK_VERSION, &swapChainDesc,
+                                               &gRenderer.swapChain, &gRenderer.device, &featureLevel, &gRenderer.deviceContext);
+        if(SUCCEEDED(result)) {
+            driverType = driverTypes[driver];
+            break;
+        }
+    }
+
+    // - 3: Create render target view.
+    ID3D11Texture2D *backBufferTexture = NULL;
+    result = gRenderer.swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&backBufferTexture);
+    result = gRenderer.device->CreateRenderTargetView(backBufferTexture, 0, &gRenderer.renderTargetView);
+    if(backBufferTexture) {
+        backBufferTexture->Release();
+    }
+    gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, 0);
+
+    // - 4: Set the viewport.
+    D3D11_VIEWPORT viewport;
+
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = clientWidth;
+    viewport.Height = clientHeight;
+
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    gRenderer.deviceContext->RSSetViewports(1, &viewport);
+
+    // - 5: Create Vertex, Pixel shader and Input Layout
+    ID3DBlob *vertexShaderCompiled = 0;
+    ID3DBlob *errorVertexShader    = 0;
+    result = D3DCompile((void *)vertexShaderSource,
+                        (SIZE_T)StringLength(vertexShaderSource),
+                        0, 0, 0, "VS_Main", "vs_4_0",
+                        D3DCOMPILE_ENABLE_STRICTNESS, 0,
+                        &vertexShaderCompiled, &errorVertexShader);
+    if(errorVertexShader != 0)
+    {
+        errorVertexShader->Release();
+    }
+
+    ID3DBlob *pixelShaderCompiled = 0;
+    ID3DBlob *errorPixelShader    = 0;
+    result = D3DCompile((void *)pixelShaderSource,
+                        (SIZE_T)StringLength(pixelShaderSource),
+                        0, 0, 0, "PS_Main", "ps_4_0",
+                        D3DCOMPILE_ENABLE_STRICTNESS, 0,
+                        &pixelShaderCompiled, &errorPixelShader);
+    if(errorPixelShader != 0)
+    {
+        errorPixelShader->Release();
+    }
+
+    // Create the Vertex Shader.
+    result = gRenderer.device->CreateVertexShader(vertexShaderCompiled->GetBufferPointer(),
+                                                  vertexShaderCompiled->GetBufferSize(), 0,
+                                                  &gRenderer.vertexShader);
+    // Create the Input layout.
+    D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
+        0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    u32 totalLayoutElements = ARRAY_LENGTH(inputLayoutDesc);
+    result = gRenderer.device->CreateInputLayout(inputLayoutDesc,
+                                                 totalLayoutElements,
+                                                 vertexShaderCompiled->GetBufferPointer(),
+                                                 vertexShaderCompiled->GetBufferSize(),
+                                                 &gRenderer.inputLayout);
+    // Create Pixel Shader.
+    result = gRenderer.device->CreatePixelShader(pixelShaderCompiled->GetBufferPointer(),
+                                                 pixelShaderCompiled->GetBufferSize(), 0,
+                                                 &gRenderer.pixelShader); 
+    vertexShaderCompiled->Release();
+    pixelShaderCompiled->Release();
+
+    // Create Vertex Buffer
+    VertexD3D11 vertices[] = 
+    {
+         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 0.0f, 1.0f, 1.0f
+    };
+
+    // buffer description
+    D3D11_BUFFER_DESC vertexDesc = {};
+    vertexDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexDesc.ByteWidth = sizeof(VertexD3D11) * 6;
+    // pass the buffer data (Vertices).
+    D3D11_SUBRESOURCE_DATA resourceData = {};
+    resourceData.pSysMem = vertices;
+    // Create the VertexBuffer
+    result = gRenderer.device->CreateBuffer(&vertexDesc, &resourceData, &gRenderer.vertexBuffer);
+
+
+    // load a texture 
+    D3D11_TEXTURE2D_DESC textureDesc = {}; 
+    textureDesc.Width = clientWidth;
+    textureDesc.Height = clientHeight;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Usage = D3D11_USAGE_DYNAMIC;
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    textureDesc.MiscFlags = 0;
+    // Create oout Texture 
+    result = gRenderer.device->CreateTexture2D(&textureDesc, NULL, &gRenderer.backBuffer);
+    if(SUCCEEDED(result))
+    {
+        OutputDebugString("SUCCEEDED Creating Texture\n");
+    }
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceDesc = {};
+    shaderResourceDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    shaderResourceDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceDesc.Texture2D.MostDetailedMip = 0;
+    shaderResourceDesc.Texture2D.MipLevels = 1;
+    result = gRenderer.device->CreateShaderResourceView(gRenderer.backBuffer, &shaderResourceDesc, &gRenderer.colorMap);
+    if(SUCCEEDED(result))
+    {
+        OutputDebugString("SUCCEEDED Creating Shader resource view\n");
+    }
+
+    D3D11_SAMPLER_DESC colorMapDesc = {};
+    colorMapDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    colorMapDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT; //D3D11_FILTER_MIN_MAG_MIP_LINEAR | D3D11_FILTER_MIN_MAG_MIP_POINT
+    colorMapDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    result = gRenderer.device->CreateSamplerState(&colorMapDesc, &gRenderer.colorMapSampler);
+    if(SUCCEEDED(result))
+    {
+        OutputDebugString("SUCCEEDED Creating sampler state\n");
+    }
+
+    gRenderer.deviceContext->PSSetShaderResources(0, 1, &gRenderer.colorMap);
+    gRenderer.deviceContext->PSSetSamplers(0, 1, &gRenderer.colorMapSampler);
+
+    u32 stride = sizeof(VertexD3D11);
+    u32 offset = 0;
+    gRenderer.deviceContext->IASetInputLayout(gRenderer.inputLayout);
+    gRenderer.deviceContext->IASetVertexBuffers(0, 1, &gRenderer.vertexBuffer, &stride, &offset);
+    gRenderer.deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    gRenderer.deviceContext->VSSetShader(gRenderer.vertexShader, 0, 0);
+    gRenderer.deviceContext->PSSetShader(gRenderer.pixelShader,  0, 0);
+
+    OutputDebugString("D3D11 Initialized\n");
+}
+
 void RendererSystemInitialize() {
     i32 bufferPitch = Align16(gWindow.width*4);
     i32 rendererWidth = bufferPitch/4;
 
-    HDC hdc = GetDC(gWindow.hwnd);
-    BITMAPINFO bufferInfo = {};
-    bufferInfo.bmiHeader.biSize = sizeof(bufferInfo.bmiHeader);
-    bufferInfo.bmiHeader.biWidth = rendererWidth;
-    bufferInfo.bmiHeader.biHeight = gWindow.height;
-    bufferInfo.bmiHeader.biPlanes = 1;
-    bufferInfo.bmiHeader.biBitCount = 32;
-    bufferInfo.bmiHeader.biCompression = BI_RGB;
-    gRenderer.handle = CreateDIBSection(hdc, &bufferInfo, DIB_RGB_COLORS, (void **)&gRenderer.colorBuffer, 0, 0);
-    gRenderer.hdc = hdc;
+
+
+
+    gRenderer.colorBuffer = (u32 *)malloc(rendererWidth * gWindow.height * sizeof(u32));
     gRenderer.depthBuffer = (f32 *)malloc(gWindow.width * gWindow.height * sizeof(f32));
     gRenderer.bufferWidth = gWindow.width;
     gRenderer.bufferHeight = gWindow.height;
@@ -756,16 +1020,18 @@ void RendererSystemInitialize() {
     gRenderer.proj = Mat4Identity();
     gRenderer.workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
     gRenderer.workCount = 0;
+
+    InitializeD3D11();
 }
 
 void RendererSystemShutdown() {
     free(gRenderer.workArray);
-    DeleteObject(gRenderer.handle);
     free(gRenderer.depthBuffer);
+    free(gRenderer.colorBuffer);
 }
 
 void RendererClearBuffers(u32 color, f32 depth) {
-#if 1
+    
     // TODO: test the cycles on this function
     __m128i pixelColor = _mm_set1_epi32(color);
     __m128 depthValue = _mm_set1_ps(depth);
@@ -777,12 +1043,9 @@ void RendererClearBuffers(u32 color, f32 depth) {
             _mm_storeu_ps(depthPt, depthValue);
         }
     }
-#else
-    for(i32 i = 0; i < gRenderer.bufferWidth*gRenderer.bufferHeight; ++i) {
-        gRenderer.colorBuffer[i] = color;
-        gRenderer.depthBuffer[i] = depth;
-    }
-#endif
+
+    float ClearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    gRenderer.deviceContext->ClearRenderTargetView(gRenderer.renderTargetView, ClearColor);
 }
 
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
@@ -799,10 +1062,14 @@ void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
 
 void RendererPresent() {
     FlushWorkQueue();
-    HDC colorBufferDC = CreateCompatibleDC(gRenderer.hdc);
-    SelectObject(colorBufferDC, gRenderer.handle);
-    BitBlt(gRenderer.hdc, 0, 0, gRenderer.bufferWidth, gRenderer.bufferHeight, colorBufferDC, 0, 0, SRCCOPY);
-    DeleteDC(colorBufferDC);
+
+    D3D11_MAPPED_SUBRESOURCE buffer;
+    gRenderer.deviceContext->Map(gRenderer.backBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &buffer);
+    memcpy(buffer.pData, gRenderer.colorBuffer, gRenderer.bufferWidth*gRenderer.bufferHeight*sizeof(u32));
+    gRenderer.deviceContext->Unmap(gRenderer.backBuffer, 0);
+
+    gRenderer.deviceContext->Draw(6, 0);
+    gRenderer.swapChain->Present(1, 0);
 }
 
 void RendererSetProj(mat4 proj) {
