@@ -12,13 +12,11 @@
 
 struct Sound;
 struct Texture;
-struct Mesh;
 
 struct OBB {
     vec3 c;    // center point
     vec3 u[3]; // local x, y, and z axes
     vec3 e;    // positive halfwidth extents of OBB along each axis
-    vec3 closestPoint;
 
     // Debug only
     mat4 world;
@@ -28,6 +26,12 @@ struct OBB {
 struct Plane {
     vec3 n;  
     vec3 p;
+};
+
+struct Capsule {
+    vec3 a; // Medial line segment start point
+    vec3 b; // Medial line segment end point
+    f32  r; // Radius
 };
 
 struct StaticEntity {

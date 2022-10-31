@@ -1009,9 +1009,6 @@ void RendererSystemInitialize() {
     i32 bufferPitch = Align16(gWindow.width*4);
     i32 rendererWidth = bufferPitch/4;
 
-
-
-
     gRenderer.colorBuffer = (u32 *)malloc(rendererWidth * gWindow.height * sizeof(u32));
     gRenderer.depthBuffer = (f32 *)malloc(gWindow.width * gWindow.height * sizeof(f32));
     gRenderer.bufferWidth = gWindow.width;
@@ -1025,6 +1022,18 @@ void RendererSystemInitialize() {
 }
 
 void RendererSystemShutdown() {
+    gRenderer.colorMapSampler->Release();
+    gRenderer.colorMap->Release();
+    gRenderer.backBuffer->Release();
+    gRenderer.vertexBuffer->Release();
+    gRenderer.inputLayout->Release();
+    gRenderer.pixelShader->Release();
+    gRenderer.vertexShader->Release();
+    gRenderer.renderTargetView->Release();
+    gRenderer.swapChain->Release();
+    gRenderer.deviceContext->Release();
+    gRenderer.device->Release();
+
     free(gRenderer.workArray);
     free(gRenderer.depthBuffer);
     free(gRenderer.colorBuffer);

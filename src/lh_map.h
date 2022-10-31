@@ -8,6 +8,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
             f32 xPos = x*2;
             f32 yPos = y*2;
             f32 offset = 1.0f;
+            f32 tileOffset = 0.09f;
             switch(tile) {
                 case 0: {
                     continue; 
@@ -30,7 +31,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {90, 0, 0};
 
-                    *obb = CreateOBB({xPos, -offset, yPos}, {0, 0, 0}, {1.2f, 0.1f, 1.2f});
+                    *obb = CreateOBB({xPos, -offset - tileOffset, yPos}, {0, 0, 0}, {1.0f, 0.1f, 1.0f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
@@ -59,7 +60,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {0, -90, 0};
 
-                    *obb = CreateOBB({xPos + offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb = CreateOBB({xPos + offset - tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
@@ -86,7 +87,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {0, 90, 0};
 
-                    *obb = CreateOBB({xPos - offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb = CreateOBB({xPos - offset + tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
@@ -114,7 +115,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {0, 0, 0};
 
-                    *obb = CreateOBB({xPos, 0, yPos - offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb = CreateOBB({xPos, 0, yPos - offset + tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
@@ -142,7 +143,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {0, 180, 0};
 
-                    *obb = CreateOBB({xPos, 0, yPos + offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb = CreateOBB({xPos, 0, yPos + offset - tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
@@ -174,7 +175,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform1->scale = {0, 0, 0};
                     relTransform1->rotation = {0, 90, 0};
 
-                    *obb1 = CreateOBB({xPos - offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb1 = CreateOBB({xPos - offset + tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world1 = TransformToMat4(absTransform->position + relTransform1->position,
                                               absTransform->rotation + relTransform1->rotation,
                                               absTransform->scale + relTransform1->scale);
@@ -183,7 +184,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform2->scale = {0, 0, 0};
                     relTransform2->rotation = {0, 180, 0};
 
-                    *obb2 = CreateOBB({xPos, 0, yPos + offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb2 = CreateOBB({xPos, 0, yPos + offset - tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world2 = TransformToMat4(absTransform->position + relTransform2->position,
                                               absTransform->rotation + relTransform2->rotation,
                                               absTransform->scale + relTransform2->scale);
@@ -218,7 +219,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform1->scale = {0, 0, 0};
                     relTransform1->rotation = {0, -90, 0};
 
-                    *obb1 = CreateOBB({xPos + offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb1 = CreateOBB({xPos + offset - tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world1 = TransformToMat4(absTransform->position + relTransform1->position,
                                               absTransform->rotation + relTransform1->rotation,
                                               absTransform->scale + relTransform1->scale);
@@ -227,7 +228,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform2->scale = {0, 0, 0};
                     relTransform2->rotation = {0, 180, 0};
 
-                    *obb2 = CreateOBB({xPos, 0, yPos + offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb2 = CreateOBB({xPos, 0, yPos + offset - tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world2 = TransformToMat4(absTransform->position + relTransform2->position,
                                               absTransform->rotation + relTransform2->rotation,
                                               absTransform->scale + relTransform2->scale);
@@ -263,7 +264,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform1->scale = {0, 0, 0};
                     relTransform1->rotation = {0, 0, 0};
 
-                    *obb1 = CreateOBB({xPos, 0, yPos - offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb1 = CreateOBB({xPos, 0, yPos - offset + tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world1 = TransformToMat4(absTransform->position + relTransform1->position,
                                               absTransform->rotation + relTransform1->rotation,
                                               absTransform->scale + relTransform1->scale);
@@ -272,7 +273,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform2->scale = {0, 0, 0};
                     relTransform2->rotation = {0, 90, 0};
 
-                    *obb2 = CreateOBB({xPos - offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb2 = CreateOBB({xPos - offset + tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world2 = TransformToMat4(absTransform->position + relTransform2->position,
                                               absTransform->rotation + relTransform2->rotation,
                                               absTransform->scale + relTransform2->scale);
@@ -307,7 +308,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform1->scale = {0, 0, 0};
                     relTransform1->rotation = {0, -90, 0};
 
-                    *obb1 = CreateOBB({xPos + offset, 0, yPos}, {0, 0, 0}, {0.1f, 1.2f, 1.2f});
+                    *obb1 = CreateOBB({xPos + offset - tileOffset, 0, yPos}, {0, 0, 0}, {0.1f, 1.0f, 1.0f});
                     *world1 = TransformToMat4(absTransform->position + relTransform1->position,
                                               absTransform->rotation + relTransform1->rotation,
                                               absTransform->scale + relTransform1->scale);
@@ -316,7 +317,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform2->scale = {0, 0, 0};
                     relTransform2->rotation = {0, 0, 0};
 
-                    *obb2 = CreateOBB({xPos, 0, yPos - offset}, {0, 0, 0}, {1.2f, 1.2f, 0.1f});
+                    *obb2 = CreateOBB({xPos, 0, yPos - offset + tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world2 = TransformToMat4(absTransform->position + relTransform2->position,
                                               absTransform->rotation + relTransform2->rotation,
                                               absTransform->scale + relTransform2->scale);

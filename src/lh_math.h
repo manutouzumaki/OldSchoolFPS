@@ -4,11 +4,13 @@
 #include "lh_defines.h"
 #include <xmmintrin.h>
 #include <math.h>
+#include <float.h>
 
 #define EPSILON 0.000001f
 #define PI 3.14159265359f
 #define RAD(value) (value*(PI/180.0f))
 #define DEG(value) (value*(180.0f/PI))
+#define CMP(x, y) (fabsf((x) - (y)) <= FLT_EPSILON * fmaxf(1.0f, fmaxf(fabsf(x), fabsf(y))))
 
 struct vec2 {
     union {

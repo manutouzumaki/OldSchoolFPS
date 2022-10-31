@@ -8,9 +8,12 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - fix corner tiles OBB 
-// - change the renderer to use a directX texure instead
-// - platform independent Debug output 
+// - improve collision to work with capsules or spheres
+// - add mutiple textures to static entities
+// - fix lights
+// - add mutiple lights to the renderer
+// - platform independent Debug output
+// - add REAL DEBUGING geometry 
 //////////////////////////////////////////////////////////////////////
 
 Vertex verticesCube[] = {
@@ -74,6 +77,7 @@ vec3 cameraUp = {0, 1, 0};
 f32 cameraPitch = 0;
 f32 cameraYaw = RAD(90.0f);
 bool cameraIsColliding = false;
+Capsule cameraCapsule;
 
 f32 playerSpeed = 2.0f;
 f32 sensitivity = 2.0f;
@@ -138,6 +142,11 @@ void UpdateCamera(f32 dt, GameState *gameState) {
     // Left Stick movement
     cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
     cameraPosition = cameraPosition + (cameraFront * (leftStickY * playerSpeed)) * dt;    
+
+    cameraCapsule.a = cameraPosition;
+    cameraCapsule.a.y += 0.3f;
+    cameraCapsule.b = cameraPosition;
+    cameraCapsule.b.y -= 0.3f;
 }
 
 // TODO: map test
@@ -336,164 +345,88 @@ i32 TestOBBOBB(OBB *a, OBB *b) {
     return 1;
 }
 
+f32 SqDistPointSegment(vec3 a, vec3 b, vec3 c) {
+    vec3 ab = b - a;
+    vec3 ac = c - a;
+    vec3 bc = c - b;
+    f32 e = dot(ac, ab);
+    // Handle cases where c projects outside ab
+    if (e <= 0.0f) return dot(ac, ac);
+    f32 f = dot(ab, ab);
+    if (e >= f) return dot(bc, bc);
+    // Handle cases where c projects onto ab
+    return dot(ac, ac) - e * e / f;
+}
 
-
-const f32 NORMAL_EPSILON = 0.00001f;
-vec3 GetOBBNormalFromPoint(vec3 p, OBB *b) {
-    vec3 pRel = p - b->c;
-
-    f32 xDot = dot(pRel, b->u[0]);
-    f32 xPositive = (xDot - b->e.x);
-    if(xPositive <= NORMAL_EPSILON && xPositive >= -NORMAL_EPSILON) {
-        return b->u[0];
-    }
-    f32 xNegative = (xDot - -b->e.x);
-    if(xNegative <= NORMAL_EPSILON  && xNegative >= -NORMAL_EPSILON) {
-        return b->u[0] * -1.0f;
-    }
-
-    f32 yDot = dot(pRel, b->u[1]);
-    f32 yPositive = (yDot - b->e.y);
-    if(yPositive <= NORMAL_EPSILON && yPositive >= -NORMAL_EPSILON) {
-        return b->u[1];
-    }
-    f32 yNegative = (yDot - -b->e.y);
-    if(yNegative <= NORMAL_EPSILON  && yNegative >= -NORMAL_EPSILON) {
-        return b->u[1] * -1.0f;
-    }
-
-    f32 zDot = dot(pRel, b->u[2]);
-    f32 zPositive = (zDot - b->e.z);
-    if(zPositive <= NORMAL_EPSILON && zPositive >= -NORMAL_EPSILON) {
-        return b->u[2];
-    }
-    f32 zNegative = (zDot - -b->e.z);
-    if(zNegative <= NORMAL_EPSILON  && zNegative >= -NORMAL_EPSILON) {
-        return b->u[2] * -1.0f;
-    }
-    
-    ASSERT(!"FAILEDDDD!!!!");
-    vec3 zero = {};
-    return zero;
-    
+int TestCapsuleOBB(Capsule *capsule, OBB *obb) {
+    // the obb closestPoint should be updated to tha player position
+    //f32 dist2 = SqDistPointSegment(capsule->a, capsule->b, obb->closestPoint);
+    // if squared distance is smaller than the capsule radii, they collide
+    //return dist2 < capsule->r * capsule->r;
+    return 0;
 }
 
 
-void CameraCollisionResolutionOBB(OBB *obb) {
-        vec3 collisionNormal = GetOBBNormalFromPoint(obb->closestPoint, obb);
-        Plane collisionPlane;
-        collisionPlane.n = normalized(collisionNormal);
-        collisionPlane.p = obb->closestPoint;
-        vec3 closest = ClosestPtPointPlane(cameraPosition, collisionPlane) + collisionPlane.n * 0.001f;        
-        cameraPosition.x = closest.x;
-        cameraPosition.y = closest.y;
-        cameraPosition.z = closest.z;
-}
 
-void SortOBBArray(OBB **obbs, i32 count) {
-    for(i32 j = 1;
-        j < count;
-        ++j)
-    {
-        OBB *key = obbs[j];
-        f32 keyDistance = lenSq(key->c - cameraPosition);
-        i32 i = j - 1;
-        
-        OBB *src = obbs[i];
-        f32 srcDistance = lenSq(src->c - cameraPosition);
-        while(i >= 0 && srcDistance > keyDistance)
-        {
-            obbs[i + 1] = obbs[i];
-            --i;
-            if(i >= 0) {
-                srcDistance = lenSq(obbs[i]->c - cameraPosition);;
-            }
-        }
-        obbs[i + 1] = key;
-    }
-}
-
-void UpdateClosestPoints(StaticEntityNode *entities, i32 count) {
+void TestCameraOBBsArray(StaticEntityNode *entities,i32 count) {
     for(i32 i = 0; i < count; ++i) {
         StaticEntityNode *entityNode = entities + i;
         StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
-            f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
-            if(sqDistToClosestPoint > 0) {
-                obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
-            }
-        }
-    }
-}
 
-#define MAX_SORTED_OBB 100
-
-#if 0
-void CameraOBBsArray(StaticEntity *entities,i32 count) {
-    OBB *sortedOBBs[MAX_SORTED_OBB];
-    i32 sortedCount = 0;
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntity *staticEntity = entities + i;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j; 
-            f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
-            if(sqDistToClosestPoint > 0) {
-                obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+            vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+            f32 distanceSq = lenSq(closestPoint - cameraPosition);
+            if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
                 obb->color = 0xFF00FF00;
+                continue;
             }
-            if(sqDistToClosestPoint <= 0) {
-                obb->color = 0xFFFF0000;
-                sortedOBBs[sortedCount++] = obb;
+
+            vec3 normal = {0, 0, 0};
+            if(CMP(distanceSq, 0.0f)) {
+                f32 mSq = lenSq(closestPoint - obb->c);
+                if(CMP(mSq, 0.0f)) {
+                }
+                else {
+                    normal = normalized(closestPoint - obb->c);
+                }
             }
+            else {
+                normal = normalized(cameraPosition - closestPoint);
+            }
+            
+            vec3 outsidePoint = cameraPosition - normal * cameraCapsule.r;
+            f32 distance = len(closestPoint - outsidePoint);
+            cameraPosition = cameraPosition + normal * distance;
         }
     }
-    SortOBBArray(sortedOBBs, sortedCount);
-    for(i32 i = 0; i < sortedCount; ++i) {
-        CameraCollisionResolutionOBB(sortedOBBs[i]);
-        UpdateClosestPoints(entities, count);
-    }
 }
-#else
-void CameraOBBsArray(StaticEntityNode *entities,i32 count) {
-    OBB *sortedOBBs[MAX_SORTED_OBB];
-    i32 sortedCount = 0;
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntityNode *entityNode = entities + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j; 
-            f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
-            if(sqDistToClosestPoint > 0) {
-                obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
-                obb->color = 0xFF00FF00;
-            }
-            if(sqDistToClosestPoint <= 0) {
-                obb->color = 0xFFFF0000;
-                sortedOBBs[sortedCount++] = obb;
-            }
-        }
-    }
-    SortOBBArray(sortedOBBs, sortedCount);
-    for(i32 i = 0; i < sortedCount; ++i) {
-        CameraCollisionResolutionOBB(sortedOBBs[i]);
-        UpdateClosestPoints(entities, count);
-    }
-}
-#endif
 
-
-void CameraCollisionDetectionAndResolutionOBB(OBB *obb) {
-    f32 sqDistToClosestPoint = SqDistPointOBB(cameraPosition, obb);
-    if(sqDistToClosestPoint > 0) {
-        obb->closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+void TestCameraOBB(OBB *obb) {
+    vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+    f32 distanceSq = lenSq(closestPoint - cameraPosition);
+    if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
         obb->color = 0xFF00FF00;
-    }
-    if(sqDistToClosestPoint <= 0) {
-        obb->color = 0xFFFF0000;
-        CameraCollisionResolutionOBB(obb);
+        return;
     }
 
+    vec3 normal = {0, 0, 0};
+    if(CMP(distanceSq, 0.0f)) {
+        f32 mSq = lenSq(closestPoint - obb->c);
+        if(CMP(mSq, 0.0f)) {
+        }
+        else {
+            normal = normalized(closestPoint - obb->c);
+        }
+    }
+    else {
+        normal = normalized(cameraPosition - closestPoint);
+    }
+    
+    vec3 outsidePoint = cameraPosition - normal * cameraCapsule.r;
+    f32 distance = len(closestPoint - outsidePoint);
+    cameraPosition = cameraPosition + normal * distance;
+    
 }
 
 internal
@@ -637,8 +570,6 @@ void DrawAllObjectInsideOctree(OctreeNode *tree, GameState *gameState) {
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
             DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
-            mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
-            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
         } 
     }
     if(tree->child[0] != NULL) {
@@ -660,8 +591,6 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gam
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     gameState->bitmap, {0.5f, 0.2f, -1}, mesh->world);
             DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
-            mat4 world = Mat4Translate(obb->closestPoint.x, obb->closestPoint.y, obb->closestPoint.z) * Mat4Scale(0.02f, 0.02f, 0.02f);
-            DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), 0xFF0000FF, world);
         }
     }
 }
@@ -728,6 +657,12 @@ void GameInit(Memory *memory) {
 
     i32 StopHere = 0;
 
+    cameraCapsule.a = cameraPosition;
+    cameraCapsule.a.y += 0.3f;
+    cameraCapsule.b = cameraPosition;
+    cameraCapsule.b.y -= 0.3f;
+    cameraCapsule.r = 0.3f;
+
 
     //SoundPlay(gameState->music, true);
 }
@@ -753,9 +688,8 @@ void GameUpdate(Memory *memory, f32 dt) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    CameraOBBsArray(entitiesToRender, entitiesToRenderCount);
-    
-    CameraCollisionDetectionAndResolutionOBB(&gameState->cubeOBB);
+    TestCameraOBBsArray(entitiesToRender, entitiesToRenderCount);
+    TestCameraOBB(&gameState->cubeOBB);
 
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
@@ -770,7 +704,7 @@ void GameRender(Memory *memory) {
     obb.u[0] = {1, 0, 0};
     obb.u[1] = {0, 1, 0};
     obb.u[2] = {0, 0, 1};
-    obb.e = {1, 1, 1};
+    obb.e = {20, 1, 20};
     StaticEntityNode *entitiesToRender = NULL;
     i32 entitiesToRenderCount = 0;  
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
