@@ -8,7 +8,6 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - improve collision to work with capsules or spheres
 // - add mutiple textures to static entities
 // - fix lights
 // - add mutiple lights to the renderer
@@ -79,7 +78,7 @@ f32 cameraYaw = RAD(90.0f);
 bool cameraIsColliding = false;
 Capsule cameraCapsule;
 
-f32 playerSpeed = 2.0f;
+f32 playerSpeed = 3.0f;
 f32 sensitivity = 2.0f;
 f32 mouseSensitivity = 0.001f;
 
@@ -144,9 +143,9 @@ void UpdateCamera(f32 dt, GameState *gameState) {
     cameraPosition = cameraPosition + (cameraFront * (leftStickY * playerSpeed)) * dt;    
 
     cameraCapsule.a = cameraPosition;
-    cameraCapsule.a.y += 0.3f;
+    cameraCapsule.a.y += 0.2f;
     cameraCapsule.b = cameraPosition;
-    cameraCapsule.b.y -= 0.3f;
+    cameraCapsule.b.y -= 0.6f;
 }
 
 // TODO: map test
@@ -358,17 +357,179 @@ f32 SqDistPointSegment(vec3 a, vec3 b, vec3 c) {
     return dot(ac, ac) - e * e / f;
 }
 
-int TestCapsuleOBB(Capsule *capsule, OBB *obb) {
-    // the obb closestPoint should be updated to tha player position
-    //f32 dist2 = SqDistPointSegment(capsule->a, capsule->b, obb->closestPoint);
-    // if squared distance is smaller than the capsule radii, they collide
-    //return dist2 < capsule->r * capsule->r;
-    return 0;
+vec3 ClosestPtPointSegment(vec3 c, vec3 a, vec3 b) {
+    vec3 ab = b - a;
+    f32 t = dot(c - a, ab) / dot(ab, ab);
+    if(t < 0.0f) t = 0.0f;
+    if(t > 1.0f) t = 1.0f;
+    vec3 d = a + ab * t;
+    return d;
+}
+
+void TestCameraCapsuleOBBsArray(StaticEntityNode *entities,i32 count) {
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j;
+            vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+            vec3 testPosition = ClosestPtPointSegment(closestPoint, cameraCapsule.a, cameraCapsule.b);
+            f32 distanceSq = lenSq(closestPoint - testPosition);
+            if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
+                obb->color = 0xFF00FF00;
+                continue;
+            }
+            obb->color = 0xFFFF0000;
+            vec3 normal = {0, 0, 1};
+            if(CMP(distanceSq, 0.0f)) {
+                f32 mSq = lenSq(closestPoint - obb->c);
+                if(CMP(mSq, 0.0f)) {
+                }
+                else {
+                    normal = normalized(closestPoint - obb->c);
+                }
+            }
+            else {
+                normal = normalized(testPosition - closestPoint);
+            }
+            
+            vec3 outsidePoint = testPosition - normal * cameraCapsule.r;
+            f32 distance = len(closestPoint - outsidePoint);
+
+            cameraPosition = cameraPosition + normal * distance;
+            cameraCapsule.a = cameraPosition;
+            cameraCapsule.a.y += 0.2f;
+            cameraCapsule.b = cameraPosition;
+            cameraCapsule.b.y -= 0.6f;
+        }
+    }
+}
+
+void TestCameraCapsuleOBB(OBB *obb) {
+    vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+    vec3 testPosition = ClosestPtPointSegment(closestPoint, cameraCapsule.a, cameraCapsule.b);
+    f32 distanceSq = lenSq(closestPoint - testPosition);
+    if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
+        obb->color = 0xFF00FF00;
+        return;
+    }
+    obb->color = 0xFFFF0000;
+    vec3 normal = {0, 0, 0};
+    if(CMP(distanceSq, 0.0f)) {
+        f32 mSq = lenSq(closestPoint - obb->c);
+        if(CMP(mSq, 0.0f)) {
+        }
+        else {
+            normal = normalized(closestPoint - obb->c);
+        }
+    }
+    else {
+        normal = normalized(testPosition - closestPoint);
+    }
+    
+    vec3 outsidePoint = testPosition - normal * cameraCapsule.r;
+    f32 distance = len(closestPoint - outsidePoint);
+    cameraPosition = cameraPosition + normal * distance;
+    cameraCapsule.a = cameraPosition;
+    cameraCapsule.a.y += 0.2f;
+    cameraCapsule.b = cameraPosition;
+    cameraCapsule.b.y -= 0.6f;
 }
 
 
+#if 1
+// TODO: refactor this
+#define MAX_SORTED_OBB 100
+void TestCameraSphereOBBsArray(StaticEntityNode *entities,i32 count) {
+    OBB *sortedOBBs[MAX_SORTED_OBB];
+    i32 sortedCount = 0;
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j;
+            vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
+            f32 distanceSq = lenSq(closestPoint - cameraPosition);
+            if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
+                obb->color = 0xFF00FF00;
+                continue;
+            }
+            obb->color = 0xFFFF0000;
+            sortedOBBs[sortedCount++] = obb;
+        }
+    }
+    for(i32 i = 0; i < sortedCount; ++i) {
+        if(sortedCount == 2) {
+            int stopHere = 0;
+        }
+        OBB *obb = sortedOBBs[i];
+        vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb); 
+        Plane collisionPlane; 
 
-void TestCameraOBBsArray(StaticEntityNode *entities,i32 count) {
+        vec3 normal = {0, 1, 0};
+        f32 distanceSq = lenSq(closestPoint - cameraPosition);
+        if(CMP(distanceSq, 0.0f)) {
+            f32 mSq = lenSq(closestPoint - obb->c);
+            if(CMP(mSq, 0.0f)) {
+            }
+            else {
+                normal = normalized(closestPoint - obb->c);
+            }
+        }
+        else {
+            normal = normalized(cameraPosition - closestPoint);
+        }
+
+        vec3 projectionX = project(normal, obb->u[0]);
+        vec3 projectionY = project(normal, obb->u[1]);
+        vec3 projectionZ = project(normal, obb->u[2]);
+        f32 projectionSqLenX = lenSq(projectionX);
+        f32 projectionSqLenY = lenSq(projectionY);
+        f32 projectionSqLenZ = lenSq(projectionZ);
+        if(projectionSqLenY > projectionSqLenX && projectionSqLenY > projectionSqLenZ) {
+            normal = normalized(projectionY);
+        }
+        else if(projectionSqLenX > projectionSqLenY && projectionSqLenX > projectionSqLenZ) {
+            normal = normalized(projectionX);
+        }
+        else if(projectionSqLenZ > projectionSqLenX && projectionSqLenZ > projectionSqLenY) {
+            normal = normalized(projectionZ);
+        }
+
+        collisionPlane.n = normal;
+        collisionPlane.p = closestPoint;
+
+        vec3 closest = ClosestPtPointPlane(cameraPosition, collisionPlane) +
+                                          (collisionPlane.n * cameraCapsule.r) + 
+                                          (collisionPlane.n * 0.002f);        
+
+        cameraPosition.x = closest.x;
+        cameraPosition.y = closest.y;
+        cameraPosition.z = closest.z;
+
+        /*
+        sprintf(buffer, "camera: x: %f y: %f z: %f\n", 
+                cameraPosition.x,
+                cameraPosition.y,
+                cameraPosition.z);
+        OutputDebugString(buffer);
+
+
+        if(isnan(cameraPosition.x) || 
+           isnan(cameraPosition.y) ||
+           isnan(cameraPosition.z)) {
+            i32 StopHere = 0;
+        }
+        */
+
+
+
+
+
+    }
+}
+#else
+void TestCameraSphereOBBsArray(StaticEntityNode *entities,i32 count) {
     for(i32 i = 0; i < count; ++i) {
         StaticEntityNode *entityNode = entities + i;
         StaticEntity *staticEntity = entityNode->object;
@@ -381,7 +542,7 @@ void TestCameraOBBsArray(StaticEntityNode *entities,i32 count) {
                 obb->color = 0xFF00FF00;
                 continue;
             }
-
+            obb->color = 0xFFFF0000;
             vec3 normal = {0, 0, 0};
             if(CMP(distanceSq, 0.0f)) {
                 f32 mSq = lenSq(closestPoint - obb->c);
@@ -401,15 +562,16 @@ void TestCameraOBBsArray(StaticEntityNode *entities,i32 count) {
         }
     }
 }
+#endif
 
-void TestCameraOBB(OBB *obb) {
+void TestCameraSphereOBB(OBB *obb) {
     vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
     f32 distanceSq = lenSq(closestPoint - cameraPosition);
     if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
         obb->color = 0xFF00FF00;
         return;
     }
-
+    obb->color = 0xFFFF0000;
     vec3 normal = {0, 0, 0};
     if(CMP(distanceSq, 0.0f)) {
         f32 mSq = lenSq(closestPoint - obb->c);
@@ -658,9 +820,9 @@ void GameInit(Memory *memory) {
     i32 StopHere = 0;
 
     cameraCapsule.a = cameraPosition;
-    cameraCapsule.a.y += 0.3f;
+    cameraCapsule.a.y += 0.2f;
     cameraCapsule.b = cameraPosition;
-    cameraCapsule.b.y -= 0.3f;
+    cameraCapsule.b.y -= 0.6f;
     cameraCapsule.r = 0.3f;
 
 
@@ -676,7 +838,7 @@ void GameUpdate(Memory *memory, f32 dt) {
     }
 
     UpdateCamera(dt, gameState);
-
+    
     OBB obb;
     obb.c = cameraPosition;
     obb.u[0] = {1, 0, 0};
@@ -688,8 +850,13 @@ void GameUpdate(Memory *memory, f32 dt) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    TestCameraOBBsArray(entitiesToRender, entitiesToRenderCount);
-    TestCameraOBB(&gameState->cubeOBB);
+#if 0
+    TestCameraCapsuleOBBsArray(entitiesToRender, entitiesToRenderCount);
+    TestCameraCapsuleOBB(&gameState->cubeOBB);
+#else
+    TestCameraSphereOBBsArray(entitiesToRender, entitiesToRenderCount);
+    TestCameraSphereOBB(&gameState->cubeOBB);
+#endif
 
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
@@ -704,7 +871,7 @@ void GameRender(Memory *memory) {
     obb.u[0] = {1, 0, 0};
     obb.u[1] = {0, 1, 0};
     obb.u[2] = {0, 0, 1};
-    obb.e = {20, 1, 20};
+    obb.e = {1, 1, 1};
     StaticEntityNode *entitiesToRender = NULL;
     i32 entitiesToRenderCount = 0;  
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
