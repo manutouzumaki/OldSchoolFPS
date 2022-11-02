@@ -53,6 +53,7 @@ struct StaticEntity {
     Transform transform;
     Mesh meshes[STATIC_ENTITY_MAX_MESH_COUNT];
     OBB obbs[STATIC_ENTITY_MAX_MESH_COUNT];
+    Texture *bitmap;
     i32 meshCount;
 };
 
@@ -77,7 +78,7 @@ struct GameState {
     Arena soundArena;
     Arena staticEntitiesArena;
     
-    Texture *bitmap;
+    Texture *bitmaps[2];
     Sound *chocolate;
     Sound *music;    
     Sound *shoot;

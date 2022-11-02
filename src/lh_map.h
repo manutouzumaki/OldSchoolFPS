@@ -1,6 +1,6 @@
 internal
 void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Arena *arena,
-                               Vertex *vertices, u32 *indices, i32 indicesCount) {
+                               Vertex *vertices, u32 *indices, i32 indicesCount, Texture **bitmaps) {
     for(i32 y = 0; y < mapCountY; ++y) {
         for(i32 x = 0; x < mapCountX; ++x) {
             i32 tile = map[y][x];
@@ -17,6 +17,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[1];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh = &entity->meshes[entity->meshCount];
                     OBB *obb = &entity->obbs[entity->meshCount++];
@@ -46,6 +47,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh = &entity->meshes[entity->meshCount];
                     OBB *obb = &entity->obbs[entity->meshCount++];
@@ -73,6 +75,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh = &entity->meshes[entity->meshCount];
                     OBB *obb = &entity->obbs[entity->meshCount++];
@@ -101,6 +104,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh = &entity->meshes[entity->meshCount];
                     OBB *obb = &entity->obbs[entity->meshCount++];
@@ -129,6 +133,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh = &entity->meshes[entity->meshCount];
                     OBB *obb = &entity->obbs[entity->meshCount++];
@@ -157,6 +162,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh1 = &entity->meshes[entity->meshCount];
                     OBB *obb1 = &entity->obbs[entity->meshCount++];
@@ -201,6 +207,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh1 = &entity->meshes[entity->meshCount];
                     OBB *obb1 = &entity->obbs[entity->meshCount++];
@@ -246,6 +253,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh1 = &entity->meshes[entity->meshCount];
                     OBB *obb1 = &entity->obbs[entity->meshCount++];
@@ -290,6 +298,7 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     *entities = ArenaPushStruct(arena, StaticEntity);
                     *entitiesCount = *entitiesCount + 1;
                     StaticEntity *entity = *entities;
+                    entity->bitmap = bitmaps[0];
                     Transform *absTransform = &entity->transform;
                     Mesh *mesh1 = &entity->meshes[entity->meshCount];
                     OBB *obb1 = &entity->obbs[entity->meshCount++];
