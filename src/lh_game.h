@@ -13,6 +13,11 @@
 struct Sound;
 struct Texture;
 
+struct Ray {
+    vec3 o;
+    vec3 d;
+};
+
 struct OBB {
     vec3 c;    // center point
     vec3 u[3]; // local x, y, and z axes
@@ -28,10 +33,20 @@ struct Plane {
     vec3 p;
 };
 
+struct Sphere {
+    vec3 c;
+    f32 r;
+};
+
 struct Capsule {
     vec3 a; // Medial line segment start point
     vec3 b; // Medial line segment end point
     f32  r; // Radius
+};
+
+struct Segment {
+    vec3 a;
+    vec3 b;
 };
 
 struct StaticEntity {
