@@ -51,6 +51,44 @@ Vertex verticesCube[] = {
         -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f,  0.0f
 };
 
+Vertex verticesCube2[] = {
+    -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+    -1.0f,  1.0f, -1.0f, 1.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  0.0f, -1.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  0.0f, -1.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  0.0f,  0.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f, 0.0f, 1.0f,  0.0f,  0.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  1.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  1.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  1.0f
+};
+
+u32 indicesCube2[] =
+{
+    3,1,0,2,1,3,
+    6,4,5,7,4,6,
+    11,9,8, 10,9, 11,
+    14, 12, 13, 15, 12, 14,
+    19, 17, 16, 18, 17, 19,
+    22, 20, 21, 23, 20, 22
+};
+
+
 Vertex vertices[] = {
     // position           // uv        // normal
     -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
@@ -66,85 +104,27 @@ u32 indices[] = {
 
 
 // TODO: FPS camera
-vec3 cameraPosition = {2, 5, 1};
-vec3 cameraLastPosition = {2, 5, 1};
+vec3 cameraPosition = {2, 5, 4};
+vec3 cameraLastPosition = {2, 5, 4};
 vec3 cameraFront = {0, 0, 1};
 vec3 cameraRight = {1, 0, 0};
 vec3 cameraUp = {0, 1, 0};
 f32 cameraPitch = 0;
 f32 cameraYaw = RAD(90.0f);
 bool cameraIsColliding = false;
+
 Capsule cameraCapsule;
+Ray cameraDownRay;
 
 f32 playerSpeed = 3.0f;
+f32 playerGravity = 9.8f;
+f32 playerVelocityY = 0.0f;
+bool playerGrounded = false;
 f32 sensitivity = 2.0f;
 f32 mouseSensitivity = 0.001f;
 
 #include <windows.h>
 #include <stdio.h>
-
-internal
-void UpdateCamera(f32 dt, GameState *gameState) {
-    f32 leftStickX = JoysickGetLeftStickX();
-    f32 leftStickY = JoysickGetLeftStickY();
-    f32 rightStickX = JoysickGetRightStickX();
-    f32 rightStickY = JoysickGetRightStickY();
-    
-    if(MouseGetButtonJustDown(MOUSE_BUTTON_RIGHT)) {
-        MouseShowCursor(false);
-        gameState->mouseDefaultScreenX = MouseGetScreenX();
-        gameState->mouseDefaultScreenY = MouseGetScreenY();
-    }
-    if(MouseGetButtonJustUp(MOUSE_BUTTON_RIGHT)) {
-        MouseShowCursor(true);
-    }
-    if(MouseGetButtonDown(MOUSE_BUTTON_RIGHT)) {
-        f32 deltaMouseX = (f32)(MouseGetScreenX() - gameState->mouseDefaultScreenX);
-        f32 deltaMouseY = (f32)(MouseGetScreenY() - gameState->mouseDefaultScreenY);
-        MouseSetCursor(gameState->mouseDefaultScreenX, gameState->mouseDefaultScreenY);
-        cameraYaw -= (deltaMouseX * mouseSensitivity);
-        cameraPitch -= (deltaMouseY * mouseSensitivity); 
-    }
-    
-    // Right Stick movement
-    cameraYaw -= (rightStickX * sensitivity) * dt;
-    cameraPitch += (rightStickY * sensitivity) * dt;
-
-    f32 maxPitch = RAD(89.0f);
-    if(cameraPitch > maxPitch) {
-        cameraPitch = maxPitch;
-    }
-    else if(cameraPitch < -maxPitch) {
-        cameraPitch = -maxPitch;
-    }
-    cameraFront.x = cosf(cameraYaw) * cosf(cameraPitch);
-    cameraFront.y = sinf(cameraPitch);
-    cameraFront.z = sinf(cameraYaw) * cosf(cameraPitch);
-    cameraRight = cross(cameraUp, cameraFront);
-
-
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
-        cameraPosition = cameraPosition + (cameraFront * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
-        cameraPosition = cameraPosition - (cameraFront * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
-        cameraPosition = cameraPosition + (cameraRight * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
-        cameraPosition = cameraPosition - (cameraRight * playerSpeed) * dt;
-    }
-
-    // Left Stick movement
-    cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
-    cameraPosition = cameraPosition + (cameraFront * (leftStickY * playerSpeed)) * dt;    
-
-    cameraCapsule.a = cameraPosition;
-    cameraCapsule.a.y += 0.2f;
-    cameraCapsule.b = cameraPosition;
-    cameraCapsule.b.y -= 0.6f;
-}
 
 // TODO: map test
 
@@ -468,6 +448,72 @@ bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut) {
     return true;
 }
 
+internal
+void UpdateCamera(f32 dt, GameState *gameState) {
+    f32 leftStickX = JoysickGetLeftStickX();
+    f32 leftStickY = JoysickGetLeftStickY();
+    f32 rightStickX = JoysickGetRightStickX();
+    f32 rightStickY = JoysickGetRightStickY();
+    
+    if(MouseGetButtonJustDown(MOUSE_BUTTON_RIGHT)) {
+        MouseShowCursor(false);
+        gameState->mouseDefaultScreenX = MouseGetScreenX();
+        gameState->mouseDefaultScreenY = MouseGetScreenY();
+    }
+    if(MouseGetButtonJustUp(MOUSE_BUTTON_RIGHT)) {
+        MouseShowCursor(true);
+    }
+    if(MouseGetButtonDown(MOUSE_BUTTON_RIGHT)) {
+        f32 deltaMouseX = (f32)(MouseGetScreenX() - gameState->mouseDefaultScreenX);
+        f32 deltaMouseY = (f32)(MouseGetScreenY() - gameState->mouseDefaultScreenY);
+        MouseSetCursor(gameState->mouseDefaultScreenX, gameState->mouseDefaultScreenY);
+        cameraYaw -= (deltaMouseX * mouseSensitivity);
+        cameraPitch -= (deltaMouseY * mouseSensitivity); 
+    }
+    
+    // Right Stick movement
+    cameraYaw -= (rightStickX * sensitivity) * dt;
+    cameraPitch += (rightStickY * sensitivity) * dt;
+
+    f32 maxPitch = RAD(89.0f);
+    if(cameraPitch > maxPitch) {
+        cameraPitch = maxPitch;
+    }
+    else if(cameraPitch < -maxPitch) {
+        cameraPitch = -maxPitch;
+    }
+    cameraFront.x = cosf(cameraYaw) * cosf(cameraPitch);
+    cameraFront.y = sinf(cameraPitch);
+    cameraFront.z = sinf(cameraYaw) * cosf(cameraPitch);
+    normalize(&cameraFront);
+    cameraRight = normalized(cross(cameraUp, cameraFront));
+    // this is a easy way of doing this... implement it better
+    vec3 worldFront = normalized(cross(cameraRight, cameraUp));
+
+
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
+        cameraPosition = cameraPosition + (worldFront * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
+        cameraPosition = cameraPosition - (worldFront * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
+        cameraPosition = cameraPosition + (cameraRight * playerSpeed) * dt;
+    }
+    if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
+        cameraPosition = cameraPosition - (cameraRight * playerSpeed) * dt;
+    }
+
+    // Left Stick movement
+    cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
+    cameraPosition = cameraPosition + (worldFront * (leftStickY * playerSpeed)) * dt;    
+
+    cameraCapsule.a = cameraPosition;
+    cameraCapsule.a.y += 0.2f;
+    cameraCapsule.b = cameraPosition;
+    cameraCapsule.b.y -= 0.6f;
+}
+
 
 f32 Clamp(f32 n, f32 min, f32 max) {
     if(n < min) return min;
@@ -712,20 +758,34 @@ void GameInit(Memory *memory) {
     // InitializeMap
     StaticEntitiesInitialized(&gameState->entities, &gameState->entitiesCount, &gameState->staticEntitiesArena,
                               vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps); 
-    // Init OBB
-    vec3 cubeOBBRight = {1, 0, 0};
-    vec3 cubeOBBUp    = {0, 1, 0};
-    vec3 cubeOBBFront = {0, 0, 1};
-    gameState->cubeOBB.c = {5, 0, 22};
-    gameState->cubeOBB.u[0] = normalized(Mat3RotateY(RAD(0.0f)) * cubeOBBRight);
-    gameState->cubeOBB.u[1] = normalized(Mat3RotateY(RAD(0.0f)) * cubeOBBUp);
-    gameState->cubeOBB.u[2] = normalized(Mat3RotateY(RAD(0.0f)) * cubeOBBFront);
-    gameState->cubeOBB.e = {2, 1, 1};
-    mat4 translationMat = Mat4Translate(gameState->cubeOBB.c.x, gameState->cubeOBB.c.y, gameState->cubeOBB.c.z);
-    mat4 rotationMat = Mat4Identity();//Mat4RotateX(RAD(0.0f)) * Mat4RotateY(RAD(0.0f)) * Mat4RotateZ(RAD(0.0f));
-    mat4 scaleMat =  Mat4Scale(gameState->cubeOBB.e.x, gameState->cubeOBB.e.y, gameState->cubeOBB.e.z);
-    gameState->cubeOBB.world = translationMat * rotationMat * scaleMat;
-    gameState->cubeOBB.color = 0xFF00FF00;
+    StaticEntity *entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
+    gameState->entitiesCount++;
+    entity->bitmap = gameState->bitmaps[1];
+    Transform *absTransform = &entity->transform;
+    Mesh *mesh1 = &entity->meshes[entity->meshCount];
+    OBB *obb1 = &entity->obbs[entity->meshCount++];
+    Transform *relTransform = &mesh1->transform;
+    mat4 *world1 = &mesh1->world;
+
+    absTransform->position = {5, -1.5f, 22};
+    absTransform->scale = {2, 1, 1};
+    absTransform->rotation = {-20, 0, 0};
+
+    relTransform->position = {};
+    relTransform->scale = {};
+    relTransform->rotation = {};
+    
+    *obb1 = CreateOBB({5, -1.5f, 22}, {20, 0, 0}, {2, 1, 1});
+    *world1 = TransformToMat4(absTransform->position + relTransform->position,
+                             absTransform->rotation + relTransform->rotation,
+                             absTransform->scale + relTransform->scale);
+    mesh1->vertices = verticesCube2;
+    mesh1->verticesCount = 0;
+    mesh1->indices = indicesCube2;
+    mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+
+    gameState->entities = entity;
+    gameState->entities = gameState->entities - (gameState->entitiesCount - 1);
 
     // TODO: test octree
     f32 mapWidth = mapCountX*2.0f;
@@ -748,16 +808,14 @@ void GameInit(Memory *memory) {
     cameraCapsule.b = cameraPosition;
     cameraCapsule.b.y -= 0.6f;
     cameraCapsule.r = 0.3f;
+    
+    cameraDownRay.o = cameraPosition;
+    cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
     //SoundPlay(gameState->music, true);
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
-
-
-    if(JoysickGetButtonJustDown(JOYSTICK_BUTTON_A)) {
-        SoundPlay(gameState->shoot, false);
-    }
 
     UpdateCamera(dt, gameState);
     
@@ -772,8 +830,37 @@ void GameUpdate(Memory *memory, f32 dt) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
+
+
+    // JUMP CODE
+    if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
+        playerGrounded) {
+        SoundPlay(gameState->shoot, false);
+        playerVelocityY = 5;
+    }
+    cameraPosition.y += playerVelocityY * dt; 
+    cameraDownRay.o = cameraPosition;
+    cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
+    if(!playerGrounded) {
+        playerVelocityY += -playerGravity * dt;
+    }
+    // TODO: check for the ground    
+    bool flag = false;
+    for(i32 i = 0; i < entitiesToRenderCount; ++i) {
+        StaticEntityNode *entityNode = entitiesToRender + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j;
+            f32 t = 0;
+            if(RaycastOBB(obb, &cameraDownRay, &t) && t <= 1.0f) {
+                flag = true;
+                playerVelocityY = 0;
+            }
+        }
+    }
+    playerGrounded = flag;
+
     TestCameraSphereOBBsArray(entitiesToRender, entitiesToRenderCount);
-    TestCameraSphereOBB(&gameState->cubeOBB);
 
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
     cameraLastPosition = cameraPosition;
@@ -796,7 +883,6 @@ void GameRender(Memory *memory) {
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState);
-    DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), gameState->cubeOBB.color, gameState->cubeOBB.world);
     
     RendererPresent();
 
