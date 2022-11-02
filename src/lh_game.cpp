@@ -811,7 +811,7 @@ void GameInit(Memory *memory) {
     
     cameraDownRay.o = cameraPosition;
     cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
-    //SoundPlay(gameState->music, true);
+    SoundPlay(gameState->music, true);
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
@@ -854,7 +854,8 @@ void GameUpdate(Memory *memory, f32 dt) {
             f32 t = 0;
             if(RaycastOBB(obb, &cameraDownRay, &t) && t <= 1.0f) {
                 flag = true;
-                playerVelocityY = 0;
+                if(playerVelocityY < 0) 
+                    playerVelocityY = 0;
             }
         }
     }
