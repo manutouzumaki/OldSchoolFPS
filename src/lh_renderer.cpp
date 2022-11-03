@@ -61,6 +61,7 @@ struct RenderWork {
     i32 lightsCount;
     vec3 viewPos;
     mat4 world;
+    bool writeDepthBuffer;
 };
 
 struct Renderer {
@@ -209,7 +210,7 @@ f32 ORIENTED2D(Point a, Point b, Point c) {
 internal
 void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
                         vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
-                        rectangle2i clipRect) {
+                        rectangle2i clipRect, bool writeDepthBuffer) {
 
     ASSERT(((uintptr_t)gRenderer.colorBuffer & 15) == 0);
     // compute trinangle AABB
@@ -576,15 +577,18 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128i sg = _mm_slli_epi32(g, 8);
                         __m128i sb = b;
                         __m128i sa = _mm_slli_epi32(a, 24);
-                        
-                        color = _mm_or_si128(_mm_or_si128(sr, sg), _mm_or_si128(sb, sa));
+                        if(lightsCount) { 
+                            color = _mm_or_si128(_mm_or_si128(sr, sg), _mm_or_si128(sb, sa));
+                        }
 
 #endif
 
                         __m128i colorMaskedOut = _mm_or_si128(_mm_and_si128(writeMaski, color), _mm_andnot_si128(writeMaski, originalDest));
                         __m128 depthMaskOut = _mm_or_ps(_mm_and_ps(writeMask, interReciZ), _mm_andnot_ps(writeMask, depth));
                         _mm_store_si128((__m128i *)pixelPt, colorMaskedOut);
-                        _mm_store_ps(depthPt, depthMaskOut);
+                        if(writeDepthBuffer) {
+                            _mm_store_ps(depthPt, depthMaskOut);
+                        }
                     }
                 }
                 if((x + 4) >= maxX) {
@@ -666,7 +670,7 @@ void HomogenousClipping(vec4 *srcVertives, vec2 * srcUVs, vec3 *srcNormals, vec3
 internal
 void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
                            i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
-                           mat4 world, rectangle2i clipRect) {    
+                           mat4 world, rectangle2i clipRect, bool writeDepthBuffer) {    
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -781,7 +785,7 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
                                newFragPosA, newFragPosB, newFragPosC,
                                bitmap,
                                lights, lightsCount, viewPos,
-                               clipRect);
+                               clipRect, writeDepthBuffer);
         }
     }
 }
@@ -792,7 +796,7 @@ void DoTileRenderWork(void *data) {
     for(i32 i = 0; i < gRenderer.workCount; ++i) {
         RenderWork *work = gRenderer.workArray + i;
         RenderVertexArrayFast(work->vertices, work->indices,
-                              work->indicesCount, work->bitmap, work->lights, work->lightsCount, work->viewPos, work->world, param->clipRect);
+                              work->indicesCount, work->bitmap, work->lights, work->lightsCount, work->viewPos, work->world, param->clipRect, work->writeDepthBuffer);
     }
 }
 
@@ -881,7 +885,7 @@ void InitializeD3D11() {
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.OutputWindow = gWindow.hwnd;
-    swapChainDesc.Windowed = true;
+    swapChainDesc.Windowed = false;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
 
@@ -1103,7 +1107,7 @@ void RendererClearBuffers(u32 color, f32 depth) {
 
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
                              i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount,
-                             vec3 viewPos, mat4 world) {
+                             vec3 viewPos, mat4 world, bool writeDepthBuffer) {
     RenderWork *work = gRenderer.workArray + gRenderer.workCount++;
     work->vertices = vertices;
     work->verticesCount = 0;
@@ -1114,6 +1118,7 @@ void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
     work->lightsCount = lightsCount;
     work->viewPos = viewPos;
     work->world = world;
+    work->writeDepthBuffer = writeDepthBuffer;
 }
 
 void RendererPresent() {

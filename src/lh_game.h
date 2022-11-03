@@ -79,6 +79,9 @@ struct GameState {
     Arena staticEntitiesArena;
     
     Texture *bitmaps[2];
+    Texture *skybox[6];
+
+
     Sound *chocolate;
     Sound *music;    
     Sound *shoot;

@@ -8,6 +8,10 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
+// - try to render a skybox
+// - organize the code for collision, player and camera 
+// - create a 2d quad razteraizer
+// - improve jump mechanic
 // - platform independent Debug output
 // - add REAL DEBUGING geometry 
 //////////////////////////////////////////////////////////////////////
@@ -721,7 +725,7 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gam
             OBB *obb = staticEntity->obbs + j;
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     staticEntity->bitmap, lights, ARRAY_LENGTH(lights),
-                                    cameraPosition, mesh->world);
+                                    cameraPosition, mesh->world, true);
             //DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
         }
     }
@@ -751,6 +755,14 @@ void GameInit(Memory *memory) {
     // Load Assets
     gameState->bitmaps[0] = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[1] = TextureCreate("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
+    
+    gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[2] = TextureCreate("../assets/skyFront.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[3] = TextureCreate("../assets/skyBack.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[4] = TextureCreate("../assets/skyLeft.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[5] = TextureCreate("../assets/skyRight.bmp", &gameState->textureArena, &gameState->dataArena);
+    
     gameState->chocolate = SoundCreate("../assets/chocolate.wav", &gameState->soundArena, &gameState->dataArena);
     gameState->music     = SoundCreate("../assets/lugia.wav", &gameState->soundArena, &gameState->dataArena);
     gameState->shoot     = SoundCreate("../assets/shoot.wav", &gameState->soundArena, &gameState->dataArena);
@@ -801,8 +813,6 @@ void GameInit(Memory *memory) {
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
     }
 
-    i32 StopHere = 0;
-
     cameraCapsule.a = cameraPosition;
     cameraCapsule.a.y += 0.2f;
     cameraCapsule.b = cameraPosition;
@@ -811,7 +821,7 @@ void GameInit(Memory *memory) {
     
     cameraDownRay.o = cameraPosition;
     cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
-    SoundPlay(gameState->music, true);
+    SoundPlay(gameState->music, true); 
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
@@ -835,7 +845,7 @@ void GameUpdate(Memory *memory, f32 dt) {
     // JUMP CODE
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         playerGrounded) {
-        SoundPlay(gameState->shoot, false);
+        //SoundPlay(gameState->shoot, false);
         playerVelocityY = 5;
     }
     cameraPosition.y += playerVelocityY * dt; 
@@ -871,6 +881,50 @@ void GameUpdate(Memory *memory, f32 dt) {
 void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     RendererClearBuffers(0xFF020211, 0.0f);
+
+// TODO: Render SKYBOX
+//    gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
+//    gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
+//    gameState->skybox[2] = TextureCreate("../assets/skyFront.bmp", &gameState->textureArena, &gameState->dataArena);
+//    gameState->skybox[3] = TextureCreate("../assets/skyBack.bmp", &gameState->textureArena, &gameState->dataArena);
+//    gameState->skybox[4] = TextureCreate("../assets/skyLeft.bmp", &gameState->textureArena, &gameState->dataArena);
+//    gameState->skybox[5] = TextureCreate("../assets/skyRight.bmp", &gameState->textureArena, &gameState->dataArena);
+
+// FRONT
+    mat4 skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[2], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// BACK
+    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * 
+                  Mat4RotateY(RAD(180.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[3], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// LEFT
+    skyboxWorld = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * 
+                  Mat4RotateY(RAD(90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[5], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// RIGHT
+    skyboxWorld = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * 
+                  Mat4RotateY(RAD(-90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[4], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// UP
+    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * 
+                  Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[0], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+
+
+
+
+
+
 
     OBB obb;
     obb.c = cameraPosition;
