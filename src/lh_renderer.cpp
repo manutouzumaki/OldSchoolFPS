@@ -800,8 +800,8 @@ void DoTileRenderWork(void *data) {
     }
 }
 
-internal
-void FlushWorkQueue() {
+
+void RendererFlushWorkQueue() {
 #if 1
     const i32 tileCountX = 4;
     const i32 tileCountY = 4;
@@ -885,7 +885,7 @@ void InitializeD3D11() {
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.OutputWindow = gWindow.hwnd;
-    swapChainDesc.Windowed = false;
+    swapChainDesc.Windowed = true;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
 
@@ -1121,8 +1121,26 @@ void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
     work->writeDepthBuffer = writeDepthBuffer;
 }
 
+void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {
+    // TODO: simd this function
+    u32 *pixels = (u32 *)bitmap->data;
+    for(i32 y = yPos; y < height + yPos; ++y) {
+        for(i32 x = xPos; x < width + xPos; ++x) {
+            f32 xRatio = (f32)(x - xPos) / (f32)width; 
+            f32 yRatio = (f32)(y - yPos) / (f32)height;
+            i32 xPixel = bitmap->width  * xRatio;
+            i32 yPixel = bitmap->height * yRatio;
+            u32 color = pixels[yPixel * bitmap->width + xPixel];
+            f32 alpha = (f32)((color >> 24) & 0xFF) / 255.0f;
+            if(alpha > 0.5f) {
+                gRenderer.colorBuffer[y * gRenderer.bufferWidth + x] = color;
+            }
+        }
+    }
+}
+
 void RendererPresent() {
-    FlushWorkQueue();
+    //FlushWorkQueue();
 
     D3D11_MAPPED_SUBRESOURCE buffer;
     gRenderer.deviceContext->Map(gRenderer.backBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &buffer);

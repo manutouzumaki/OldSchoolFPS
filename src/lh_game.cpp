@@ -8,7 +8,6 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - try to render a skybox
 // - organize the code for collision, player and camera 
 // - create a 2d quad razteraizer
 // - improve jump mechanic
@@ -738,7 +737,6 @@ void GameInit(Memory *memory) {
     memory->used += sizeof(GameState);
 
     WindowSystemInitialize(960, 540, "Last Hope 3D");
-    //WindowSystemInitialize(1920, 1080, "Last Hope 3D");
     RendererSystemInitialize();
     SoundSystemInitialize();
     
@@ -749,12 +747,12 @@ void GameInit(Memory *memory) {
     gameState->staticEntitiesArena = ArenaCreate(memory, Megabytes(1));
 
     RendererSetProj(Mat4Perspective(60.0f, 960.0f/540.0f, 0.01f, 100.0f));
-    //RendererSetProj(Mat4Perspective(60.0f, 1920.0f/1080.0f, 0.01f, 100.0f));
     RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
     // Load Assets
     gameState->bitmaps[0] = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[1] = TextureCreate("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[2] = TextureCreate("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -767,9 +765,13 @@ void GameInit(Memory *memory) {
     gameState->music     = SoundCreate("../assets/lugia.wav", &gameState->soundArena, &gameState->dataArena);
     gameState->shoot     = SoundCreate("../assets/shoot.wav", &gameState->soundArena, &gameState->dataArena);
 
+    
     // InitializeMap
     StaticEntitiesInitialized(&gameState->entities, &gameState->entitiesCount, &gameState->staticEntitiesArena,
-                              vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps); 
+                              vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps);
+
+
+
     StaticEntity *entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
     entity->bitmap = gameState->bitmaps[1];
@@ -920,12 +922,6 @@ void GameRender(Memory *memory) {
                             gameState->skybox[0], NULL, 0,
                             cameraPosition, skyboxWorld, false);
 
-
-
-
-
-
-
     OBB obb;
     obb.c = cameraPosition;
     obb.u[0] = {1, 0, 0};
@@ -938,6 +934,10 @@ void GameRender(Memory *memory) {
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState);
+    
+    RendererFlushWorkQueue(); 
+    RendererDrawRect((960/2) - ((192)/2),
+                      0, 192, 192, gameState->bitmaps[2]);
     
     RendererPresent();
 
