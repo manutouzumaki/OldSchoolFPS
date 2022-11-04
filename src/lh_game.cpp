@@ -4,18 +4,18 @@
 #include "lh_sound.h"
 #include "lh_texture.h"
 #include "lh_input.h"
+#include "lh_static_entity.h"
 
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - organize the code for collision, player and camera 
-// - create a 2d quad razteraizer
+// - optimize the 2d quad razteraizer (SIMD SSE2)
 // - improve jump mechanic
 // - platform independent Debug output
 // - add REAL DEBUGING geometry 
 //////////////////////////////////////////////////////////////////////
 
-Vertex verticesCube[] = {
+global_variable Vertex verticesCube[] = {
         -1.0f, -1.0f, -1.0f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
          1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f, -1.0f,
          1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f, -1.0f,
@@ -54,7 +54,7 @@ Vertex verticesCube[] = {
         -1.0f,  1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f,  0.0f
 };
 
-Vertex verticesCube2[] = {
+global_variable Vertex verticesCube2[] = {
     -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
@@ -81,7 +81,7 @@ Vertex verticesCube2[] = {
     -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  1.0f
 };
 
-u32 indicesCube2[] =
+global_variable u32 indicesCube2[] =
 {
     3,1,0,2,1,3,
     6,4,5,7,4,6,
@@ -92,7 +92,7 @@ u32 indicesCube2[] =
 };
 
 
-Vertex vertices[] = {
+global_variable Vertex vertices[] = {
     // position           // uv        // normal
     -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
     -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
@@ -100,622 +100,32 @@ Vertex vertices[] = {
      1.0f, -1.0f, 0.0f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f
 };
 
-u32 indices[] = {
+global_variable u32 indices[] = {
     0, 1, 3,
     3, 1, 2
 };
 
-
-// TODO: FPS camera
-vec3 cameraPosition = {2, 5, 4};
-vec3 cameraLastPosition = {2, 5, 4};
-vec3 cameraFront = {0, 0, 1};
-vec3 cameraRight = {1, 0, 0};
-vec3 cameraUp = {0, 1, 0};
-f32 cameraPitch = 0;
-f32 cameraYaw = RAD(90.0f);
-bool cameraIsColliding = false;
-
-Capsule cameraCapsule;
-Ray cameraDownRay;
-
-f32 playerSpeed = 3.0f;
-f32 playerGravity = 9.8f;
-f32 playerVelocityY = 0.0f;
-bool playerGrounded = false;
-f32 sensitivity = 2.0f;
-f32 mouseSensitivity = 0.001f;
-
-#include <windows.h>
-#include <stdio.h>
-
-// TODO: map test
-
-const i32 mapCountX = 16;
-const i32 mapCountY = 16;
-i32 map[mapCountY][mapCountX] = {
-    0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 1, 1, 4, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 6, 3, 3, 3, 0,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 8, 5, 9, 1, 4,
-    2, 1, 1, 4, 2, 1, 1, 1, 1, 1, 1, 4, 0, 2, 1, 4,
-    2, 1, 1, 6, 7, 1, 1, 1, 8, 5, 5, 0, 0, 2, 1, 4,
-    2, 1, 1, 1, 1, 1, 1, 8, 0, 0, 0, 0, 0, 2, 1, 4,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 2, 1, 4,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 5, 0,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 1, 1, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-};
-
-internal
-mat4 TransformToMat4(vec3 position, vec3 rotation, vec3 scale) {
-    mat4 translationMat = Mat4Translate(position.x, position.y, position.z);
-    mat4 rotationX = Mat4RotateX(RAD(rotation.x));
-    mat4 rotationY = Mat4RotateY(RAD(rotation.y));
-    mat4 rotationZ = Mat4RotateZ(RAD(rotation.z));
-    mat4 scaleMat = Mat4Scale(scale.x, scale.y, scale.z);
-    mat4 rotationMat = rotationX * rotationY * rotationZ;
-    mat4 world = translationMat * rotationMat * scaleMat;
-    return world;
-}
-
-OBB CreateOBB(vec3 position, vec3 rotation, vec3 scale) {
-    // Init OBB
-    OBB result = {};
-    vec3 cubeOBBRight = {1, 0, 0};
-    vec3 cubeOBBUp    = {0, 1, 0};
-    vec3 cubeOBBFront = {0, 0, 1};
-    result.c = position;
-    result.e = scale;
-    cubeOBBRight = Mat3RotateX(RAD(rotation.x)) * cubeOBBRight;
-    cubeOBBUp    = Mat3RotateX(RAD(rotation.x)) * cubeOBBUp;
-    cubeOBBFront = Mat3RotateX(RAD(rotation.x)) * cubeOBBFront;
-    cubeOBBRight = Mat3RotateY(RAD(rotation.y)) * cubeOBBRight;
-    cubeOBBUp    = Mat3RotateY(RAD(rotation.y)) * cubeOBBUp;
-    cubeOBBFront = Mat3RotateY(RAD(rotation.y)) * cubeOBBFront;
-    cubeOBBRight = Mat3RotateZ(RAD(rotation.z)) * cubeOBBRight;
-    cubeOBBUp    = Mat3RotateZ(RAD(rotation.z)) * cubeOBBUp;
-    cubeOBBFront = Mat3RotateZ(RAD(rotation.z)) * cubeOBBFront;
-    result.u[0] = normalized(cubeOBBRight);
-    result.u[1] = normalized(cubeOBBUp);
-    result.u[2] = normalized(cubeOBBFront);
-    mat4 translationMat = Mat4Translate(position.x, position.y, position.z);
-    mat4 rotationMat = Mat4RotateX(RAD(rotation.x)) * Mat4RotateY(RAD(rotation.y)) * Mat4RotateZ(RAD(rotation.z));
-    mat4 scaleMat =  Mat4Scale(scale.x, scale.y, scale.z);
-    result.world = translationMat * rotationMat  *scaleMat;
-    result.color = 0xFF00FF00;
-    return result;
-}
-
-#include "lh_map.h"
-
-internal
-vec3 ClosestPtPointPlane(vec3 q, Plane plane)
-{
-    vec3 n = plane.n;
-    vec3 p = plane.p;
-    f32 t = dot(n, q - p) / dot(n , n);
-    vec3 r = q - (n * t);
-    return r;
-}
-
-internal
-vec3 ClosestPtPointOBB(vec3 p, OBB *b) {
-    vec3 result = b->c;
-    vec3 d = p - b->c;
-    // for each OBB axis...
-    for(i32 i = 0; i < 3; ++i) {
-        // ...project d onto that axis to get the distance
-        // along the axis of d from the box center
-        f32 dist = dot(d, b->u[i]);
-       // if dist farther than the box extents clamp it
-       if(dist > b->e.v[i]) dist = b->e.v[i];
-       if(dist < -b->e.v[i]) dist = -b->e.v[i];
-       // step that distance along the axis to get the world coord
-       result = result + b->u[i] * dist;
-    }
-    return result;
-}
-
-internal
-f32 SqDistPointOBB(vec3 p, OBB *b) {
-    vec3 v = p - b->c;
-    f32 sqDist = 0.0f;
-    for(i32 i = 0; i < 3; ++i) {
-        // Project vector from box center to p on each axis, getting the distance
-        // of p along that axis, and count any excess distance outside box extends
-        f32 d = dot(v, b->u[i]), excess = 0.0f;
-        if(d < -b->e.v[i]) {
-            excess = d + b->e.v[i];
-        }
-        else if (d > b->e.v[i]) {
-            excess = d - b->e.v[i];
-        }
-        sqDist += excess * excess;
-    }
-    return sqDist;
-}
-
-internal
-i32 TestOBBOBB(OBB *a, OBB *b) {
-    f32 ra, rb;
-    mat3 R, AbsR;
-
-    // compute rotation matrix expressing b in a's coordinate frame
-    for(i32 i = 0; i < 3; ++i) {
-        for(i32 j = 0; j < 3; ++j) {
-            R.m[i * 3 + j] = dot(a->u[i], b->u[j]);
-        }
-    }
-    // compute translation vector t
-    vec3 t = b->c - a->c;
-    // bring translation into a's coordinate frame
-    t = {dot(t, a->u[0]), dot(t, a->u[1]), dot(t, a->u[2])};
-    // compute common subexpressions. add in an epsilon term to
-    // counteract arithmetic errors when two edges are parallel and
-    // their cross product is near null
-    for(i32 i = 0; i < 3; ++i) {
-        for(i32 j = 0; j < 3; ++j) {
-            AbsR.m[i * 3 + j] = fabsf(R.m[i * 3 + j]) + EPSILON;
-        }
-    }
-    // Test axes L = AO, L =  A1, L = A2
-    for(i32 i = 0; i < 3; ++i) {
-        ra = a->e.v[i];
-        rb = b->e.v[0] * AbsR.m[i * 3 + 0] + b->e.v[1] * AbsR.m[i * 3 + 1] + b->e.v[2] * AbsR.m[i * 3 + 2];
-        if(fabsf(t.v[i]) > ra + rb) return 0;
-    }
-    // Test axes L = AO, L =  A1, L = A2
-    for(i32 i = 0; i < 3; ++i) {
-        ra = a->e.v[0] * AbsR.m[0 * 3 + i] + a->e.v[1] * AbsR.m[1 * 3 + i] + a->e.v[2] * AbsR.m[2 * 3 + i];
-        rb = b->e.v[i];
-        if(fabsf(t.v[0] * R.m[0 * 3 + i] + t.v[1] * R.m[1 * 3 + i] + t.v[2] * R.m[2 * 3 + i]) > ra + rb) return 0;
-    }
-    
-    // test axis L = AO x BO
-    ra =  a->e.v[1] * AbsR.m[2 * 3 + 0] + a->e.v[2] * AbsR.m[1 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[0 * 3 + 2] + b->e.v[2] * AbsR.m[0 * 3 + 1];
-    if(fabsf(t.v[2] *    R.m[1 * 3 + 0] -    t.v[1] *    R.m[2 * 3 + 0]) > ra + rb) return 0;
-
-    // test axis L = AO x B1
-    ra =  a->e.v[1] * AbsR.m[2 * 3 + 1] + a->e.v[2] * AbsR.m[1 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[0 * 3 + 2] + b->e.v[2] * AbsR.m[0 * 3 + 0];
-    if(fabsf(t.v[2] *    R.m[1 * 3 + 1] -    t.v[1] *    R.m[2 * 3 + 1]) > ra + rb) return 0;
-
-    // test axis L = AO x B2
-    ra =  a->e.v[1] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[1 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[0 * 3 + 1] + b->e.v[1] * AbsR.m[0 * 3 + 0];
-    if(fabsf(t.v[2] *    R.m[1 * 3 + 2] -    t.v[1] *    R.m[2 * 3 + 2]) > ra + rb) return 0;
-
-    // test axis L = A1 x B0
-    ra =  a->e.v[0] * AbsR.m[2 * 3 + 0] + a->e.v[2] * AbsR.m[0 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[1 * 3 + 2] + b->e.v[2] * AbsR.m[1 * 3 + 1];
-    if(fabsf(t.v[0] *    R.m[2 * 3 + 0] -    t.v[2] *    R.m[0 * 3 + 0]) > ra + rb) return 0;
-
-    // test axis L = A1 x B1
-    ra =  a->e.v[0] * AbsR.m[2 * 3 + 1] + a->e.v[2] * AbsR.m[0 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[1 * 3 + 2] + b->e.v[2] * AbsR.m[1 * 3 + 0];
-    if(fabsf(t.v[0] *    R.m[2 * 3 + 1] -    t.v[2] *    R.m[0 * 3 + 1]) > ra + rb) return 0;
-
-    // test axis L = A1 x B2
-    ra =  a->e.v[0] * AbsR.m[2 * 3 + 2] + a->e.v[2] * AbsR.m[0 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[1 * 3 + 1] + b->e.v[1] * AbsR.m[1 * 3 + 0];
-    if(fabsf(t.v[0] *    R.m[2 * 3 + 2] -    t.v[2] *    R.m[0 * 3 + 2]) > ra + rb) return 0;
-
-    // test axis L = A2 x B0
-    ra =  a->e.v[0] * AbsR.m[1 * 3 + 0] + a->e.v[1] * AbsR.m[0 * 3 + 0];
-    rb =  b->e.v[1] * AbsR.m[2 * 3 + 2] + b->e.v[2] * AbsR.m[2 * 3 + 1];
-    if(fabsf(t.v[1] *    R.m[0 * 3 + 0] -    t.v[0] *    R.m[1 * 3 + 0]) > ra + rb) return 0;
-
-    // test axis l = A2 X B1
-    ra =  a->e.v[0] * AbsR.m[1 * 3 + 1] + a->e.v[1] * AbsR.m[0 * 3 + 1];
-    rb =  b->e.v[0] * AbsR.m[2 * 3 + 2] + b->e.v[2] * AbsR.m[2 * 3 + 0];
-    if(fabsf(t.v[1] *    R.m[0 * 3 + 1] -    t.v[0] *    R.m[1 * 3 + 1]) > ra + rb) return 0;
-
-    // test axis L = A2 x B1
-    ra =  a->e.v[0] * AbsR.m[1 * 3 + 2] + a->e.v[1] * AbsR.m[0 * 3 + 2];
-    rb =  b->e.v[0] * AbsR.m[2 * 3 + 1] + b->e.v[1] * AbsR.m[2 * 3 + 0];
-    if(fabsf(t.v[1] *    R.m[0 * 3 + 2] -    t.v[0] *    R.m[1 * 3 + 2]) > ra + rb) return 0;
-    
-    return 1;
-}
-
-f32 SqDistPointSegment(vec3 a, vec3 b, vec3 c) {
-    vec3 ab = b - a;
-    vec3 ac = c - a;
-    vec3 bc = c - b;
-    f32 e = dot(ac, ab);
-    // Handle cases where c projects outside ab
-    if (e <= 0.0f) return dot(ac, ac);
-    f32 f = dot(ab, ab);
-    if (e >= f) return dot(bc, bc);
-    // Handle cases where c projects onto ab
-    return dot(ac, ac) - e * e / f;
-}
-
-vec3 ClosestPtPointSegment(vec3 c, vec3 a, vec3 b) {
-    vec3 ab = b - a;
-    f32 t = dot(c - a, ab) / dot(ab, ab);
-    if(t < 0.0f) t = 0.0f;
-    if(t > 1.0f) t = 1.0f;
-    vec3 d = a + ab * t;
-    return d;
-}
-
-void TestCameraSphereOBBsArray(StaticEntityNode *entities,i32 count) {
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntityNode *entityNode = entities + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j;
-            vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
-            f32 distanceSq = lenSq(closestPoint - cameraPosition);
-            if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
-                obb->color = 0xFF00FF00;
-                continue;
-            }
-            obb->color = 0xFFFF0000;
-            vec3 normal = {0, 1, 0};
-            if(CMP(distanceSq, 0.0f)) {
-                f32 mSq = lenSq(closestPoint - obb->c);
-                if(CMP(mSq, 0.0f)) {
-                }
-                else {
-                    normal = normalized(closestPoint - obb->c);
-                }
-            }
-            else {
-                normal = normalized(cameraPosition - closestPoint);
-            }
-            vec3 outsidePoint = cameraPosition - normal * cameraCapsule.r;
-            f32 distance = len(closestPoint - outsidePoint);
-            cameraPosition = cameraPosition + normal * distance;
-        }
-    }
-}
-
-void TestCameraSphereOBB(OBB *obb) {
-    vec3 closestPoint = ClosestPtPointOBB(cameraPosition, obb);
-    f32 distanceSq = lenSq(closestPoint - cameraPosition);
-    if(distanceSq > cameraCapsule.r * cameraCapsule.r) {
-        obb->color = 0xFF00FF00;
-        return;
-    }
-    obb->color = 0xFFFF0000;
-    vec3 normal = {0, 1, 0};
-    if(CMP(distanceSq, 0.0f)) {
-        f32 mSq = lenSq(closestPoint - obb->c);
-        if(CMP(mSq, 0.0f)) {
-        }
-        else {
-            normal = normalized(closestPoint - obb->c);
-        }
-    }
-    else {
-        normal = normalized(cameraPosition - closestPoint);
-    }
-    vec3 outsidePoint = cameraPosition - normal * cameraCapsule.r;
-    f32 distance = len(closestPoint - outsidePoint);
-    cameraPosition = cameraPosition + normal * distance;
-}
-
-
-bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut) {
-    vec3 x = obb->u[0];
-    vec3 y = obb->u[1];
-    vec3 z = obb->u[2];
-    vec3 p = obb->c - ray->o;
-    vec3 f = {
-        dot(x, ray->d),
-        dot(y, ray->d),
-        dot(z, ray->d)
-    };
-    vec3 e = {
-        dot(x, p),
-        dot(y, p),
-        dot(z, p)
-    };
-    f32 t[6] = {0, 0, 0, 0, 0, 0};
-    for(i32 i = 0; i < 3; ++i) {
-        if(CMP(f.v[i], 0)) {
-            if(-e.v[i] - obb->e.v[i] > 0 || -e.v[i] + obb->e.v[i] < 0) {
-                return false;
-            }
-            f.v[i] = 0.00001f; // Avoid div by 0
-        }
-        t[(i * 2) + 0] = ((e.v[i] + obb->e.v[i]) / f.v[i]);
-        t[(i * 2) + 1] = ((e.v[i] - obb->e.v[i]) / f.v[i]);
-    }
-    f32 tmin = fmaxf(fmaxf(fminf(t[0], t[1]),
-                           fminf(t[2], t[3])),
-                           fminf(t[4], t[5]));
-    f32 tmax = fminf(fminf(fmaxf(t[0], t[1]),
-                           fmaxf(t[2], t[3])),
-                           fmaxf(t[4], t[5]));
-    if(tmax < 0) {
-        return false;
-    }
-    if(tmin > tmax) {
-        return false;
-    }
-    if(tmin < 0) {
-        *tOut = tmax;
-        return true;
-    }
-    *tOut = tmin;
-    return true;
-}
-
-internal
-void UpdateCamera(f32 dt, GameState *gameState) {
-    f32 leftStickX = JoysickGetLeftStickX();
-    f32 leftStickY = JoysickGetLeftStickY();
-    f32 rightStickX = JoysickGetRightStickX();
-    f32 rightStickY = JoysickGetRightStickY();
-    
-    if(MouseGetButtonJustDown(MOUSE_BUTTON_RIGHT)) {
-        MouseShowCursor(false);
-        gameState->mouseDefaultScreenX = MouseGetScreenX();
-        gameState->mouseDefaultScreenY = MouseGetScreenY();
-    }
-    if(MouseGetButtonJustUp(MOUSE_BUTTON_RIGHT)) {
-        MouseShowCursor(true);
-    }
-    if(MouseGetButtonDown(MOUSE_BUTTON_RIGHT)) {
-        f32 deltaMouseX = (f32)(MouseGetScreenX() - gameState->mouseDefaultScreenX);
-        f32 deltaMouseY = (f32)(MouseGetScreenY() - gameState->mouseDefaultScreenY);
-        MouseSetCursor(gameState->mouseDefaultScreenX, gameState->mouseDefaultScreenY);
-        cameraYaw -= (deltaMouseX * mouseSensitivity);
-        cameraPitch -= (deltaMouseY * mouseSensitivity); 
-    }
-    
-    // Right Stick movement
-    cameraYaw -= (rightStickX * sensitivity) * dt;
-    cameraPitch += (rightStickY * sensitivity) * dt;
-
-    f32 maxPitch = RAD(89.0f);
-    if(cameraPitch > maxPitch) {
-        cameraPitch = maxPitch;
-    }
-    else if(cameraPitch < -maxPitch) {
-        cameraPitch = -maxPitch;
-    }
-    cameraFront.x = cosf(cameraYaw) * cosf(cameraPitch);
-    cameraFront.y = sinf(cameraPitch);
-    cameraFront.z = sinf(cameraYaw) * cosf(cameraPitch);
-    normalize(&cameraFront);
-    cameraRight = normalized(cross(cameraUp, cameraFront));
-    // this is a easy way of doing this... implement it better
-    vec3 worldFront = normalized(cross(cameraRight, cameraUp));
-
-
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
-        cameraPosition = cameraPosition + (worldFront * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
-        cameraPosition = cameraPosition - (worldFront * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
-        cameraPosition = cameraPosition + (cameraRight * playerSpeed) * dt;
-    }
-    if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
-        cameraPosition = cameraPosition - (cameraRight * playerSpeed) * dt;
-    }
-
-    // Left Stick movement
-    cameraPosition = cameraPosition + (cameraRight * (leftStickX * playerSpeed)) * dt;
-    cameraPosition = cameraPosition + (worldFront * (leftStickY * playerSpeed)) * dt;    
-
-    cameraCapsule.a = cameraPosition;
-    cameraCapsule.a.y += 0.2f;
-    cameraCapsule.b = cameraPosition;
-    cameraCapsule.b.y -= 0.6f;
-}
-
-
-f32 Clamp(f32 n, f32 min, f32 max) {
-    if(n < min) return min;
-    if(n > max) return max;
-    return n;
-}
-
-f32 ClosestPtSegmentSegment(vec3 p1, vec3 q1,
-                            vec3 p2, vec3 q2,
-                            f32 &s, f32 &t,
-                            vec3 &c1, vec3 &c2) {
-    vec3 d1 = q1 - p1; // direction vector of segment s1
-    vec3 d2 = q2 - p2; // direction vector of segment s2
-    vec3 r = p1 - p2;
-    f32 a = dot(d1, d1); // squared length of segment S1
-    f32 e = dot(d2, d2); // squared length of segment S2
-    f32 f = dot(d2, r);
-    // check if either or both segments degenerate into points
-    if(a <= EPSILON && e <= EPSILON) { 
-        // Both segments degenerate into points
-        s = t = 0.0f;
-        c1 = p1;
-        c2 = p2;
-        return dot(c1 - c2, c1 - c2);
-    }
-    if(a <= EPSILON) {
-        // first segment degenerate into a point
-        s = 0.0f;
-        t = f / e;
-        t = Clamp(t, 0.0f, 1.0f); 
-    }
-    else {
-        f32 c = dot(d1, r);
-        if(e <= EPSILON) {
-            // second segment degenerate into a point
-            t = 0.0f;
-            s = Clamp(-c / a, 0.0f, 1.0f);
-        }
-        else {
-            // the general nondegenerate case start here
-            f32 b = dot(d1, d2);
-            f32 denom = a*e-b*b;
-            // if segments not parallel, compute closest point on L1 to L2 and
-            // clamp to segment S1. Else pick arbitrary s (here 0)
-            if(denom != 0.0f) {
-                s = Clamp((b*f - c*e) / denom, 0.0f, 1.0f); 
-            }
-            else s = 0.0f;
-            // compute point on L2 closest to S1(s) using
-            // t = dot((P1 + D1*s) - P2, D2) / dot(D2, D2) = (b*s + f) / e
-            t = (b*s + f) / e;
-
-            if(t < 0.0f) {
-                t = 0.0f;
-                s = Clamp(-c / a, 0.0f, 1.0f);
-            }
-            else if(t > 1.0f) {
-                t = 1.0f;
-                s = Clamp((b - c) / a, 0.0f, 1.0f);
-            }
-        }
-    }
-    c1 = p1 + d1 * s;
-    c2 = p2 + d2 * t;
-    return dot(c1 - c2, c1 - c2);
-}
-
-bool IntersectSegmentCapsule(Segment seg, vec3 a, vec3 b, f32 radii, f32 *tOut) {
-    f32 s = 0;
-    f32 t = 0;
-    vec3 c1 = {};
-    vec3 c2 = {};
-    f32 sqDist = ClosestPtSegmentSegment(seg.a, seg.b, a, b, s, t, c1, c2);
-    *tOut = s;
-    return (sqDist <= radii*radii);
-}
-
-internal
-OctreeNode *OctreeCreate(vec3 center, f32 halfWidth, i32 stopDepth, Arena *arena) {
-    if(stopDepth < 0) {
-        return NULL;
-    }
-    else {
-        // construct and fill in 'root' of this subtree
-        OctreeNode *node = ArenaPushStruct(arena, OctreeNode);
-        node->center = center;
-        node->halfWidth = halfWidth;
-        node->objList = NULL;
-
-        // Recursively construct the eight children of the subtree
-        vec3 offset;
-        f32 step = halfWidth * 0.5f;
-        for(i32 i = 0; i < 8; ++i) {
-            offset.x = ((i & 1) ? step : -step); 
-            offset.y = ((i & 2) ? step : -step); 
-            offset.z = ((i & 4) ? step : -step);
-            node->child[i] = OctreeCreate(center + offset, step, stopDepth - 1, arena);
-        }
-        return node;
-    }
-}
-
-
-internal
-void OctreeInsertObject(OctreeNode *tree, StaticEntity *object, Arena *arena) {
-    // if the OBB intersect with the octant add it to the octant object list
-    bool intersect = false;
-    for(i32 i = 0; i < object->meshCount; ++i) {
-        OBB obb = {};
-        obb.c = tree->center;
-        obb.e = {tree->halfWidth, tree->halfWidth, tree->halfWidth};
-        obb.u[0] = {1, 0, 0};
-        obb.u[1] = {0, 1, 0};
-        obb.u[2] = {0, 0, 1};
-        if(TestOBBOBB(&object->obbs[i], &obb)) {
-            intersect = true; 
-        }
-    }
-    if(intersect) {
-        // only insert into leaf nodes
-        if(tree->child[0] == NULL) {
-            // add the object to the link list
-            if(tree->objList == NULL) {
-                tree->objList = ArenaPushStruct(arena, StaticEntityNode);
-                tree->objList->object = object;
-                tree->objList->next = NULL;
-            }
-            else {
-                StaticEntityNode *lastEntityNode = ArenaPushStruct(arena, StaticEntityNode);
-                lastEntityNode->object = tree->objList->object;
-                lastEntityNode->next = tree->objList->next;
-                tree->objList->object = object;
-                tree->objList->next = lastEntityNode;
-            }
-        }
-        else {
-            // if the node is not a leaf, recursively call inser in
-            // all the childrens of the nodes
-            for(i32 i = 0; i < 8; ++i) {
-                OctreeInsertObject(tree->child[i], object, arena);
-            }
-        }
-    }
-}
-
-void OctreeOBBQuery(OctreeNode *node, OBB *testOBB,
-                    StaticEntityNode **entitiesList, i32 *entitiesCount,
-                    Arena *outFrameArena) {
-    OBB obb = {};
-    obb.c = node->center;
-    obb.e = {node->halfWidth, node->halfWidth, node->halfWidth};
-    obb.u[0] = {1, 0, 0};
-    obb.u[1] = {0, 1, 0};
-    obb.u[2] = {0, 0, 1};
-    if(TestOBBOBB(testOBB, &obb)) {
-        if(node->child[0] ==  NULL) {
-            // add childs of the node
-            for(StaticEntityNode *entityNode = node->objList;
-                entityNode != NULL;
-                entityNode = entityNode->next) {
-                // if the entity is already on the list, not put in again
-                for(i32 i = 0; i < *entitiesCount; ++i) {
-                    if(entityNode == ((*entitiesList) + i)) {
-                        continue;
-                    }
-                }
-                *entitiesList = ArenaPushStruct(outFrameArena, StaticEntityNode);
-                *(*entitiesList) = *entityNode;
-                *entitiesCount = *entitiesCount + 1;
-            }
-        }
-        else {
-            for(i32 i = 0; i < 8; ++i) {
-                OctreeOBBQuery(node->child[i], testOBB, entitiesList, entitiesCount, outFrameArena);
-            }
-        }
-    }
-}
-
-vec3 lights[12] = {
+global_variable vec3 lights[12] = {
     {3, 1, 4},
     {3, 1, 8},
     {3, 1, 12},
     {3, 1, 16},
-
     {3, 1, 25},
     {6, 1, 25},
     {9, 1, 25},
     {12, 1,25},
-
-
     {16, 1, 4},
     {16, 1, 8},
     {16, 1, 12},
     {16, 1, 16}
 };
 
+#include <windows.h>
+#include <stdio.h>
+#include "lh_map.h"
+
 internal
-void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gameState) {
+void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gameState, vec3 cameraPosition) {
     for(i32 i = 0; i < count; ++i) {
         StaticEntityNode *entityNode = entities + i;
         StaticEntity *staticEntity = entityNode->object;
@@ -730,13 +140,46 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gam
     }
 }
 
+internal
+void DrawSkybox(vec3 cameraPosition, GameState *gameState) {
+// FRONT
+    mat4 skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[2], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// BACK
+    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * 
+                  Mat4RotateY(RAD(180.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[3], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// LEFT
+    skyboxWorld = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * 
+                  Mat4RotateY(RAD(90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[5], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// RIGHT
+    skyboxWorld = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * 
+                  Mat4RotateY(RAD(-90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[4], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+// UP
+    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * 
+                  Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
+    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
+                            gameState->skybox[0], NULL, 0,
+                            cameraPosition, skyboxWorld, false);
+}
+
 void GameInit(Memory *memory) {
     // The GameState has to be the first element on the memory
     ASSERT(memory->used + sizeof(GameState) <= memory->size);
     GameState *gameState = (GameState *)memory->data;
     memory->used += sizeof(GameState);
 
-    WindowSystemInitialize(960, 540, "Last Hope 3D");
+    WindowSystemInitialize(WINDOW_WIDTH, WINDOW_HEIGHT, "Last Hope 3D");
     RendererSystemInitialize();
     SoundSystemInitialize();
     
@@ -745,9 +188,6 @@ void GameInit(Memory *memory) {
     gameState->textureArena = ArenaCreate(memory, Megabytes(1));
     gameState->soundArena = ArenaCreate(memory, Megabytes(1));
     gameState->staticEntitiesArena = ArenaCreate(memory, Megabytes(1));
-
-    RendererSetProj(Mat4Perspective(60.0f, 960.0f/540.0f, 0.01f, 100.0f));
-    RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
 
     // Load Assets
     gameState->bitmaps[0] = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -781,15 +221,15 @@ void GameInit(Memory *memory) {
     Transform *relTransform = &mesh1->transform;
     mat4 *world1 = &mesh1->world;
 
-    absTransform->position = {5, -1.5f, 22};
+    absTransform->position = {5, -1.0f, 22};
     absTransform->scale = {2, 1, 1};
-    absTransform->rotation = {-20, 0, 0};
+    absTransform->rotation = {0, 0, 0};
 
     relTransform->position = {};
     relTransform->scale = {};
     relTransform->rotation = {};
     
-    *obb1 = CreateOBB({5, -1.5f, 22}, {20, 0, 0}, {2, 1, 1});
+    *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 1, 1});
     *world1 = TransformToMat4(absTransform->position + relTransform->position,
                              absTransform->rotation + relTransform->rotation,
                              absTransform->scale + relTransform->scale);
@@ -815,115 +255,27 @@ void GameInit(Memory *memory) {
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
     }
 
-    cameraCapsule.a = cameraPosition;
-    cameraCapsule.a.y += 0.2f;
-    cameraCapsule.b = cameraPosition;
-    cameraCapsule.b.y -= 0.6f;
-    cameraCapsule.r = 0.3f;
-    
-    cameraDownRay.o = cameraPosition;
-    cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
-    SoundPlay(gameState->music, true); 
+    PlayerInitialize(&gameState->player, {2, 5, 4});
+    RendererSetProj(gameState->player.camera.proj);
+    RendererSetView(gameState->player.camera.view);
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
-
-    UpdateCamera(dt, gameState);
-    
-    OBB obb;
-    obb.c = cameraPosition;
-    obb.u[0] = {1, 0, 0};
-    obb.u[1] = {0, 1, 0};
-    obb.u[2] = {0, 0, 1};
-    obb.e = {1, 1, 1};
-    StaticEntityNode *entitiesToRender = NULL;
-    i32 entitiesToRenderCount = 0;  
-    OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
-    entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
-
-
-
-    // JUMP CODE
-    if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
-        playerGrounded) {
-        //SoundPlay(gameState->shoot, false);
-        playerVelocityY = 5;
-    }
-    cameraPosition.y += playerVelocityY * dt; 
-    cameraDownRay.o = cameraPosition;
-    cameraDownRay.d = {0, (-cameraCapsule.r) - 0.1f, 0};
-    if(!playerGrounded) {
-        playerVelocityY += -playerGravity * dt;
-    }
-    // TODO: check for the ground    
-    bool flag = false;
-    for(i32 i = 0; i < entitiesToRenderCount; ++i) {
-        StaticEntityNode *entityNode = entitiesToRender + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j;
-            f32 t = 0;
-            if(RaycastOBB(obb, &cameraDownRay, &t) && t <= 1.0f) {
-                flag = true;
-                if(playerVelocityY < 0) 
-                    playerVelocityY = 0;
-            }
-        }
-    }
-    playerGrounded = flag;
-
-    TestCameraSphereOBBsArray(entitiesToRender, entitiesToRenderCount);
-
-    RendererSetView(Mat4LookAt(cameraPosition, cameraPosition + cameraFront, cameraUp));
-    cameraLastPosition = cameraPosition;
-
+    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
+    RendererSetView(gameState->player.camera.view);
 }
 
 void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
-    RendererClearBuffers(0xFF020211, 0.0f);
+    RendererClearBuffers(0xFFFFFFEE, 0.0f);
 
-// TODO: Render SKYBOX
-//    gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
-//    gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
-//    gameState->skybox[2] = TextureCreate("../assets/skyFront.bmp", &gameState->textureArena, &gameState->dataArena);
-//    gameState->skybox[3] = TextureCreate("../assets/skyBack.bmp", &gameState->textureArena, &gameState->dataArena);
-//    gameState->skybox[4] = TextureCreate("../assets/skyLeft.bmp", &gameState->textureArena, &gameState->dataArena);
-//    gameState->skybox[5] = TextureCreate("../assets/skyRight.bmp", &gameState->textureArena, &gameState->dataArena);
-
-// FRONT
-    mat4 skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
-    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                            gameState->skybox[2], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
-// BACK
-    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * 
-                  Mat4RotateY(RAD(180.0f));
-    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                            gameState->skybox[3], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
-// LEFT
-    skyboxWorld = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * 
-                  Mat4RotateY(RAD(90.0f));
-    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                            gameState->skybox[5], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
-// RIGHT
-    skyboxWorld = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * 
-                  Mat4RotateY(RAD(-90.0f));
-    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                            gameState->skybox[4], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
-// UP
-    skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * 
-                  Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
-    RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
-                            gameState->skybox[0], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+    // SKYBOX
+    DrawSkybox(gameState->player.position, gameState);
+    RendererFlushWorkQueue(); 
 
     OBB obb;
-    obb.c = cameraPosition;
+    obb.c = gameState->player.position;
     obb.u[0] = {1, 0, 0};
     obb.u[1] = {0, 1, 0};
     obb.u[2] = {0, 0, 1};
@@ -933,11 +285,10 @@ void GameRender(Memory *memory) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState);
-    
+    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position); 
     RendererFlushWorkQueue(); 
-    RendererDrawRect((960/2) - ((192)/2),
-                      0, 192, 192, gameState->bitmaps[2]);
+
+    RendererDrawRect((WINDOW_WIDTH/2) - ((192)/2), 0, 192, 192, gameState->bitmaps[2]);
     
     RendererPresent();
 

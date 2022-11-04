@@ -722,3 +722,13 @@ bool RectangleHasArea(rectangle2i a) {
     return result;
 }
 
+mat4 TransformToMat4(vec3 position, vec3 rotation, vec3 scale) {
+    mat4 translationMat = Mat4Translate(position.x, position.y, position.z);
+    mat4 rotationX = Mat4RotateX(RAD(rotation.x));
+    mat4 rotationY = Mat4RotateY(RAD(rotation.y));
+    mat4 rotationZ = Mat4RotateZ(RAD(rotation.z));
+    mat4 scaleMat = Mat4Scale(scale.x, scale.y, scale.z);
+    mat4 rotationMat = rotationX * rotationY * rotationZ;
+    mat4 world = translationMat * rotationMat * scaleMat;
+    return world;
+}

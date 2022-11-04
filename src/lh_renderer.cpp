@@ -973,13 +973,16 @@ void InitializeD3D11() {
     pixelShaderCompiled->Release();
 
     // Create Vertex Buffer
+    // TODO: FIX THIS ...
+    f32 oneX = -(1.0f + (2.0f / (f32)WINDOW_WIDTH));
+    f32 oneY = -(1.0f + (2.0f / (f32)WINDOW_HEIGHT));
     VertexD3D11 vertices[] = 
     {
          1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+         1.0f,  oneY, 0.0f, 1.0f, 0.0f,
+         oneX,  oneY, 0.0f, 0.0f, 0.0f,
+         oneX,  oneY, 0.0f, 0.0f, 0.0f,
+         oneX,  1.0f, 0.0f, 0.0f, 1.0f,
          1.0f,  1.0f, 0.0f, 1.0f, 1.0f
     };
 

@@ -31,6 +31,9 @@ typedef int8_t b8;
 #define FPS 30.0f
 #define TARGET_SECONDS_PER_FRAME (1.0f / FPS)
 
+#define WINDOW_WIDTH 960
+#define WINDOW_HEIGHT 540
+
 // SSE2
 #define M(a, i) ((f32 *)&(a))[i]
 #define Mi(a, i) ((i32 *)&(a))[i]

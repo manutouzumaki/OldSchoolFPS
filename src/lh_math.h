@@ -102,6 +102,8 @@ rectangle2i RectangleUnion(rectangle2i a, rectangle2i b);
 i32 RectangleGetClampArea(rectangle2i a);
 bool RectangleHasArea(rectangle2i a);
 
+mat4 TransformToMat4(vec3 position, vec3 rotation, vec3 scale);
+
 f32 lerp(f32 a, f32 b, f32 t);
 
 vec2 operator+(vec2 l, vec2 r);
