@@ -154,8 +154,6 @@ vec3 ClosestPtPointPlane(vec3 q, Plane plane) {
     return r;
 }
 
-
-
 f32 SqDistPointSegment(vec3 a, vec3 b, vec3 c) {
     vec3 ab = b - a;
     vec3 ac = c - a;
@@ -254,8 +252,6 @@ bool IntersectSegmentCapsule(Segment seg, vec3 a, vec3 b, f32 radii, f32 *tOut) 
     *tOut = s;
     return (sqDist <= radii*radii);
 }
-
-
 
 bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut) {
     vec3 x = obb->u[0];

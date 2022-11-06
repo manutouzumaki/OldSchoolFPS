@@ -24,7 +24,7 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->verticalVelocity = 0;
     player->horizontalVelocity = 0;
     player->grounded = false;
-    player->joystickSensitivity = 2.0f;
+    player->joystickSensitivity = 2.5f;
     player->mouseSensitivity = 0.001f;
     player->mouseDefaultScreenX = 0;
     player->mouseDefaultScreenY = 0;
@@ -37,8 +37,7 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->down.d = {0, (-player->collider.r) - 0.1f, 0};
     player->up.o = player->collider.a;
     player->up.d = {0, player->collider.r + 0.1f, 0};
-    CameraInitialize(&player->camera, position, 60.0f,
-                     (f32)WINDOW_WIDTH/(f32)WINDOW_HEIGHT);
+    CameraInitialize(&player->camera, position, 60.0f, (f32)WINDOW_WIDTH/(f32)WINDOW_HEIGHT);
 }
 
 void PlayerUpdateCollisionData(Player *player) {
@@ -104,8 +103,6 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
         player->position = player->position - (player->camera.right * player->speed) * dt;
     }
-
-    // Left Stick movement
     player->position = player->position + (player->camera.right * (leftStickX * player->speed)) * dt;
     player->position = player->position + (worldFront  * (leftStickY * player->speed)) * dt; 
 
@@ -123,45 +120,6 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     player->camera.position = player->position;
     PlayerUpdateCollisionData(player);
 }
-
-#if 0
-void PlayerCapsuleOBBsArray(Player *player, StaticEntityNode *entities, i32 count) {
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntityNode *entityNode = entities + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j;
-            vec3 closestPoint = ClosestPtPointOBB(player->position, obb);
-            vec3 testPosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
-            f32 distanceSq = lenSq(closestPoint - testPosition);
-            if(distanceSq > player->collider.r * player->collider.r) {
-                obb->color = 0xFF00FF00;
-                continue;
-            }
-            obb->color = 0xFFFF0000;
-            vec3 normal = {0, 1, 0};
-            if(CMP(distanceSq, 0.0f)) {
-                f32 mSq = lenSq(closestPoint - obb->c);
-                if(CMP(mSq, 0.0f)) {
-                }
-                else {
-                    normal = normalized(closestPoint - obb->c);
-                }
-            }
-            else {
-                normal = normalized(testPosition - closestPoint);
-            }
-            
-            vec3 outsidePoint = testPosition - normal * player->collider.r;
-            f32 distance = len(closestPoint - outsidePoint);
-            player->position = player->position + normal * distance;
-            player->camera.position = player->position;
-            PlayerUpdateCollisionData(player);
-        }
-    }
-}
-#endif
-
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
     OBB obb;
@@ -237,4 +195,42 @@ void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerUpdateCamera(player);
 }
 
+
+#if 0
+void PlayerCapsuleOBBsArray(Player *player, StaticEntityNode *entities, i32 count) {
+    for(i32 i = 0; i < count; ++i) {
+        StaticEntityNode *entityNode = entities + i;
+        StaticEntity *staticEntity = entityNode->object;
+        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+            OBB *obb = staticEntity->obbs + j;
+            vec3 closestPoint = ClosestPtPointOBB(player->position, obb);
+            vec3 testPosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
+            f32 distanceSq = lenSq(closestPoint - testPosition);
+            if(distanceSq > player->collider.r * player->collider.r) {
+                obb->color = 0xFF00FF00;
+                continue;
+            }
+            obb->color = 0xFFFF0000;
+            vec3 normal = {0, 1, 0};
+            if(CMP(distanceSq, 0.0f)) {
+                f32 mSq = lenSq(closestPoint - obb->c);
+                if(CMP(mSq, 0.0f)) {
+                }
+                else {
+                    normal = normalized(closestPoint - obb->c);
+                }
+            }
+            else {
+                normal = normalized(testPosition - closestPoint);
+            }
+            
+            vec3 outsidePoint = testPosition - normal * player->collider.r;
+            f32 distance = len(closestPoint - outsidePoint);
+            player->position = player->position + normal * distance;
+            player->camera.position = player->position;
+            PlayerUpdateCollisionData(player);
+        }
+    }
+}
+#endif
 

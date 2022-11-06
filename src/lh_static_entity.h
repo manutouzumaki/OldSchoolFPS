@@ -9,7 +9,6 @@
 
 #define STATIC_ENTITY_MAX_MESH_COUNT 6
 
-
 struct Arena;
 
 struct StaticEntity {

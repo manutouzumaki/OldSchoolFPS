@@ -1125,7 +1125,6 @@ void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
 }
 
 void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {
-    // TODO: simd this function
     u32 *pixels = (u32 *)bitmap->data;
     for(i32 y = yPos; y < height + yPos; ++y) {
         for(i32 x = xPos; x < width + xPos; ++x) {
@@ -1133,14 +1132,116 @@ void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap
             f32 yRatio = (f32)(y - yPos) / (f32)height;
             i32 xPixel = bitmap->width  * xRatio;
             i32 yPixel = bitmap->height * yRatio;
-            u32 color = pixels[yPixel * bitmap->width + xPixel];
-            f32 alpha = (f32)((color >> 24) & 0xFF) / 255.0f;
-            if(alpha > 0.5f) {
-                gRenderer.colorBuffer[y * gRenderer.bufferWidth + x] = color;
-            }
+            
+            u32 srcColor = pixels[yPixel * bitmap->width + xPixel]; 
+            f32 srcR = (f32)((srcColor >> 16) & 0xFF);
+            f32 srcG = (f32)((srcColor >>  8) & 0xFF);
+            f32 srcB = (f32)((srcColor >>  0) & 0xFF);
+            
+            u32 dstColor = gRenderer.colorBuffer[y * gRenderer.bufferWidth + x]; 
+            f32 dstR = (f32)((dstColor >> 16) & 0xFF);
+            f32 dstG = (f32)((dstColor >>  8) & 0xFF);
+            f32 dstB = (f32)((dstColor >>  0) & 0xFF);
+
+            f32 t = 1.0f; //(f32)((srcColor >> 24) & 0xFF) / 255.0f;
+            u32 r = (u32)((1.0f - t) * dstR + t * srcR);
+            u32 g = (u32)((1.0f - t) * dstG + t * srcG);
+            u32 b = (u32)((1.0f - t) * dstB + t * srcB);
+
+            u32 color = r << 16 | g << 8 | b;
+
+            gRenderer.colorBuffer[y * gRenderer.bufferWidth + x] = color;
         }
     }
 }
+
+
+void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) {
+    i32 minX = x;
+    i32 minY = y;
+    i32 maxX = x + width;
+    i32 maxY = y + height;
+    
+    i32 offsetX = 0;
+    i32 offsetY = 0;
+    if(minX < 0)
+    {
+        offsetX = -minX;
+        minX = 0;
+    }
+    if(maxX > gRenderer.bufferWidth)
+    {
+        maxX = gRenderer.bufferWidth;
+    }
+    if(minY < 0)
+    {
+        offsetY = -minY;
+        minY = 0;
+    }
+    if(maxY > gRenderer.bufferHeight)
+    {
+        maxY = gRenderer.bufferHeight;
+    }
+
+    f32 ratioU = (f32)bitmap->width / width;
+    f32 ratioV = (f32)bitmap->height / height;
+ 
+    u32 *srcBuffer = (u32 *)bitmap->data;
+
+    __m128i u255 = _mm_set1_epi32(0xFF);
+    __m128 f255 = _mm_set1_ps(255.0f);
+    __m128 one = _mm_set1_ps(1.0f);
+    
+    i32 counterY = offsetY;
+    for(i32 y = minY; y < maxY; ++y)
+    {
+        i32 counterX = offsetX;
+        for(i32 x = minX; x < (maxX - 3); x += 4)
+        {
+            u32 *dst = gRenderer.colorBuffer + (y * gRenderer.bufferWidth + x);
+            __m128i oldTexel = _mm_loadu_si128((__m128i *)dst);
+            
+            i32 texY = (i32)(counterY * ratioV); 
+            i32 texX = (i32)((f32)(counterX + 0) * ratioU);
+            
+            __m128i texel;
+            Mu(texel, 0) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
+            texX = (i32)((f32)(counterX + 1) * ratioU);
+            Mu(texel, 1) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
+            texX = (i32)((f32)(counterX + 2) * ratioU);
+            Mu(texel, 2) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
+            texX = (i32)((f32)(counterX + 3) * ratioU);
+            Mu(texel, 3) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
+
+            if(_mm_movemask_epi8(texel))
+            {
+                __m128 a = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 24), u255));
+                __m128 invA =_mm_div_ps(a, f255); 
+
+                __m128 srcR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 16), u255));
+                __m128 srcG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 8), u255));
+                __m128 srcB = _mm_cvtepi32_ps(_mm_and_si128(texel, u255));
+
+                __m128 dstR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(oldTexel, 16), u255));
+                __m128 dstG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(oldTexel, 8), u255));
+                __m128 dstB = _mm_cvtepi32_ps(_mm_and_si128(oldTexel, u255));
+
+                __m128 r = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstR), _mm_mul_ps(invA, srcR));
+                __m128 g = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstG), _mm_mul_ps(invA, srcG));
+                __m128 b = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstB), _mm_mul_ps(invA, srcB));
+                
+                __m128i color = _mm_or_si128(
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(a), 24), _mm_slli_epi32(_mm_cvtps_epi32(r), 16)),
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(g),  8), _mm_cvtps_epi32(b)));
+
+                _mm_storeu_si128((__m128i *)dst, color);
+            }
+            counterX += 4; 
+        }
+        ++counterY;
+    }
+}
+
 
 void RendererPresent() {
     //FlushWorkQueue();

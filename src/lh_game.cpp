@@ -10,9 +10,13 @@
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
 // - optimize the 2d quad razteraizer (SIMD SSE2)
-// - improve jump mechanic
-// - platform independent Debug output
-// - add REAL DEBUGING geometry 
+// - try to add the 2d quad razteraizer to the render queue (MULTITHREADING)
+// - add crosshair image
+// - add some kind of enemy
+// - implement ray cast base shooting system
+// - add sprites animations
+// - add font
+// - add equations of motion to the player movement
 //////////////////////////////////////////////////////////////////////
 
 global_variable Vertex verticesCube[] = {
@@ -120,8 +124,6 @@ global_variable vec3 lights[12] = {
     {16, 1, 16}
 };
 
-#include <windows.h>
-#include <stdio.h>
 #include "lh_map.h"
 
 internal
@@ -193,6 +195,7 @@ void GameInit(Memory *memory) {
     gameState->bitmaps[0] = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[1] = TextureCreate("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[2] = TextureCreate("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[3] = TextureCreate("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -209,8 +212,6 @@ void GameInit(Memory *memory) {
     // InitializeMap
     StaticEntitiesInitialized(&gameState->entities, &gameState->entitiesCount, &gameState->staticEntitiesArena,
                               vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps);
-
-
 
     StaticEntity *entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
@@ -230,6 +231,84 @@ void GameInit(Memory *memory) {
     relTransform->rotation = {};
     
     *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 1, 1});
+    *world1 = TransformToMat4(absTransform->position + relTransform->position,
+                             absTransform->rotation + relTransform->rotation,
+                             absTransform->scale + relTransform->scale);
+    mesh1->vertices = verticesCube2;
+    mesh1->verticesCount = 0;
+    mesh1->indices = indicesCube2;
+    mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+
+    entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
+    gameState->entitiesCount++;
+    entity->bitmap = gameState->bitmaps[1];
+    absTransform = &entity->transform;
+    mesh1 = &entity->meshes[entity->meshCount];
+    obb1 = &entity->obbs[entity->meshCount++];
+    relTransform = &mesh1->transform;
+    world1 = &mesh1->world;
+
+    absTransform->position = {16, -1.0f, 8};
+    absTransform->scale = {3, 2, 1};
+    absTransform->rotation = {0, 0, 0};
+
+    relTransform->position = {};
+    relTransform->scale = {};
+    relTransform->rotation = {};
+    
+    *obb1 = CreateOBB({16, -1.0f, 8}, {0, 0, 0}, {3, 2, 1});
+    *world1 = TransformToMat4(absTransform->position + relTransform->position,
+                             absTransform->rotation + relTransform->rotation,
+                             absTransform->scale + relTransform->scale);
+    mesh1->vertices = verticesCube2;
+    mesh1->verticesCount = 0;
+    mesh1->indices = indicesCube2;
+    mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+
+    entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
+    gameState->entitiesCount++;
+    entity->bitmap = gameState->bitmaps[1];
+    absTransform = &entity->transform;
+    mesh1 = &entity->meshes[entity->meshCount];
+    obb1 = &entity->obbs[entity->meshCount++];
+    relTransform = &mesh1->transform;
+    world1 = &mesh1->world;
+
+    absTransform->position = {16, -1.0f, 12};
+    absTransform->scale = {2, 1, 1};
+    absTransform->rotation = {0, 0, 0};
+
+    relTransform->position = {};
+    relTransform->scale = {};
+    relTransform->rotation = {};
+    
+    *obb1 = CreateOBB({16, -1.0f, 12}, {0, 0, 0}, {2, 1, 1});
+    *world1 = TransformToMat4(absTransform->position + relTransform->position,
+                             absTransform->rotation + relTransform->rotation,
+                             absTransform->scale + relTransform->scale);
+    mesh1->vertices = verticesCube2;
+    mesh1->verticesCount = 0;
+    mesh1->indices = indicesCube2;
+    mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+
+    entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
+    gameState->entitiesCount++;
+    entity->bitmap = gameState->bitmaps[1];
+    absTransform = &entity->transform;
+    mesh1 = &entity->meshes[entity->meshCount];
+    obb1 = &entity->obbs[entity->meshCount++];
+    relTransform = &mesh1->transform;
+    world1 = &mesh1->world;
+
+    absTransform->position = {9, -1.0f, 18};
+    absTransform->scale = {2, 2, 2};
+    absTransform->rotation = {0, 45, 0};
+
+    relTransform->position = {};
+    relTransform->scale = {};
+    relTransform->rotation = {};
+    
+    *obb1 = CreateOBB({9, -1.0f, 18}, {0, 45, 0}, {2, 2, 2});
     *world1 = TransformToMat4(absTransform->position + relTransform->position,
                              absTransform->rotation + relTransform->rotation,
                              absTransform->scale + relTransform->scale);
@@ -258,6 +337,8 @@ void GameInit(Memory *memory) {
     PlayerInitialize(&gameState->player, {2, 5, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
+
+    //SoundPlay(gameState->music, true); 
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
@@ -288,7 +369,10 @@ void GameRender(Memory *memory) {
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position); 
     RendererFlushWorkQueue(); 
 
-    RendererDrawRect((WINDOW_WIDTH/2) - ((192)/2), 0, 192, 192, gameState->bitmaps[2]);
+    RendererDrawRectFast((WINDOW_WIDTH/2) - ((192)/2) - 20, 0, 192, 192, gameState->bitmaps[2]);
+    RendererDrawRectFast((WINDOW_WIDTH/2) - ((16)/2),
+                         (WINDOW_HEIGHT/2) - ((16)/2), 
+                          16, 16, gameState->bitmaps[3]);
     
     RendererPresent();
 

@@ -21,20 +21,15 @@ struct GameState {
     Texture *bitmaps[4];
     Texture *skybox[6];
 
-
     Sound *chocolate;
     Sound *music;    
     Sound *shoot;
 
+    Player player;
+    
+    OctreeNode *tree;
     StaticEntity *entities;
     i32 entitiesCount;
-
-    i32 mouseDefaultScreenX;
-    i32 mouseDefaultScreenY;
-
-    OctreeNode *tree;
-
-    Player player;
 };
 
 void GameInit(Memory *memory);
