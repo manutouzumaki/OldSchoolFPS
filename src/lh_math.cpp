@@ -43,7 +43,11 @@ f32 dot(vec2 l, vec2 r) {
 }
 
 f32 lenSq(vec2 v) {
-    return v.x * v.x + v.y * v.y;
+    f32 lenSq = v.x * v.x + v.y * v.y;
+    if(lenSq < EPSILON) {
+        return 0.0f;
+    }
+    return lenSq;
 }
 
 f32 len(vec2 v) {
@@ -172,7 +176,11 @@ f32 dot(vec3 l, vec3 r) {
 }
 
 f32 lenSq(vec3 v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
+    f32 lenSq = v.x * v.x + v.y * v.y + v.z * v.z;
+    if(lenSq < EPSILON) {
+        return 0.0f;
+    }
+    return lenSq;
 }
 
 f32 len(vec3 v) {

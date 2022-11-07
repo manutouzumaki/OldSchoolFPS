@@ -194,14 +194,14 @@ f32 ClosestPtSegmentSegment(vec3 p1, vec3 q1,
     f32 e = dot(d2, d2); // squared length of segment S2
     f32 f = dot(d2, r);
     // check if either or both segments degenerate into points
-    if(a <= EPSILON && e <= EPSILON) { 
+    if(a <= FLT_EPSILON  && e <= FLT_EPSILON) { 
         // Both segments degenerate into points
         s = t = 0.0f;
         c1 = p1;
         c2 = p2;
         return dot(c1 - c2, c1 - c2);
     }
-    if(a <= EPSILON) {
+    if(a <= FLT_EPSILON) {
         // first segment degenerate into a point
         s = 0.0f;
         t = f / e;
@@ -209,7 +209,7 @@ f32 ClosestPtSegmentSegment(vec3 p1, vec3 q1,
     }
     else {
         f32 c = dot(d1, r);
-        if(e <= EPSILON) {
+        if(e <= FLT_EPSILON) {
             // second segment degenerate into a point
             t = 0.0f;
             s = Clamp(-c / a, 0.0f, 1.0f);
@@ -243,14 +243,43 @@ f32 ClosestPtSegmentSegment(vec3 p1, vec3 q1,
     return dot(c1 - c2, c1 - c2);
 }
 
-bool IntersectSegmentCapsule(Segment seg, vec3 a, vec3 b, f32 radii, f32 *tOut) {
-    f32 s = 0;
-    f32 t = 0;
+vec3 ClosestPtPointSphere(vec3 p, Sphere s) {
+    vec3 sphereToPoint = p - s.c;
+    normalize(&sphereToPoint);
+    sphereToPoint = sphereToPoint * s.r;
+    return sphereToPoint + s.c;
+}
+
+
+i32 IntersectSegmentSphere(Segment seg, Sphere s, f32 *t) {
+    vec3 d = seg.b - seg.a;
+    vec3 m = seg.a - s.c;
+    f32 b = dot(m, d);
+    f32 c = dot(m, m) - s.r * s.r;
+    if(c > 0.0f && b > 0.0f) return 0;
+    f32 discr = b*b - c;
+    if(discr < 0.0f) return 0;
+    *t = -b - sqrtf(discr);
+    if(*t < 0.0f) *t = 0.0f;
+    return 1;
+}
+
+bool IntersectSegmentCapsule(Segment seg, vec3 segA, vec3 segB, f32 radii, f32 *tOut) {
     vec3 c1 = {};
     vec3 c2 = {};
-    f32 sqDist = ClosestPtSegmentSegment(seg.a, seg.b, a, b, s, t, c1, c2);
-    *tOut = s;
-    return (sqDist <= radii*radii);
+    f32 s = 0;
+    f32 t = 0;
+    f32 sqDist =  ClosestPtSegmentSegment(seg.a, seg.b, segA, segB, s, t, c1, c2); 
+    bool result = sqDist <= radii*radii;
+    if(result) {
+        Sphere s;
+        s.c = c2;
+        s.r = radii;
+        IntersectSegmentSphere(seg, s, tOut); 
+        return true;
+    }
+
+    return false;
 }
 
 bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut) {
@@ -292,10 +321,101 @@ bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut) {
         return false;
     }
     if(tmin < 0) {
-        *tOut = tmax;
+        *tOut = 0.0f;
         return true;
     }
     *tOut = tmin;
     return true;
 }
 
+vec3 Corner(OBB b, i32 n) {
+    vec3 p = b.c;
+    if(n & 1) {
+        p = p + b.u[0] * b.e.x;
+    }
+    else {
+        p = p - b.u[0] * b.e.x; 
+    }
+    if(n & 2) {
+        p = p + b.u[1] * b.e.y;
+    }
+    else {
+        p = p - b.u[1] * b.e.y; 
+    }
+    if(n & 4) {
+        p = p + b.u[2] * b.e.z;
+    }
+    else {
+        p = p - b.u[2] * b.e.z; 
+    }
+
+    i32 stopHere = 0;
+    return p;
+}
+
+
+i32 IntersectMovingSphereOBB(Sphere s, vec3 d, OBB b, f32 *t) {
+    // Compute the OBB resulting from expanding b by sphere radius r
+    OBB e = b;
+    e.e.x += s.r;
+    e.e.y += s.r;
+    e.e.z += s.r;
+    // Intersect ray against expanded OBB e. Exit with no intersection if ray
+    // misses e, else get intersection point p and time t as result
+    vec3 p;
+    Ray ray;
+    ray.o = s.c;
+    ray.d = d;
+    if (!RaycastOBB(&e, &ray, t) || (*t) > 1.0f) {
+        return 0;
+    }
+
+    // Compute which min and max faces of b the intersection point p lies
+    // outside of. Note, u and v cannot have the same bits set and
+    // they must have at least one bit set among them
+    p = s.c + (d * (*t));
+    
+    vec3 pRel = p - b.c;
+    f32 px = dot(pRel, b.u[0]);
+    f32 py = dot(pRel, b.u[1]);
+    f32 pz = dot(pRel, b.u[2]);
+    
+    i32 u = 0, v = 0;
+    if(px < -b.e.x) u |= 1;
+    if(px >  b.e.x) v |= 1;
+    if(py < -b.e.y) u |= 2;
+    if(py >  b.e.y) v |= 2;
+    if(pz < -b.e.z) u |= 4;
+    if(pz >  b.e.z) v |= 4;
+
+    // ?Or? all set bits together into a bit mask (note: here u + v == u | v)
+    i32 m = u + v;
+    // Define line segment [c, c+d] specified by the sphere movement
+    Segment seg = {s.c, s.c + d};
+    // If all 3 bits set (m == 7) then p is in a vertex region
+    if (m == 7) {
+        // Must now intersect segment [c, c+d] against the capsules of the three
+        // edges meeting at the vertex and return the best time, if one or more hit
+        float tmin = FLT_MAX;
+        if (IntersectSegmentCapsule(seg, Corner(b, v), Corner(b, v ^ 1), s.r, t))
+            tmin = fminf(*t, tmin);
+        if (IntersectSegmentCapsule(seg, Corner(b, v), Corner(b, v ^ 2), s.r, t))
+            tmin = fminf(*t, tmin);
+        if (IntersectSegmentCapsule(seg, Corner(b, v), Corner(b, v ^ 4), s.r, t))
+            tmin = fminf(*t, tmin);
+        if (tmin == FLT_MAX) return 0;
+            // No intersection
+            *t = tmin;
+        return 1; // Intersection at time t == tmin
+    }
+
+    // If only one bit set in m, then p is in a face region
+    if ((m & (m - 1)) == 0) {
+        // Do nothing. Time t from intersection with
+        // expanded box is correct intersection time
+        i32 stopHere = 0;
+        return 1;
+    }
+    // p is in an edge region. Intersect against the capsule at the edge
+    return IntersectSegmentCapsule(seg, Corner(b, u ^ 7), Corner(b, v), s.r, t);
+}

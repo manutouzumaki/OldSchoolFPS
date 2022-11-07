@@ -9,9 +9,8 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - optimize the 2d quad razteraizer (SIMD SSE2)
+// - improve collision detection for low frame rates
 // - try to add the 2d quad razteraizer to the render queue (MULTITHREADING)
-// - add crosshair image
 // - add some kind of enemy
 // - implement ray cast base shooting system
 // - add sprites animations
@@ -334,7 +333,7 @@ void GameInit(Memory *memory) {
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
     }
 
-    PlayerInitialize(&gameState->player, {2, 5, 4});
+    PlayerInitialize(&gameState->player, {2, 0, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
 

@@ -51,5 +51,8 @@ vec3 ClosestPtPointSegment(vec3 c, vec3 a, vec3 b);
 f32 ClosestPtSegmentSegment(vec3 p1, vec3 q1, vec3 p2, vec3 q2, f32 &s, f32 &t, vec3 &c1, vec3 &c2);
 bool IntersectSegmentCapsule(Segment seg, vec3 a, vec3 b, f32 radii, f32 *tOut);
 bool RaycastOBB(OBB *obb, Ray *ray, f32 *tOut);
+i32 IntersectMovingSphereOBB(Sphere s, vec3 d, OBB b, f32 *t);
+vec3 ClosestPtPointSphere(vec3 p, Sphere s);
+i32 IntersectSegmentSphere(Segment seg, Sphere s, f32 *t);
 
 #endif

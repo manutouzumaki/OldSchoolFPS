@@ -18,6 +18,7 @@ void CameraInitialize(Camera *camera, vec3 position, f32 fov, f32 aspect) {
 
 void PlayerInitialize(Player *player, vec3 position) {
     player->position = position;
+    player->newPosition = position;
     player->direction = {0, 0, 1};
     player->speed = 3.5f;
     player->gravity = 9.8f;
@@ -40,10 +41,10 @@ void PlayerInitialize(Player *player, vec3 position) {
     CameraInitialize(&player->camera, position, 60.0f, (f32)WINDOW_WIDTH/(f32)WINDOW_HEIGHT);
 }
 
-void PlayerUpdateCollisionData(Player *player) {
-    player->collider.a = player->position;
+void PlayerUpdateCollisionData(Player *player, vec3 position) {
+    player->collider.a = position;
     player->collider.a.y += 0.2f;
-    player->collider.b = player->position;
+    player->collider.b = position;
     player->collider.b.y -= 0.6f;
     player->down.o = player->collider.b;
     player->up.o = player->collider.a;
@@ -92,20 +93,20 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     
     // Keyboard and Left Stick movement
     if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
-        player->position = player->position + (worldFront * player->speed) * dt;
+        player->newPosition = player->newPosition + (worldFront * player->speed) * dt;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
-        player->position = player->position - (worldFront * player->speed) * dt;
+        player->newPosition = player->newPosition - (worldFront * player->speed) * dt;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
-        player->position = player->position + (player->camera.right * player->speed) * dt;
+        player->newPosition = player->newPosition + (player->camera.right * player->speed) * dt;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
-        player->position = player->position - (player->camera.right * player->speed) * dt;
+        player->newPosition = player->newPosition - (player->camera.right * player->speed) * dt;
     }
-    player->position = player->position + (player->camera.right * (leftStickX * player->speed)) * dt;
-    player->position = player->position + (worldFront  * (leftStickY * player->speed)) * dt; 
-
+    player->newPosition = player->newPosition + (player->camera.right * (leftStickX * player->speed)) * dt;
+    player->newPosition = player->newPosition + (worldFront  * (leftStickY * player->speed)) * dt; 
+    
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
@@ -114,12 +115,9 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(!player->grounded) {
         player->verticalVelocity += -player->gravity * dt;
     }
-    player->position.y += player->verticalVelocity * dt; 
-
-    player->direction = player->camera.front;
-    player->camera.position = player->position;
-    PlayerUpdateCollisionData(player);
+    player->newPosition.y += player->verticalVelocity * dt; 
 }
+
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
     OBB obb;
@@ -149,7 +147,8 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
         }
     }
     player->grounded = flag;
-    // capsule obb test 
+
+    // capsule obb test
     for(i32 i = 0; i < entitiesToProcessCount; ++i) {
         StaticEntityNode *entityNode = entitiesToProcess + i;
         StaticEntity *staticEntity = entityNode->object;
@@ -157,29 +156,28 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
             OBB *obb = staticEntity->obbs + j;
             vec3 closestPoint = ClosestPtPointOBB(player->position, obb);
             vec3 testPosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
-            f32 distanceSq = lenSq(closestPoint - testPosition);
-            if(distanceSq > player->collider.r * player->collider.r) {
-                obb->color = 0xFF00FF00;
-                continue;
+
+            Sphere sphere = {};
+            sphere.c = testPosition;
+            sphere.r = player->collider.r;
+            vec3 d = player->newPosition - testPosition;
+
+            f32 t = 0.0f;
+            if(IntersectMovingSphereOBB(sphere, d, *obb, &t)) {
+                vec3 hitPoint =  player->position + d * t;
+                vec3 normal = normalized(testPosition - closestPoint);
+#if 0
+                Plane collisionPlane;
+                collisionPlane.p = hitPoint;
+                collisionPlane.n = normal; 
+                player->newPosition = ClosestPtPointPlane(player->newPosition, collisionPlane) +
+                                                         (collisionPlane.n * 0.002f);
+#else
+                f32 penetration = fabsf(dot(player->newPosition - hitPoint, normal));
+                player->newPosition = player->newPosition + (normal * penetration) + (normal * 0.002f);
+                PlayerUpdateCollisionData(player, player->newPosition);
+#endif
             }
-            obb->color = 0xFFFF0000;
-            vec3 normal = {0, 1, 0};
-            if(CMP(distanceSq, 0.0f)) {
-                f32 mSq = lenSq(closestPoint - obb->c);
-                if(CMP(mSq, 0.0f)) {
-                }
-                else {
-                    normal = normalized(closestPoint - obb->c);
-                }
-            }
-            else {
-                normal = normalized(testPosition - closestPoint);
-            }
-            vec3 outsidePoint = testPosition - normal * player->collider.r;
-            f32 distance = len(closestPoint - outsidePoint);
-            player->position = player->position + normal * distance;
-            player->camera.position = player->position;
-            PlayerUpdateCollisionData(player);
         }
     }
 }
@@ -190,8 +188,15 @@ void PlayerUpdateCamera(Player *player) {
 }
 
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
+    player->newPosition = player->position;
+    
     PlayerProcessMovement(player, dt);
     PlayerProcessCollision(player, tree, arena);
+    
+    player->position = player->newPosition;
+    player->camera.position = player->position;
+    PlayerUpdateCollisionData(player, player->position);
+
     PlayerUpdateCamera(player);
 }
 

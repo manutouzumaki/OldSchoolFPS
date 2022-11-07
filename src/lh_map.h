@@ -171,13 +171,11 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     relTransform->scale = {0, 0, 0};
                     relTransform->rotation = {0, 180, 0};
 
-    OutputDebugString("Estoy Antes\n");
                     *obb = CreateOBB({xPos, 0, yPos + offset - tileOffset}, {0, 0, 0}, {1.0f, 1.0f, 0.1f});
                     *world = TransformToMat4(absTransform->position + relTransform->position,
                                              absTransform->rotation + relTransform->rotation,
                                              absTransform->scale + relTransform->scale);
 
-    OutputDebugString("Estoy Despues\n");
                     mesh->vertices = vertices;
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
