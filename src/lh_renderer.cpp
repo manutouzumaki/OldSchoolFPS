@@ -1177,7 +1177,6 @@ void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap
     }
 }
 
-
 void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) {
     i32 minX = x;
     i32 minY = y;
@@ -1234,6 +1233,95 @@ void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) 
             Mu(texel, 2) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
             texX = (i32)((f32)(counterX + 3) * ratioU);
             Mu(texel, 3) = *(srcBuffer + (texY * (i32)bitmap->width + texX));
+
+            if(_mm_movemask_epi8(texel))
+            {
+                __m128 a = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 24), u255));
+                __m128 invA =_mm_div_ps(a, f255); 
+
+                __m128 srcR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 16), u255));
+                __m128 srcG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(texel, 8), u255));
+                __m128 srcB = _mm_cvtepi32_ps(_mm_and_si128(texel, u255));
+
+                __m128 dstR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(oldTexel, 16), u255));
+                __m128 dstG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(oldTexel, 8), u255));
+                __m128 dstB = _mm_cvtepi32_ps(_mm_and_si128(oldTexel, u255));
+
+                __m128 r = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstR), _mm_mul_ps(invA, srcR));
+                __m128 g = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstG), _mm_mul_ps(invA, srcG));
+                __m128 b = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstB), _mm_mul_ps(invA, srcB));
+                
+                __m128i color = _mm_or_si128(
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(a), 24), _mm_slli_epi32(_mm_cvtps_epi32(r), 16)),
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(g),  8), _mm_cvtps_epi32(b)));
+
+                _mm_storeu_si128((__m128i *)dst, color);
+            }
+            counterX += 4; 
+        }
+        ++counterY;
+    }
+}
+
+void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap, i32 spriteW, i32 spriteH, i32 frame) {
+    i32 minX = x;
+    i32 minY = y;
+    i32 maxX = x + width;
+    i32 maxY = y + height;
+    
+    i32 offsetX = 0;
+    i32 offsetY = 0;
+    if(minX < 0)
+    {
+        offsetX = -minX;
+        minX = 0;
+    }
+    if(maxX > gRenderer.bufferWidth)
+    {
+        maxX = gRenderer.bufferWidth;
+    }
+    if(minY < 0)
+    {
+        offsetY = -minY;
+        minY = 0;
+    }
+    if(maxY > gRenderer.bufferHeight)
+    {
+        maxY = gRenderer.bufferHeight;
+    }
+
+
+    i32 offsetU = frame % (bitmap->width / spriteW) * spriteW;
+    i32 offsetV = frame / (bitmap->width / spriteW) * spriteH;
+    f32 ratioU = (f32)spriteW / width;
+    f32 ratioV = (f32)spriteH / height;
+ 
+    u32 *srcBuffer = (u32 *)bitmap->data;
+
+    __m128i u255 = _mm_set1_epi32(0xFF);
+    __m128 f255 = _mm_set1_ps(255.0f);
+    __m128 one = _mm_set1_ps(1.0f);
+    
+    i32 counterY = offsetY;
+    for(i32 y = minY; y < maxY; ++y)
+    {
+        i32 counterX = offsetX;
+        for(i32 x = minX; x < (maxX - 3); x += 4)
+        {
+            u32 *dst = gRenderer.colorBuffer + (y * gRenderer.bufferWidth + x);
+            __m128i oldTexel = _mm_loadu_si128((__m128i *)dst);
+            
+            i32 texY = (i32)(counterY * ratioV); 
+            i32 texX = (i32)((f32)(counterX + 0) * ratioU);
+            
+            __m128i texel;
+            Mu(texel, 0) = *(srcBuffer + ((texY + offsetV) * (i32)bitmap->width + (texX + offsetU)));
+            texX = (i32)((f32)(counterX + 1) * ratioU);
+            Mu(texel, 1) = *(srcBuffer + ((texY + offsetV) * (i32)bitmap->width + (texX + offsetU)));
+            texX = (i32)((f32)(counterX + 2) * ratioU);
+            Mu(texel, 2) = *(srcBuffer + ((texY + offsetV) * (i32)bitmap->width + (texX + offsetU)));
+            texX = (i32)((f32)(counterX + 3) * ratioU);
+            Mu(texel, 3) = *(srcBuffer + ((texY + offsetV) * (i32)bitmap->width + (texX + offsetU)));
 
             if(_mm_movemask_epi8(texel))
             {

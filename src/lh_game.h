@@ -18,7 +18,7 @@ struct GameState {
     Arena soundArena;
     Arena staticEntitiesArena;
     
-    Texture *bitmaps[4];
+    Texture *bitmaps[5];
     Texture *skybox[6];
 
     Sound *chocolate;

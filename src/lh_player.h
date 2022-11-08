@@ -7,6 +7,8 @@
 
 struct OctreeNode;
 struct Arena;
+struct Mesh;
+struct Texture;
 
 struct Camera {
     vec3 position;
@@ -31,6 +33,11 @@ struct Player {
     f32 horizontalVelocity;
     bool grounded;
     
+    i32 frameCount;
+    i32 frame;
+    bool playAnimation;
+    f32 animationTimer;
+    
     f32 joystickSensitivity;
     f32 mouseSensitivity;
     i32 mouseDefaultScreenX;
@@ -47,5 +54,13 @@ void PlayerUpdateCollisionData(Player *player, vec3 position);
 void PlayerProcessMovement(Player *player, f32 dt);
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
+
+
+struct Enemy {
+    vec3 position;
+    Mesh *mesh;
+    Texture *texture;
+    Capsule collider;
+};
 
 #endif

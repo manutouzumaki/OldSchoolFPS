@@ -26,6 +26,8 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->verticalVelocity = 0;
     player->horizontalVelocity = 0;
     player->grounded = false;
+    player->frameCount = 5;
+    player->frame = 0;
     player->joystickSensitivity = 2.5f;
     player->mouseSensitivity = 0.001f;
     player->mouseDefaultScreenX = 0;
@@ -222,12 +224,32 @@ void PlayerUpdateCamera(Player *player) {
     player->camera.view = Mat4LookAt(player->camera.position, player->camera.position + player->camera.front, player->camera.up);
 }
 
+void PlayerProcessGun(Player *player, f32 dt) {
+    if(MouseGetButtonDown(MOUSE_BUTTON_LEFT) && !player->playAnimation) {
+        player->playAnimation = true; 
+        player->animationTimer = 0.0f;
+    }
+    
+    if(player->playAnimation) {
+        player->frame = (i32)player->animationTimer;
+        player->animationTimer += 15.0f * dt;
+        
+        if(player->frame >= player->frameCount) {
+            player->playAnimation = false;
+            player->animationTimer = 0.0f;
+            player->frame = 0;
+        }
+
+    }
+}
+
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerProcessMovement(player, dt);
     PlayerProcessCollision(player, tree, arena);
     player->position = player->potentialPosition;
     player->camera.position = player->position;
     PlayerUpdateCamera(player);
+    PlayerProcessGun(player, dt);
 }
 
 

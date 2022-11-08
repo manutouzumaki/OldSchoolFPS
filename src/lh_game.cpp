@@ -9,7 +9,6 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - test uv repeting intead of strech
 // - try to add the 2d quad razteraizer to the render queue (MULTITHREADING)
 // - add some kind of enemy
 // - implement ray cast base shooting system
@@ -197,6 +196,7 @@ void GameInit(Memory *memory) {
     gameState->bitmaps[1] = TextureCreate("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[2] = TextureCreate("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[3] = TextureCreate("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[4] = TextureCreate("../assets/shootSpritesheet.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -340,13 +340,20 @@ void GameInit(Memory *memory) {
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
 
-    //SoundPlay(gameState->music, true); 
+    SoundPlay(gameState->music, true); 
+
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
+    if(MouseGetButtonDown(MOUSE_BUTTON_LEFT) && !gameState->player.playAnimation) {
+        SoundPlay(gameState->shoot, false); 
+    }
+
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
     RendererSetView(gameState->player.camera.view);
+
+
 }
 
 void GameRender(Memory *memory) {
@@ -371,7 +378,8 @@ void GameRender(Memory *memory) {
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position); 
     RendererFlushWorkQueue(); 
 
-    RendererDrawRectFast((WINDOW_WIDTH/2) - ((192)/2) - 20, 0, 192, 192, gameState->bitmaps[2]);
+    //RendererDrawRectFast((WINDOW_WIDTH/2) - ((192)/2) - 20, 0, 192, 192, gameState->bitmaps[2]);
+    RendererDrawAnimatedRectFast((WINDOW_WIDTH/2) - ((78*2)/2) , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
     RendererDrawRectFast((WINDOW_WIDTH/2) - ((16)/2),
                          (WINDOW_HEIGHT/2) - ((16)/2), 
                           16, 16, gameState->bitmaps[3]);
