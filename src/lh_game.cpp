@@ -222,14 +222,14 @@ void GameInit(Memory *memory) {
     mat4 *world1 = &mesh1->world;
 
     absTransform->position = {5, -1.0f, 22};
-    absTransform->scale = {2, 1, 1};
+    absTransform->scale = {2, 4, 1};
     absTransform->rotation = {0, 0, 0};
 
     relTransform->position = {};
     relTransform->scale = {};
     relTransform->rotation = {};
     
-    *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 1, 1});
+    *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 4, 1});
     *world1 = TransformToMat4(absTransform->position + relTransform->position,
                              absTransform->rotation + relTransform->rotation,
                              absTransform->scale + relTransform->scale);
