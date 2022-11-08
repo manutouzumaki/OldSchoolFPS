@@ -122,14 +122,13 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(!player->grounded) {
         player->verticalVelocity += -player->gravity * dt;
     }
-    if(player->verticalVelocity < -5.0f) {
-        player->verticalVelocity = -5.0f;
+    if(player->verticalVelocity < -6.0f) {
+        player->verticalVelocity = -6.0f;
     }
     player->potentialPosition.y += player->verticalVelocity * dt; 
     PlayerUpdateCollisionData(player, player->potentialPosition);
     
 }
-
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
     OBB obb;
@@ -143,6 +142,7 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
     OctreeOBBQuery(tree, &obb, &entitiesToProcess, &entitiesToProcessCount, arena);
     entitiesToProcess = entitiesToProcess - (entitiesToProcessCount - 1);
 
+    // TODO: fix this to work on low frame rates
     // ray floor test
     bool flag = false;
     for(i32 i = 0; i < entitiesToProcessCount; ++i) {
@@ -159,9 +159,6 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
         }
     }
     player->grounded = flag;
-
-
-
 
     for(i32 i = 0; i < entitiesToProcessCount; ++i) {
         StaticEntityNode *entityNode = entitiesToProcess + i;
@@ -226,13 +223,10 @@ void PlayerUpdateCamera(Player *player) {
 }
 
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
-    
     PlayerProcessMovement(player, dt);
     PlayerProcessCollision(player, tree, arena);
-    
     player->position = player->potentialPosition;
     player->camera.position = player->position;
-    
     PlayerUpdateCamera(player);
 }
 

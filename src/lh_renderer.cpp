@@ -62,6 +62,8 @@ struct RenderWork {
     vec3 viewPos;
     mat4 world;
     bool writeDepthBuffer;
+    f32 repeatU;
+    f32 repeatV;
 };
 
 struct Renderer {
@@ -210,7 +212,7 @@ f32 ORIENTED2D(Point a, Point b, Point c) {
 internal
 void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
                         vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
-                        rectangle2i clipRect, bool writeDepthBuffer) {
+                        rectangle2i clipRect, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {
 
     ASSERT(((uintptr_t)gRenderer.colorBuffer & 15) == 0);
     // compute trinangle AABB
@@ -282,6 +284,9 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 cFragPosX = _mm_set1_ps(cFragPos.x);
         __m128 cFragPosY = _mm_set1_ps(cFragPos.y);
         __m128 cFragPosZ = _mm_set1_ps(cFragPos.z);
+
+        __m128 scaleU = _mm_set1_ps(repeatU);
+        __m128 scaleV = _mm_set1_ps(repeatV);
 
         __m128 bitmapWidth = _mm_set1_ps((f32)bitmap->width - 1);
         __m128 bitmapHeight = _mm_set1_ps((f32)bitmap->height - 1);
@@ -395,6 +400,15 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128 interpolatedU = _mm_div_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(aUvX, aPointZ), alpha), _mm_mul_ps(_mm_mul_ps(bUvX, bPointZ), gamma)), _mm_mul_ps(_mm_mul_ps(cUvX, cPointZ), beta)), interReciZ);
                         __m128 interpolatedV = _mm_div_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(aUvY, aPointZ), alpha), _mm_mul_ps(_mm_mul_ps(bUvY, bPointZ), gamma)), _mm_mul_ps(_mm_mul_ps(cUvY, cPointZ), beta)), interReciZ);
 
+                        // TODO: if you want to repate the texture instead of streching 
+                        interpolatedU = _mm_mul_ps(interpolatedU, scaleU);
+                        interpolatedV = _mm_mul_ps(interpolatedV, scaleV);
+                        for(i32 i = 0; i < 4; ++i) {
+                            M(interpolatedU, i) = fmodf(M(interpolatedU, i), 1.0f);
+                            M(interpolatedV, i) = fmodf(M(interpolatedV, i), 1.0f);
+                        }
+
+
                         // clamp uvs to be 0-1
                         interpolatedU = _mm_min_ps(_mm_max_ps(interpolatedU, zero), one);
                         interpolatedV = _mm_min_ps(_mm_max_ps(interpolatedV, zero), one);
@@ -480,6 +494,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             squaredLength = _mm_add_ps(
                                             _mm_add_ps(_mm_mul_ps(normalizeInterpolatedNormalX, normalizeInterpolatedNormalX),
                                                        _mm_mul_ps(normalizeInterpolatedNormalY, normalizeInterpolatedNormalY)),
+                        //interpolatedV = _mm_mul_ps(interpolatedV, two);
                                                        _mm_mul_ps(normalizeInterpolatedNormalZ, normalizeInterpolatedNormalZ));
                             length = _mm_sqrt_ps(squaredLength);
                             
@@ -670,7 +685,7 @@ void HomogenousClipping(vec4 *srcVertives, vec2 * srcUVs, vec3 *srcNormals, vec3
 internal
 void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
                            i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
-                           mat4 world, rectangle2i clipRect, bool writeDepthBuffer) {    
+                           mat4 world, rectangle2i clipRect, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {    
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -785,7 +800,8 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
                                newFragPosA, newFragPosB, newFragPosC,
                                bitmap,
                                lights, lightsCount, viewPos,
-                               clipRect, writeDepthBuffer);
+                               clipRect, writeDepthBuffer,
+                               repeatU, repeatV);
         }
     }
 }
@@ -796,7 +812,11 @@ void DoTileRenderWork(void *data) {
     for(i32 i = 0; i < gRenderer.workCount; ++i) {
         RenderWork *work = gRenderer.workArray + i;
         RenderVertexArrayFast(work->vertices, work->indices,
-                              work->indicesCount, work->bitmap, work->lights, work->lightsCount, work->viewPos, work->world, param->clipRect, work->writeDepthBuffer);
+                              work->indicesCount, work->bitmap,
+                              work->lights, work->lightsCount,
+                              work->viewPos, work->world,
+                              param->clipRect, work->writeDepthBuffer,
+                              work->repeatU, work->repeatV);
     }
 }
 
@@ -1110,7 +1130,7 @@ void RendererClearBuffers(u32 color, f32 depth) {
 
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
                              i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount,
-                             vec3 viewPos, mat4 world, bool writeDepthBuffer) {
+                             vec3 viewPos, mat4 world, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {
     RenderWork *work = gRenderer.workArray + gRenderer.workCount++;
     work->vertices = vertices;
     work->verticesCount = 0;
@@ -1122,6 +1142,8 @@ void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
     work->viewPos = viewPos;
     work->world = world;
     work->writeDepthBuffer = writeDepthBuffer;
+    work->repeatU = repeatU;
+    work->repeatV = repeatV;
 }
 
 void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {

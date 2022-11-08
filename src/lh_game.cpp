@@ -9,7 +9,7 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - improve collision detection for low frame rates
+// - test uv repeting intead of strech
 // - try to add the 2d quad razteraizer to the render queue (MULTITHREADING)
 // - add some kind of enemy
 // - implement ray cast base shooting system
@@ -133,9 +133,11 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gam
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             Mesh *mesh = staticEntity->meshes + j;
             OBB *obb = staticEntity->obbs + j;
+            f32 repeatV = staticEntity->transform.scale.y;
+            f32 repeatU = staticEntity->transform.scale.x > staticEntity->transform.scale.z ? staticEntity->transform.scale.x : staticEntity->transform.scale.z;
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     staticEntity->bitmap, lights, ARRAY_LENGTH(lights),
-                                    cameraPosition, mesh->world, true);
+                                    cameraPosition, mesh->world, true, repeatU, repeatV);
             //DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
         }
     }
@@ -147,31 +149,31 @@ void DrawSkybox(vec3 cameraPosition, GameState *gameState) {
     mat4 skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[2], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+                            cameraPosition, skyboxWorld, false, 1, 1);
 // BACK
     skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * 
                   Mat4RotateY(RAD(180.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[3], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+                            cameraPosition, skyboxWorld, false, 1, 1);
 // LEFT
     skyboxWorld = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * 
                   Mat4RotateY(RAD(90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[5], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+                            cameraPosition, skyboxWorld, false, 1, 1);
 // RIGHT
     skyboxWorld = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * 
                   Mat4RotateY(RAD(-90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[4], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+                            cameraPosition, skyboxWorld, false, 1, 1);
 // UP
     skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * 
                   Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[0], NULL, 0,
-                            cameraPosition, skyboxWorld, false);
+                            cameraPosition, skyboxWorld, false, 1, 1);
 }
 
 void GameInit(Memory *memory) {
@@ -222,14 +224,14 @@ void GameInit(Memory *memory) {
     mat4 *world1 = &mesh1->world;
 
     absTransform->position = {5, -1.0f, 22};
-    absTransform->scale = {2, 4, 1};
+    absTransform->scale = {2, 2, 1};
     absTransform->rotation = {0, 0, 0};
 
     relTransform->position = {};
     relTransform->scale = {};
     relTransform->rotation = {};
     
-    *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 4, 1});
+    *obb1 = CreateOBB({5, -1.0f, 22}, {0, 0, 0}, {2, 2, 1});
     *world1 = TransformToMat4(absTransform->position + relTransform->position,
                              absTransform->rotation + relTransform->rotation,
                              absTransform->scale + relTransform->scale);

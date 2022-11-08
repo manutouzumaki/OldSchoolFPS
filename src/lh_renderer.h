@@ -26,7 +26,7 @@ void RendererSystemShutdown();
 void RendererClearBuffers(u32 color, f32 depth);
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
                              i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount,
-                             vec3 viewPos, mat4 world, bool writeDepthBuffer);
+                             vec3 viewPos, mat4 world, bool writeDepthBuffer, f32 repeatU, f32 repeatV);
 void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap);
 void RendererDrawRectFast(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap);
 void RendererFlushWorkQueue();
