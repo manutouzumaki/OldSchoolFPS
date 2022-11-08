@@ -171,6 +171,11 @@ vec3 operator/(vec3 l, vec3 r) {
     return result;
 }
 
+vec3 operator/(vec3 l, f32 f) {
+    vec3 result = { l.x / f, l.y / f, l.z / f };
+    return result;
+}
+
 f32 dot(vec3 l, vec3 r) {
     return l.x * r.x + l.y * r.y + l.z * r.z;
 }

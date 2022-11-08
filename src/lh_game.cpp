@@ -247,15 +247,15 @@ void GameInit(Memory *memory) {
     relTransform = &mesh1->transform;
     world1 = &mesh1->world;
 
-    absTransform->position = {16, -1.0f, 8};
-    absTransform->scale = {3, 2, 1};
+    absTransform->position = {0.7f, -1.0f, 22};
+    absTransform->scale = {2, 1, 1};
     absTransform->rotation = {0, 0, 0};
 
     relTransform->position = {};
     relTransform->scale = {};
     relTransform->rotation = {};
     
-    *obb1 = CreateOBB({16, -1.0f, 8}, {0, 0, 0}, {3, 2, 1});
+    *obb1 = CreateOBB({0.7f, -1.0f, 22}, {0, 0, 0}, {2, 1, 1});
     *world1 = TransformToMat4(absTransform->position + relTransform->position,
                              absTransform->rotation + relTransform->rotation,
                              absTransform->scale + relTransform->scale);
@@ -315,6 +315,7 @@ void GameInit(Memory *memory) {
     mesh1->verticesCount = 0;
     mesh1->indices = indicesCube2;
     mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+
 
     gameState->entities = entity;
     gameState->entities = gameState->entities - (gameState->entitiesCount - 1);

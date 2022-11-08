@@ -38,8 +38,8 @@ vec3 ClosestPtPointOBB(vec3 p, OBB *b) {
         f32 dist = dot(d, b->u[i]);
        // if dist farther than the box extents clamp it
        if(dist > b->e.v[i]) dist = b->e.v[i];
-       if(dist < -b->e.v[i]) dist = -b->e.v[i];
-       // step that distance along the axis to get the world coord
+       if(dist < -b->e.v[i]) dist = -b->e.v[i];       
+        // step that distance along the axis to get the world coord
        result = result + b->u[i] * dist;
     }
     return result;

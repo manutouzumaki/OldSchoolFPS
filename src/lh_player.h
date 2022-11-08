@@ -22,7 +22,8 @@ struct Camera {
 
 struct Player {
     vec3 position;
-    vec3 newPosition;
+    vec3 potentialPosition;
+    vec3 velocity;
     vec3 direction;
     f32 speed;
     f32 gravity;
@@ -44,7 +45,7 @@ struct Player {
 void PlayerInitialize(Player *player, vec3 position);
 void PlayerUpdateCollisionData(Player *player, vec3 position);
 void PlayerProcessMovement(Player *player, f32 dt);
-void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena);
+void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 
 #endif

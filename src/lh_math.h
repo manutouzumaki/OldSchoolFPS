@@ -129,6 +129,7 @@ vec3 operator-(vec3 l, vec3 r);
 vec3 operator*(vec3 l, vec3 r);
 vec3 operator*(vec3 v, f32 f);
 vec3 operator/(vec3 l, vec3 r);
+vec3 operator/(vec3 l, f32 f);
 f32 dot(vec3 l, vec3 r);
 f32 lenSq(vec3 v);
 f32 len(vec3 v);

@@ -18,9 +18,10 @@ void CameraInitialize(Camera *camera, vec3 position, f32 fov, f32 aspect) {
 
 void PlayerInitialize(Player *player, vec3 position) {
     player->position = position;
-    player->newPosition = position;
+    player->potentialPosition = position;
+    player->velocity = {};
     player->direction = {0, 0, 1};
-    player->speed = 3.5f;
+    player->speed = 4.0f;
     player->gravity = 9.8f;
     player->verticalVelocity = 0;
     player->horizontalVelocity = 0;
@@ -92,21 +93,27 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     vec3 worldFront = normalized(cross(player->camera.right, player->camera.up));
     
     // Keyboard and Left Stick movement
+    player->velocity = {};
     if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
-        player->newPosition = player->newPosition + (worldFront * player->speed) * dt;
+        player->velocity = player->velocity + player->camera.front;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
-        player->newPosition = player->newPosition - (worldFront * player->speed) * dt;
+        player->velocity = player->velocity - player->camera.front;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
-        player->newPosition = player->newPosition + (player->camera.right * player->speed) * dt;
+        player->velocity = player->velocity + player->camera.right;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
-        player->newPosition = player->newPosition - (player->camera.right * player->speed) * dt;
+        player->velocity = player->velocity - player->camera.right;
     }
-    player->newPosition = player->newPosition + (player->camera.right * (leftStickX * player->speed)) * dt;
-    player->newPosition = player->newPosition + (worldFront  * (leftStickY * player->speed)) * dt; 
-    
+    player->velocity = player->velocity + player->camera.right * leftStickX;
+    player->velocity = player->velocity + player->camera.front * leftStickY; 
+    if(lenSq(player->velocity) > 0.0f) {
+        normalize(&player->velocity);
+    }
+
+    player->potentialPosition = player->position + (player->velocity * player->speed) * dt;    
+    /* 
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
@@ -116,6 +123,7 @@ void PlayerProcessMovement(Player *player, f32 dt) {
         player->verticalVelocity += -player->gravity * dt;
     }
     player->newPosition.y += player->verticalVelocity * dt; 
+    */
 }
 
 
@@ -130,57 +138,60 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
     i32 entitiesToProcessCount = 0;  
     OctreeOBBQuery(tree, &obb, &entitiesToProcess, &entitiesToProcessCount, arena);
     entitiesToProcess = entitiesToProcess - (entitiesToProcessCount - 1);
-    
-    // ray floor test
-    bool flag = false;
     for(i32 i = 0; i < entitiesToProcessCount; ++i) {
         StaticEntityNode *entityNode = entitiesToProcess + i;
         StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
-            f32 t = 0;
-            if(RaycastOBB(obb, &player->down, &t) && t <= 1.0f) {
-                flag = true;
-                if(player->verticalVelocity < 0) 
-                    player->verticalVelocity = 0;
-            }
-        }
-    }
-    player->grounded = flag;
-
-    // capsule obb test
-    for(i32 i = 0; i < entitiesToProcessCount; ++i) {
-        StaticEntityNode *entityNode = entitiesToProcess + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j;
-            vec3 closestPoint = ClosestPtPointOBB(player->position, obb);
-            vec3 testPosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
-
+#if 0
             Sphere sphere = {};
-            sphere.c = testPosition;
+            sphere.c = player->position;
             sphere.r = player->collider.r;
-            vec3 d = player->newPosition - testPosition;
+            vec3 d = player->potentialPosition - player->position;
 
             f32 t = 0.0f;
             if(IntersectMovingSphereOBB(sphere, d, *obb, &t)) {
-                vec3 hitPoint =  player->position + d * t;
-                vec3 normal = normalized(testPosition - closestPoint);
-#if 0
-                Plane collisionPlane;
-                collisionPlane.p = hitPoint;
-                collisionPlane.n = normal; 
-                player->newPosition = ClosestPtPointPlane(player->newPosition, collisionPlane) +
-                                                         (collisionPlane.n * 0.002f);
-#else
-                f32 penetration = fabsf(dot(player->newPosition - hitPoint, normal));
-                player->newPosition = player->newPosition + (normal * penetration) + (normal * 0.002f);
-                PlayerUpdateCollisionData(player, player->newPosition);
-#endif
+                vec3 hitPoint = player->position + d * t;
+                vec3 closestPoint = ClosestPtPointOBB(hitPoint, obb);
+                vec3 normal = normalized(hitPoint - closestPoint);
+                vec3 extraVelocity = player->potentialPosition - hitPoint;
+                player->potentialPosition = hitPoint;
+                f32 penetration1 = fabsf(dot(player->potentialPosition - hitPoint, normal));
+                //f32 penetration2 = player->collider.r - len(closestPoint - player->potentialPosition);
+                player->potentialPosition = player->potentialPosition + (normal * penetration1);
             }
+
+#else
+            i32 iterations = 10;
+            vec3 testPotentialPos = player->position;
+            for(i32 iter = 0; iter < iterations; ++iter) {
+                vec3 step = (player->potentialPosition - player->position) / iterations;
+                testPotentialPos = testPotentialPos + step;
+                vec3 closestPoint = ClosestPtPointOBB(testPotentialPos, obb);
+                vec3 rayToClosest = closestPoint - testPotentialPos; 
+                f32 penetration = player->collider.r - len(rayToClosest);
+                if(isnan(penetration)) penetration = 0;
+                if(penetration > 0) {
+
+                    vec3 velocity = player->potentialPosition - testPotentialPos;
+                    
+                    Plane collisionPlane;
+                    collisionPlane.p = testPotentialPos;
+                    collisionPlane.n = normalized(testPotentialPos - closestPoint); 
+                    vec3 finalPosition = ClosestPtPointPlane(player->potentialPosition, collisionPlane) - normalized(rayToClosest) * penetration;
+                    player->potentialPosition = testPotentialPos - normalized(rayToClosest) * penetration;
+                    vec3 offset = finalPosition - player->potentialPosition;
+                    player->potentialPosition = player->potentialPosition + offset;
+                    break;
+                }
+            }
+#endif
+
+
         }
     }
 }
+
 
 internal
 void PlayerUpdateCamera(Player *player) {
@@ -188,15 +199,14 @@ void PlayerUpdateCamera(Player *player) {
 }
 
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
-    player->newPosition = player->position;
     
     PlayerProcessMovement(player, dt);
     PlayerProcessCollision(player, tree, arena);
     
-    player->position = player->newPosition;
+    player->position = player->potentialPosition;
     player->camera.position = player->position;
     PlayerUpdateCollisionData(player, player->position);
-
+    
     PlayerUpdateCamera(player);
 }
 
