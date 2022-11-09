@@ -49,10 +49,13 @@ void PlayerUpdateCollisionData(Player *player, vec3 position) {
     player->collider.a = position;
     player->collider.a.y += 0.2f;
     player->collider.b = position;
-    player->collider.b.y -= 0.6f;
+    player->collider.b.y -= 0.8f;
     player->down.o = player->collider.b;
     player->up.o = player->collider.a;
 }
+
+#include <windows.h>
+#include <stdio.h>
 
 void PlayerProcessMovement(Player *player, f32 dt) { 
     // Mouse and Right Stick movement
@@ -116,21 +119,18 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(lenSq(player->acceleration) > 1.0f) {
         player->acceleration = normalized(player->acceleration);
     }
-
+    f32 speed = 50.0f;
+    f32 dammping = 15.0f;
     if(player->grounded) {
-        player->speed = 40;
+        player->speed = speed;
         player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - player->velocity*10;
+        player->acceleration = player->acceleration - player->velocity*dammping;
     }
     else {
-        player->speed = 40.0f/10.0f;
+        player->speed = speed/20.0f;
         player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - player->velocity*10.0f/10.0f;
+        player->acceleration = player->acceleration - (player->velocity*dammping)/20.0f;
     }
-
-    player->potentialPosition = player->acceleration*0.5f*(dt*dt) +
-                                player->velocity*dt +
-                                player->position;
     player->velocity = player->acceleration*dt + player->velocity;
     player->potentialPosition = player->position + player->velocity * dt;    
          
@@ -150,7 +150,7 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     
 }
 
-void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
+void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     OBB obb;
     obb.c = player->position;
     obb.u[0] = {1, 0, 0};
@@ -185,24 +185,28 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
         StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
-#if 0
+#if 1
+            vec3 closest = ClosestPtPointOBB(player->position, obb);
+            PlayerUpdateCollisionData(player, player->position);
+            vec3 capsulePosition = ClosestPtPointSegment(closest, player->collider.a, player->collider.b);
+            PlayerUpdateCollisionData(player, player->potentialPosition);
+            vec3 potentialCapsulePosition = ClosestPtPointSegment(closest, player->collider.a, player->collider.b);
             Sphere sphere = {};
-            sphere.c = player->position;
+            sphere.c = capsulePosition;
             sphere.r = player->collider.r;
-            vec3 d = player->potentialPosition - player->position;
-
+            vec3 d = potentialCapsulePosition - capsulePosition;
             f32 t = 0.0f;
             if(IntersectMovingSphereOBB(sphere, d, *obb, &t)) {
-                vec3 hitPoint = player->position + d * t;
+                vec3 hitPoint = capsulePosition + d * t;
                 vec3 closestPoint = ClosestPtPointOBB(hitPoint, obb);
                 vec3 normal = normalized(hitPoint - closestPoint);
-                vec3 extraVelocity = player->potentialPosition - hitPoint;
-                player->potentialPosition = hitPoint;
-                f32 penetration1 = fabsf(dot(player->potentialPosition - hitPoint, normal));
-                //f32 penetration2 = player->collider.r - len(closestPoint - player->potentialPosition);
-                player->potentialPosition = player->potentialPosition + (normal * penetration1);
+                Plane collisionPlane;
+                collisionPlane.p = {0, 0, 0};
+                collisionPlane.n = normal; 
+                player->velocity = ClosestPtPointPlane(player->velocity, collisionPlane);
+                player->potentialPosition = (hitPoint + (normal * 0.002f) + (player->potentialPosition - potentialCapsulePosition));
+                player->potentialPosition = player->potentialPosition + player->velocity * dt;  ;
             }
-
 #else
             i32 iterations = 10;
 
@@ -218,7 +222,8 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
                 f32 penetration = player->collider.r - len(rayToClosest);
                 if(isnan(penetration)) penetration = 0;
                 if(penetration > 0) {
-                    vec3 velocity = player->potentialPosition - testPotentialPos; 
+                    //vec3 velocity = player->potentialPosition - testPotentialPos; 
+#if 0
                     Plane collisionPlane;
                     collisionPlane.p = testPotentialPos;
                     collisionPlane.n = normalized(testPotentialPos - closestPoint); 
@@ -227,6 +232,16 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena) {
                     vec3 offset = finalPosition - player->potentialPosition;
                     player->potentialPosition = player->potentialPosition + offset;
                     break;
+#else
+                    Plane collisionPlane;
+                    collisionPlane.p = {0, 0, 0};
+                    collisionPlane.n = normalized(testPotentialPos - closestPoint); 
+                    player->velocity = ClosestPtPointPlane(player->velocity, collisionPlane);
+                    player->potentialPosition = testPotentialPos - normalized(rayToClosest) * penetration;
+                    player->potentialPosition = player->potentialPosition + player->velocity * dt;  
+                    break;
+#endif
+
                 }
             }
 #endif
@@ -296,7 +311,7 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
 
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerProcessMovement(player, dt);
-    PlayerProcessCollision(player, tree, arena);
+    PlayerProcessCollision(player, tree, arena, dt);
     player->position = player->potentialPosition;
     player->camera.position = player->position;
     PlayerUpdateCamera(player);

@@ -9,10 +9,9 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
+// - integrate the equations of motions to the jump
 // - add some kind of enemy
 // - add font
-// - add equations of motion to the player movement
-// - try the collision response modifying de velocity not de position
 //////////////////////////////////////////////////////////////////////
 
 global_variable Vertex verticesCube[] = {
@@ -334,7 +333,7 @@ void GameInit(Memory *memory) {
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
     }
 
-    PlayerInitialize(&gameState->player, {2, 0, 4});
+    PlayerInitialize(&gameState->player, {2, 3, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
 
