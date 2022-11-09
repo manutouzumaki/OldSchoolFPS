@@ -9,12 +9,10 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - try to add the 2d quad razteraizer to the render queue (MULTITHREADING)
 // - add some kind of enemy
-// - implement ray cast base shooting system
-// - add sprites animations
 // - add font
 // - add equations of motion to the player movement
+// - try the collision response modifying de velocity not de position
 //////////////////////////////////////////////////////////////////////
 
 global_variable Vertex verticesCube[] = {
@@ -346,14 +344,11 @@ void GameInit(Memory *memory) {
 
 void GameUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
-    if(MouseGetButtonDown(MOUSE_BUTTON_LEFT) && !gameState->player.playAnimation) {
+    if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
-
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
     RendererSetView(gameState->player.camera.view);
-
-
 }
 
 void GameRender(Memory *memory) {
@@ -375,7 +370,16 @@ void GameRender(Memory *memory) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position); 
+    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position);
+
+    for(i32 i = 0; i < 10; ++i) {
+        vec3 position = gameState->player.bulletBuffer[i];
+        mat4 world = Mat4Translate(position.x, position.y, position.z) * Mat4Scale(0.05f, 0.05f, 0.05f);
+        RendererPushWorkToQueue(verticesCube2, indicesCube2, ARRAY_LENGTH(indicesCube2),
+                                gameState->bitmaps[3], NULL, 0,
+                                gameState->player.position, world, true, 1, 1);
+    }
+
     RendererFlushWorkQueue(); 
 
     //RendererDrawRectFast((WINDOW_WIDTH/2) - ((192)/2) - 20, 0, 192, 192, gameState->bitmaps[2]);

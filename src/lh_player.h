@@ -26,6 +26,7 @@ struct Player {
     vec3 position;
     vec3 potentialPosition;
     vec3 velocity;
+    vec3 acceleration;
     vec3 direction;
     f32 speed;
     f32 gravity;
@@ -37,6 +38,8 @@ struct Player {
     i32 frame;
     bool playAnimation;
     f32 animationTimer;
+    vec3 bulletBuffer[10];
+    i32 bulletBufferCount;
     
     f32 joystickSensitivity;
     f32 mouseSensitivity;

@@ -211,10 +211,12 @@ void ProcessInputAndMessages() {
     if(XInputGetState(0, &state) == ERROR_SUCCESS)
     {
         XINPUT_GAMEPAD *pad = &state.Gamepad;
-        for(i32 i = 0; i < ARRAY_LENGTH(gInput.joyButtons); ++i)
+        for(i32 i = 0; i < ARRAY_LENGTH(gInput.joyButtons) - 2; ++i)
         {
             gInput.joyButtons[i].isDown = pad->wButtons & XInputButtons[i];
         }
+        gInput.joyButtons[10].isDown = (pad->bLeftTrigger > 0);
+        gInput.joyButtons[11].isDown = (pad->bRightTrigger > 0);
         gInput.leftStickX =  ProcessXInputStick(pad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
         gInput.leftStickY =  ProcessXInputStick(pad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
         gInput.rightStickX = ProcessXInputStick(pad->sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);

@@ -20,6 +20,7 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->position = position;
     player->potentialPosition = position;
     player->velocity = {};
+    player->acceleration = {};
     player->direction = {0, 0, 1};
     player->speed = 3.5f;
     player->gravity = 9.8f;
@@ -93,29 +94,46 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     player->camera.right = normalized(cross(player->camera.up, player->camera.front));
     // TODO: this is a easy way of doing this... implement it better
     vec3 worldFront = normalized(cross(player->camera.right, player->camera.up));
+    player->direction = player->camera.front;
     
     // Keyboard and Left Stick movement
-    player->velocity = {};
+    player->acceleration = {};
     if(KeyboardGetKeyDown(KEYBOARD_KEY_W)) {
-        player->velocity = player->velocity + worldFront;
+        player->acceleration = player->acceleration + worldFront;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_S)) {
-        player->velocity = player->velocity - worldFront;
+        player->acceleration = player->acceleration - worldFront;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_D)) {
-        player->velocity = player->velocity + player->camera.right;
+        player->acceleration = player->acceleration + player->camera.right;
     }
     if(KeyboardGetKeyDown(KEYBOARD_KEY_A)) {
-        player->velocity = player->velocity - player->camera.right;
+        player->acceleration = player->acceleration - player->camera.right;
     }
-    player->velocity = player->velocity + player->camera.right * leftStickX;
-    player->velocity = player->velocity + worldFront * leftStickY; 
-    if(lenSq(player->velocity) > 0.0f) {
-        normalize(&player->velocity);
+    player->acceleration = player->acceleration + (player->camera.right * leftStickX);
+    player->acceleration = player->acceleration + (worldFront * leftStickY);
+
+    if(lenSq(player->acceleration) > 1.0f) {
+        player->acceleration = normalized(player->acceleration);
     }
 
-    player->potentialPosition = player->position + (player->velocity * player->speed) * dt;    
-     
+    if(player->grounded) {
+        player->speed = 40;
+        player->acceleration = player->acceleration * player->speed;
+        player->acceleration = player->acceleration - player->velocity*10;
+    }
+    else {
+        player->speed = 40.0f/10.0f;
+        player->acceleration = player->acceleration * player->speed;
+        player->acceleration = player->acceleration - player->velocity*10.0f/10.0f;
+    }
+
+    player->potentialPosition = player->acceleration*0.5f*(dt*dt) +
+                                player->velocity*dt +
+                                player->position;
+    player->velocity = player->acceleration*dt + player->velocity;
+    player->potentialPosition = player->position + player->velocity * dt;    
+         
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
@@ -224,10 +242,43 @@ void PlayerUpdateCamera(Player *player) {
     player->camera.view = Mat4LookAt(player->camera.position, player->camera.position + player->camera.front, player->camera.up);
 }
 
-void PlayerProcessGun(Player *player, f32 dt) {
-    if(MouseGetButtonDown(MOUSE_BUTTON_LEFT) && !player->playAnimation) {
+void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
+    if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !player->playAnimation) {
         player->playAnimation = true; 
         player->animationTimer = 0.0f;
+        
+        OBB obb;
+        obb.c = player->position;
+        obb.u[0] = {1, 0, 0};
+        obb.u[1] = {0, 1, 0};
+        obb.u[2] = {0, 0, 1};
+        obb.e = {20, 1, 20};
+        StaticEntityNode *entitiesToProcess = NULL;
+        i32 entitiesToProcessCount = 0;  
+        OctreeOBBQuery(tree, &obb, &entitiesToProcess, &entitiesToProcessCount, arena);
+        entitiesToProcess = entitiesToProcess - (entitiesToProcessCount - 1); 
+        Ray bullet;
+        bullet.o = player->position;
+        bullet.d = player->direction;
+        f32 tMin = FLT_MAX;
+        for(i32 i = 0; i < entitiesToProcessCount; ++i) {
+            StaticEntityNode *entityNode = entitiesToProcess + i;
+            StaticEntity *staticEntity = entityNode->object;
+            for(i32 j = 0; j < staticEntity->meshCount; ++j) {
+                OBB *obb = staticEntity->obbs + j; 
+                f32 t = 0;
+                if(RaycastOBB(obb, &bullet, &t)) {
+                    if(t < tMin) {
+                        tMin = t;
+                    }
+                }
+            }
+        }
+        vec3 hitPoint = bullet.o + bullet.d * tMin;
+        player->bulletBuffer[player->bulletBufferCount++] = hitPoint;
+        player->bulletBufferCount %= 10; 
+        
+
     }
     
     if(player->playAnimation) {
@@ -249,7 +300,7 @@ void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     player->position = player->potentialPosition;
     player->camera.position = player->position;
     PlayerUpdateCamera(player);
-    PlayerProcessGun(player, dt);
+    PlayerProcessGun(player, tree, arena, dt);
 }
 
 

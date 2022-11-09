@@ -13,6 +13,8 @@
 #define JOYSTICK_BUTTON_B      7
 #define JOYSTICK_BUTTON_X      8
 #define JOYSTICK_BUTTON_Y      9
+#define JOYSTICK_LEFT_TRIGGER  10
+#define JOYSTICK_RIGHT_TRIGGER 11
 
 #define KEYBOARD_KEY_BACKESPACE	 0x08
 #define KEYBOARD_KEY_ESCAPE      0x1B
@@ -94,7 +96,7 @@ struct Input {
     f32 leftStickY;
     f32 rightStickX;
     f32 rightStickY;
-
+    
     union {
         struct {
             ButtonState joyUp;
@@ -107,8 +109,10 @@ struct Input {
             ButtonState joyB;
             ButtonState joyX;
             ButtonState joyY;
+            ButtonState leftTrigger;
+            ButtonState rightTrigger;
         };
-        ButtonState joyButtons[10];  
+        ButtonState joyButtons[12];  
     };
 
     union {
