@@ -202,7 +202,8 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
                 vec3 normal = normalized(hitPoint - closestPoint);
                 player->potentialPosition = (hitPoint + (normal * 0.002f) + (player->potentialPosition - potentialCapsulePosition));
                 player->velocity = player->velocity - project(player->velocity, normal);
-                player->potentialPosition = player->potentialPosition + player->velocity * dt;
+                vec3 scaleVelocity = player->velocity * (1.0f - t);
+                player->potentialPosition = player->potentialPosition + scaleVelocity * dt;
             }
         }
     }
