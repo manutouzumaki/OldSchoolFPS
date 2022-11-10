@@ -200,12 +200,8 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
                 vec3 hitPoint = capsulePosition + d * t;
                 vec3 closestPoint = ClosestPtPointOBB(hitPoint, obb);
                 vec3 normal = normalized(hitPoint - closestPoint);
-                Plane collisionPlane;
-                collisionPlane.p = {0, 0, 0};
-                collisionPlane.n = normal;
-                // TODO: improve this velocity recalculation...
-                player->velocity = ClosestPtPointPlane(player->velocity, collisionPlane);
                 player->potentialPosition = (hitPoint + (normal * 0.002f) + (player->potentialPosition - potentialCapsulePosition));
+                player->velocity = player->velocity - project(player->velocity, normal);
                 player->potentialPosition = player->potentialPosition + player->velocity * dt;
             }
         }
