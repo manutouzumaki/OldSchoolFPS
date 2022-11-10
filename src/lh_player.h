@@ -30,8 +30,6 @@ struct Player {
     vec3 direction;
     f32 speed;
     f32 gravity;
-    f32 verticalVelocity;
-    f32 horizontalVelocity;
     bool grounded;
     
     i32 frameCount;

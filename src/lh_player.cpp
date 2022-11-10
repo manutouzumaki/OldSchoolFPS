@@ -24,8 +24,6 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->direction = {0, 0, 1};
     player->speed = 3.5f;
     player->gravity = 9.8f;
-    player->verticalVelocity = 0;
-    player->horizontalVelocity = 0;
     player->grounded = false;
     player->frameCount = 5;
     player->frame = 0;
@@ -119,6 +117,7 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(lenSq(player->acceleration) > 1.0f) {
         player->acceleration = normalized(player->acceleration);
     }
+
     f32 speed = 50.0f;
     f32 dammping = 15.0f;
     if(player->grounded) {
@@ -132,23 +131,25 @@ void PlayerProcessMovement(Player *player, f32 dt) {
         player->acceleration = player->acceleration - (player->velocity*dammping)/20.0f;
     }
     player->velocity = player->acceleration*dt + player->velocity;
-    player->potentialPosition = player->position + player->velocity * dt;    
-         
+
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
-        player->verticalVelocity = 4.5f;
+        vec3 jumpForce = {0, 5, 0};
+        player->velocity = player->velocity + jumpForce;
     }
     if(!player->grounded) {
-        player->verticalVelocity += -player->gravity * dt;
+        vec3 gravityVector = {0, -player->gravity, 0.0f};
+        player->velocity = player->velocity + gravityVector * dt;
     }
-    if(player->verticalVelocity < -6.0f) {
-        player->verticalVelocity = -6.0f;
-    }
-    player->potentialPosition.y += player->verticalVelocity * dt; 
+
+    player->potentialPosition = player->position + player->velocity * dt;
     PlayerUpdateCollisionData(player, player->potentialPosition);
     
 }
+
+#include <windows.h>
+#include <stdio.h>
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     OBB obb;
@@ -173,8 +174,8 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
             f32 t = 0;
             if(RaycastOBB(obb, &player->down, &t) && t <= 1.0f) {
                 flag = true;
-                if(player->verticalVelocity < 0) 
-                    player->verticalVelocity = 0;
+                if(player->velocity.y < 0) 
+                    player->velocity.y = 0;
             }
         }
     }
@@ -185,7 +186,6 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
         StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
-#if 1
             vec3 closest = ClosestPtPointOBB(player->position, obb);
             PlayerUpdateCollisionData(player, player->position);
             vec3 capsulePosition = ClosestPtPointSegment(closest, player->collider.a, player->collider.b);
@@ -202,51 +202,12 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
                 vec3 normal = normalized(hitPoint - closestPoint);
                 Plane collisionPlane;
                 collisionPlane.p = {0, 0, 0};
-                collisionPlane.n = normal; 
+                collisionPlane.n = normal;
+                // TODO: improve this velocity recalculation...
                 player->velocity = ClosestPtPointPlane(player->velocity, collisionPlane);
                 player->potentialPosition = (hitPoint + (normal * 0.002f) + (player->potentialPosition - potentialCapsulePosition));
-                player->potentialPosition = player->potentialPosition + player->velocity * dt;  ;
+                player->potentialPosition = player->potentialPosition + player->velocity * dt;
             }
-#else
-            i32 iterations = 10;
-
-            vec3 testPotentialPos = player->position;
-            for(i32 iter = 0; iter < iterations; ++iter) {
-                vec3 step = (player->potentialPosition - player->position) / iterations;
-                testPotentialPos = testPotentialPos + step;
-                vec3 closestPoint = ClosestPtPointOBB(testPotentialPos, obb);
-
-                PlayerUpdateCollisionData(player, testPotentialPos);
-                vec3 capsulePosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
-                vec3 rayToClosest = closestPoint - capsulePosition; 
-                f32 penetration = player->collider.r - len(rayToClosest);
-                if(isnan(penetration)) penetration = 0;
-                if(penetration > 0) {
-                    //vec3 velocity = player->potentialPosition - testPotentialPos; 
-#if 0
-                    Plane collisionPlane;
-                    collisionPlane.p = testPotentialPos;
-                    collisionPlane.n = normalized(testPotentialPos - closestPoint); 
-                    vec3 finalPosition = ClosestPtPointPlane(player->potentialPosition, collisionPlane) - normalized(rayToClosest) * penetration;
-                    player->potentialPosition = testPotentialPos - normalized(rayToClosest) * penetration;
-                    vec3 offset = finalPosition - player->potentialPosition;
-                    player->potentialPosition = player->potentialPosition + offset;
-                    break;
-#else
-                    Plane collisionPlane;
-                    collisionPlane.p = {0, 0, 0};
-                    collisionPlane.n = normalized(testPotentialPos - closestPoint); 
-                    player->velocity = ClosestPtPointPlane(player->velocity, collisionPlane);
-                    player->potentialPosition = testPotentialPos - normalized(rayToClosest) * penetration;
-                    player->potentialPosition = player->potentialPosition + player->velocity * dt;  
-                    break;
-#endif
-
-                }
-            }
-#endif
-
-
         }
     }
 }
