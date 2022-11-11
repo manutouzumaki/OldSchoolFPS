@@ -23,7 +23,7 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->acceleration = {};
     player->direction = {0, 0, 1};
     player->speed = 3.5f;
-    player->gravity = 9.8f;
+    player->gravity = 9.8f*100.0f;
     player->grounded = false;
     player->frameCount = 5;
     player->frame = 0;
@@ -34,7 +34,7 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->collider.a = position;
     player->collider.a.y += 0.2f;
     player->collider.b = position;
-    player->collider.b.y -= 0.6f;
+    player->collider.b.y -= 0.8f;
     player->collider.r = 0.3f;
     player->down.o = player->collider.b;
     player->down.d = {0, (-player->collider.r) - 0.1f, 0};
@@ -51,9 +51,6 @@ void PlayerUpdateCollisionData(Player *player, vec3 position) {
     player->down.o = player->collider.b;
     player->up.o = player->collider.a;
 }
-
-#include <windows.h>
-#include <stdio.h>
 
 void PlayerProcessMovement(Player *player, f32 dt) { 
     // Mouse and Right Stick movement
@@ -119,37 +116,35 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     }
 
     f32 speed = 50.0f;
-    f32 dammping = 15.0f;
+    f32 damping = 15.0f;
     if(player->grounded) {
         player->speed = speed;
         player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - player->velocity*dammping;
+        player->acceleration = player->acceleration - player->velocity*damping;
     }
     else {
         player->speed = speed/20.0f;
         player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - (player->velocity*dammping)/20.0f;
+        player->acceleration = player->acceleration - (player->velocity*damping)/20.0f;
     }
+    if(!player->grounded) {
+        vec3 gravityVector = {0, -player->gravity, 0.0f};
+        player->acceleration = player->acceleration + gravityVector * dt;
+    }
+
     player->velocity = player->acceleration*dt + player->velocity;
 
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
-        vec3 jumpForce = {0, 5, 0};
+        vec3 jumpForce = {0, 8, 0};
         player->velocity = player->velocity + jumpForce;
-    }
-    if(!player->grounded) {
-        vec3 gravityVector = {0, -player->gravity, 0.0f};
-        player->velocity = player->velocity + gravityVector * dt;
     }
 
     player->potentialPosition = player->position + player->velocity * dt;
     PlayerUpdateCollisionData(player, player->potentialPosition);
     
 }
-
-#include <windows.h>
-#include <stdio.h>
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     OBB obb;
@@ -204,6 +199,7 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
                 player->velocity = player->velocity - project(player->velocity, normal);
                 vec3 scaleVelocity = player->velocity * (1.0f - t);
                 player->potentialPosition = player->potentialPosition + scaleVelocity * dt;
+                PlayerUpdateCollisionData(player, player->potentialPosition);
             }
         }
     }
@@ -267,6 +263,7 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     }
 }
 
+
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerProcessMovement(player, dt);
     PlayerProcessCollision(player, tree, arena, dt);
@@ -275,43 +272,3 @@ void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerUpdateCamera(player);
     PlayerProcessGun(player, tree, arena, dt);
 }
-
-
-#if 0
-void PlayerCapsuleOBBsArray(Player *player, StaticEntityNode *entities, i32 count) {
-    for(i32 i = 0; i < count; ++i) {
-        StaticEntityNode *entityNode = entities + i;
-        StaticEntity *staticEntity = entityNode->object;
-        for(i32 j = 0; j < staticEntity->meshCount; ++j) {
-            OBB *obb = staticEntity->obbs + j;
-            vec3 closestPoint = ClosestPtPointOBB(player->position, obb);
-            vec3 testPosition = ClosestPtPointSegment(closestPoint, player->collider.a, player->collider.b);
-            f32 distanceSq = lenSq(closestPoint - testPosition);
-            if(distanceSq > player->collider.r * player->collider.r) {
-                obb->color = 0xFF00FF00;
-                continue;
-            }
-            obb->color = 0xFFFF0000;
-            vec3 normal = {0, 1, 0};
-            if(CMP(distanceSq, 0.0f)) {
-                f32 mSq = lenSq(closestPoint - obb->c);
-                if(CMP(mSq, 0.0f)) {
-                }
-                else {
-                    normal = normalized(closestPoint - obb->c);
-                }
-            }
-            else {
-                normal = normalized(testPosition - closestPoint);
-            }
-            
-            vec3 outsidePoint = testPosition - normal * player->collider.r;
-            f32 distance = len(closestPoint - outsidePoint);
-            player->position = player->position + normal * distance;
-            player->camera.position = player->position;
-            PlayerUpdateCollisionData(player);
-        }
-    }
-}
-#endif
-

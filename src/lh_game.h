@@ -5,6 +5,7 @@
 #include "lh_memory.h"
 #include "lh_math.h"
 #include "lh_player.h"
+#include "lh_enemy.h"
 
 struct Sound;
 struct Texture;
@@ -18,7 +19,7 @@ struct GameState {
     Arena soundArena;
     Arena staticEntitiesArena;
     
-    Texture *bitmaps[5];
+    Texture *bitmaps[6];
     Texture *skybox[6];
 
     Sound *chocolate;
@@ -26,6 +27,7 @@ struct GameState {
     Sound *shoot;
 
     Player player;
+    Enemy enemy;
     
     OctreeNode *tree;
     StaticEntity *entities;

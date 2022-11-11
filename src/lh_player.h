@@ -7,8 +7,6 @@
 
 struct OctreeNode;
 struct Arena;
-struct Mesh;
-struct Texture;
 
 struct Camera {
     vec3 position;
@@ -55,13 +53,5 @@ void PlayerUpdateCollisionData(Player *player, vec3 position, f32 dt);
 void PlayerProcessMovement(Player *player, f32 dt);
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
-
-
-struct Enemy {
-    vec3 position;
-    Mesh *mesh;
-    Texture *texture;
-    Capsule collider;
-};
 
 #endif

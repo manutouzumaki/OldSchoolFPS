@@ -9,10 +9,9 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - improve this velocity recalculation
-// - fix inconsitent jump height
-// - integrate the equations of motions to the jump
 // - add some kind of enemy
+// - add aplha blending to the 3d software renderer
+// - improve the physic of the player
 // - add font
 //////////////////////////////////////////////////////////////////////
 
@@ -196,6 +195,7 @@ void GameInit(Memory *memory) {
     gameState->bitmaps[2] = TextureCreate("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[3] = TextureCreate("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[4] = TextureCreate("../assets/shootSpritesheet.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[5] = TextureCreate("../assets/enemy.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -339,7 +339,9 @@ void GameInit(Memory *memory) {
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
 
-    SoundPlay(gameState->music, true); 
+
+    EnemyInitialize(&gameState->enemy, {2, -0.3, 10}, gameState->bitmaps[5]);
+    //SoundPlay(gameState->music, true); 
 
 }
 
@@ -350,6 +352,7 @@ void GameUpdate(Memory *memory, f32 dt) {
     }
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
     RendererSetView(gameState->player.camera.view);
+    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
 }
 
 void GameRender(Memory *memory) {
@@ -380,6 +383,13 @@ void GameRender(Memory *memory) {
                                 gameState->bitmaps[3], NULL, 0,
                                 gameState->player.position, world, true, 1, 1);
     }
+
+    RendererFlushWorkQueue(); 
+
+    // TODO: render the enemy
+    Enemy *enemy = &gameState->enemy;
+    RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->texture,
+                            NULL, 0, gameState->player.position, enemy->mesh.world, true, 1, 1);
 
     RendererFlushWorkQueue(); 
 
