@@ -188,26 +188,14 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
     MSG msg = {};
     gRunning = true;
+
+    f32 accumulator = 0.0f;
+    f32 dt = 1.0f/60.0f;
         
     while(gRunning) {
-        // if we have time left Sleep
-#if 0
-        LARGE_INTEGER workCounter = {};
-        QueryPerformanceCounter(&workCounter);
-        f32 secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
-        while(secondsElapsed < TARGET_SECONDS_PER_FRAME) {
-            // TODO: look for an alternative
-            DWORD milisecondsToSleep = (DWORD)((TARGET_SECONDS_PER_FRAME - secondsElapsed) * 1000.0f);
-            Sleep(milisecondsToSleep);
-            QueryPerformanceCounter(&workCounter);
-            secondsElapsed = (f32)(workCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
-        }
-#endif
-
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
         f32 deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
-
 #if 1
         char buffer[256];
         sprintf(buffer, "MS: %f\n", deltaTime * 1000.0f);
@@ -218,8 +206,16 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
         // flush windows messages
         ProcessInputAndMessages();
-       
+        
         GameUpdate(&memory, deltaTime); 
+        
+        f32 frameTime = deltaTime;
+        accumulator += frameTime;
+        while(accumulator >= dt) {
+            GameFixUpdate(&memory, dt);
+            accumulator -= dt;
+        }
+
         GameRender(&memory);
 
         gLastInput = gInput; 

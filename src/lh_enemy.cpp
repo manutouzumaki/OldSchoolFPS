@@ -53,11 +53,30 @@ void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture) {
     enemy->collider.b.y -= 0.8f;
 }
 
-void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt) {
-    // TODO: test the other way of doing this...    
+#include "windows.h"
+#include "stdio.h"
+
+void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, vec3 playerPosition, f32 dt) {
+#if 1
+    // DOOM use this kind of rotation
     enemy->mesh.transform.rotation.y = -DEG(cameraYaw) + 90;
     enemy->mesh.world = TransformToMat4(enemy->mesh.transform.position,
                                         enemy->mesh.transform.rotation,
                                         enemy->mesh.transform.scale);
-
+#else
+    vec2 planeEnemyFront = {enemy->direction.x, enemy->direction.z};
+    vec2 planeEnemyRight = {enemy->direction.z, -enemy->direction.x};
+    vec2 planeEnemyPosition = {enemy->position.x, enemy->position.z};
+    vec2 planePlayerPosition = {playerPosition.x, playerPosition.z};
+    vec2 relativePosition = normalized(planePlayerPosition - planeEnemyPosition);
+    f32 angleSide = dot(planeEnemyRight, relativePosition);
+    f32 angle = acosf(dot(planeEnemyFront, relativePosition));
+    if(angleSide < 0.0f) {
+        angle = (RAD(360.0f) - angle);
+    }
+    enemy->mesh.transform.rotation.y = DEG(angle) + 180.0f;
+    enemy->mesh.world = TransformToMat4(enemy->mesh.transform.position,
+                                        enemy->mesh.transform.rotation,
+                                        enemy->mesh.transform.scale);
+#endif
 }

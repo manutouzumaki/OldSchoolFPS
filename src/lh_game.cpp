@@ -9,6 +9,7 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
+// - fix jump VERY IMPORTANT
 // - add some kind of enemy
 // - add aplha blending to the 3d software renderer
 // - improve the physic of the player
@@ -179,7 +180,8 @@ void GameInit(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     memory->used += sizeof(GameState);
 
-    WindowSystemInitialize(WINDOW_WIDTH, WINDOW_HEIGHT, "Last Hope 3D");
+    //WindowSystemInitialize(WINDOW_WIDTH, WINDOW_HEIGHT, "Last Hope 3D");
+    WindowSystemInitialize(WINDOW_WIDTH, WINDOW_HEIGHT, "Minecraft");
     RendererSystemInitialize();
     SoundSystemInitialize();
     
@@ -335,7 +337,7 @@ void GameInit(Memory *memory) {
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
     }
 
-    PlayerInitialize(&gameState->player, {2, 3, 4});
+    PlayerInitialize(&gameState->player, {2, 4, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
 
@@ -350,13 +352,18 @@ void GameUpdate(Memory *memory, f32 dt) {
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
+    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, gameState->player.position, dt);
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
-    RendererSetView(gameState->player.camera.view);
-    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
+}
+
+void GameFixUpdate(Memory *memory, f32 dt) {
+    GameState *gameState = (GameState *)memory->data;
+    PlayerFixUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
 }
 
 void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
+    RendererSetView(gameState->player.camera.view);
     RendererClearBuffers(0xFFFFFFEE, 0.0f);
 
     // SKYBOX

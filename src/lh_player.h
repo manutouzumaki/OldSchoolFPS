@@ -53,5 +53,6 @@ void PlayerUpdateCollisionData(Player *player, vec3 position, f32 dt);
 void PlayerProcessMovement(Player *player, f32 dt);
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
+void PlayerFixUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 
 #endif

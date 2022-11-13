@@ -22,8 +22,8 @@ void PlayerInitialize(Player *player, vec3 position) {
     player->velocity = {};
     player->acceleration = {};
     player->direction = {0, 0, 1};
-    player->speed = 3.5f;
-    player->gravity = 9.8f*100.0f;
+    player->speed = 24.0f;
+    player->gravity = 9.8f*1.5f;
     player->grounded = false;
     player->frameCount = 5;
     player->frame = 0;
@@ -50,6 +50,24 @@ void PlayerUpdateCollisionData(Player *player, vec3 position) {
     player->collider.b.y -= 0.8f;
     player->down.o = player->collider.b;
     player->up.o = player->collider.a;
+}
+
+void PlayerIntegrate(Player *player, f32 dt) {
+    player->velocity = player->velocity + player->acceleration * dt;
+    player->potentialPosition = player->position + player->velocity * dt;
+    
+    if(player->grounded) {
+        f32 damping = powf(0.001f, dt);
+        player->velocity.x = player->velocity.x * damping;
+        player->velocity.y = player->velocity.y * damping;
+        player->velocity.z = player->velocity.z * damping;
+    }
+    else {
+        f32 damping = powf(0.999f, dt);
+        player->velocity.x = player->velocity.x * damping;
+        player->velocity.y = player->velocity.y * damping;
+        player->velocity.z = player->velocity.z * damping;    
+    }
 }
 
 void PlayerProcessMovement(Player *player, f32 dt) { 
@@ -114,36 +132,22 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     if(lenSq(player->acceleration) > 1.0f) {
         player->acceleration = normalized(player->acceleration);
     }
-
-    f32 speed = 50.0f;
-    f32 damping = 15.0f;
-    if(player->grounded) {
-        player->speed = speed;
-        player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - player->velocity*damping;
-    }
-    else {
-        player->speed = speed/20.0f;
-        player->acceleration = player->acceleration * player->speed;
-        player->acceleration = player->acceleration - (player->velocity*damping)/20.0f;
-    }
+    player->acceleration = player->acceleration * player->speed;
     if(!player->grounded) {
         vec3 gravityVector = {0, -player->gravity, 0.0f};
-        player->acceleration = player->acceleration + gravityVector * dt;
+        player->acceleration = player->acceleration + gravityVector;
     }
-
-    player->velocity = player->acceleration*dt + player->velocity;
+    if(!player->grounded) {
+        player->acceleration.x *= 0.001f;
+        player->acceleration.z *= 0.001f;
+    }
 
     // Jump
     if((JoysickGetButtonJustDown(JOYSTICK_BUTTON_A) || KeyboardGetKeyJustDown(KEYBOARD_KEY_SPACE)) &&
         player->grounded) {
         vec3 jumpForce = {0, 8, 0};
         player->velocity = player->velocity + jumpForce;
-    }
-
-    player->potentialPosition = player->position + player->velocity * dt;
-    PlayerUpdateCollisionData(player, player->potentialPosition);
-    
+    }    
 }
 
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
@@ -158,7 +162,6 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
     OctreeOBBQuery(tree, &obb, &entitiesToProcess, &entitiesToProcessCount, arena);
     entitiesToProcess = entitiesToProcess - (entitiesToProcessCount - 1);
 
-    // TODO: fix this to work on low frame rates
     // ray floor test
     bool flag = false;
     for(i32 i = 0; i < entitiesToProcessCount; ++i) {
@@ -169,8 +172,10 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
             f32 t = 0;
             if(RaycastOBB(obb, &player->down, &t) && t <= 1.0f) {
                 flag = true;
-                if(player->velocity.y < 0) 
+                if(player->velocity.y < 0) { 
                     player->velocity.y = 0;
+                    player->acceleration.y = 0;
+                }
             }
         }
     }
@@ -182,10 +187,10 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             OBB *obb = staticEntity->obbs + j;
             vec3 closest = ClosestPtPointOBB(player->position, obb);
-            PlayerUpdateCollisionData(player, player->position);
             vec3 capsulePosition = ClosestPtPointSegment(closest, player->collider.a, player->collider.b);
-            PlayerUpdateCollisionData(player, player->potentialPosition);
-            vec3 potentialCapsulePosition = ClosestPtPointSegment(closest, player->collider.a, player->collider.b);
+            vec3 offset = capsulePosition - player->position;
+            vec3 potentialCapsulePosition = player->potentialPosition + offset;
+            
             Sphere sphere = {};
             sphere.c = capsulePosition;
             sphere.r = player->collider.r;
@@ -199,7 +204,6 @@ void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 
                 player->velocity = player->velocity - project(player->velocity, normal);
                 vec3 scaleVelocity = player->velocity * (1.0f - t);
                 player->potentialPosition = player->potentialPosition + scaleVelocity * dt;
-                PlayerUpdateCollisionData(player, player->potentialPosition);
             }
         }
     }
@@ -246,29 +250,29 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
         vec3 hitPoint = bullet.o + bullet.d * tMin;
         player->bulletBuffer[player->bulletBufferCount++] = hitPoint;
         player->bulletBufferCount %= 10; 
-        
-
     }
-    
     if(player->playAnimation) {
         player->frame = (i32)player->animationTimer;
         player->animationTimer += 15.0f * dt;
-        
         if(player->frame >= player->frameCount) {
             player->playAnimation = false;
             player->animationTimer = 0.0f;
             player->frame = 0;
         }
-
     }
 }
 
-
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
     PlayerProcessMovement(player, dt);
-    PlayerProcessCollision(player, tree, arena, dt);
-    player->position = player->potentialPosition;
-    player->camera.position = player->position;
-    PlayerUpdateCamera(player);
     PlayerProcessGun(player, tree, arena, dt);
 }
+
+void PlayerFixUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt) {
+    PlayerIntegrate(player, dt);
+    PlayerProcessCollision(player, tree, arena, dt);
+    player->position = player->potentialPosition;
+    PlayerUpdateCollisionData(player, player->position);
+    player->camera.position = player->position;
+    PlayerUpdateCamera(player);
+}
+

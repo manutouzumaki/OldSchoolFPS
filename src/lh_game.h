@@ -35,6 +35,7 @@ struct GameState {
 };
 
 void GameInit(Memory *memory);
+void GameFixUpdate(Memory *memory, f32 dt);
 void GameUpdate(Memory *memory, f32 dt);
 void GameRender(Memory *memory);
 void GameShutdown(Memory *memory);

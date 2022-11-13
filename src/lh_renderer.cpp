@@ -326,7 +326,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 specularColorY = _mm_set1_ps(1);
         __m128 specularColorZ = _mm_set1_ps(0.4f);
         
-        __m128 ambientStrength  = _mm_set1_ps(0.3f);
+        __m128 ambientStrength  = _mm_set1_ps(0.2f);
         __m128 diffuseStrength = _mm_set1_ps(0.6f);
         __m128 specularStrength = _mm_set1_ps(0.7f);
 
@@ -445,7 +445,82 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                                 _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(g),  8), _mm_cvtps_epi32(b)));
                         }
 
-#if 1
+#if 0
+                        __m128 interpolatedNormalX = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormX, alpha), _mm_mul_ps(bNormX, gamma)), _mm_mul_ps(cNormX, beta));
+                        __m128 interpolatedNormalY = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormY, alpha), _mm_mul_ps(bNormY, gamma)), _mm_mul_ps(cNormY, beta));
+                        __m128 interpolatedNormalZ = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormZ, alpha), _mm_mul_ps(bNormZ, gamma)), _mm_mul_ps(cNormZ, beta));
+                        // normalized the interpolatedNormals...
+                        __m128 squaredLength = _mm_add_ps(
+                                                    _mm_add_ps(_mm_mul_ps(interpolatedNormalX, interpolatedNormalX),
+                                                               _mm_mul_ps(interpolatedNormalY, interpolatedNormalY)),
+                                               _mm_mul_ps(interpolatedNormalZ, interpolatedNormalZ));
+                        __m128 length = _mm_sqrt_ps(squaredLength);
+                        __m128 normalizeInterpolatedNormalX = _mm_div_ps(interpolatedNormalX, length);
+                        __m128 normalizeInterpolatedNormalY = _mm_div_ps(interpolatedNormalY, length);
+                        __m128 normalizeInterpolatedNormalZ = _mm_div_ps(interpolatedNormalZ, length);
+
+                        __m128 interpolatedFragPosX = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aFragPosX, alpha), _mm_mul_ps(bFragPosX, gamma)), _mm_mul_ps(cFragPosX, beta));
+                        __m128 interpolatedFragPosY = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aFragPosY, alpha), _mm_mul_ps(bFragPosY, gamma)), _mm_mul_ps(cFragPosY, beta));
+                        __m128 interpolatedFragPosZ = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aFragPosZ, alpha), _mm_mul_ps(bFragPosZ, gamma)), _mm_mul_ps(cFragPosZ, beta)); 
+                       
+                        // apply the Lighting to the color.
+                        // get the frag colors in floating point values
+                        __m128 red   = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 16), u255));
+                        __m128 green = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
+                        __m128 blue  = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
+                        
+                        vec3 lightDir = {0.3f, -1.0f, 1.0f};
+                        normalize(&lightDir);
+                        __m128 lightDirX = _mm_set1_ps(lightDir.x);
+                        __m128 lightDirY = _mm_set1_ps(lightDir.y);
+                        __m128 lightDirZ = _mm_set1_ps(lightDir.z);
+
+
+                        __m128 ambientX = _mm_mul_ps(lightColorX, ambientStrength);
+                        __m128 ambientY = _mm_mul_ps(lightColorY, ambientStrength);
+                        __m128 ambientZ = _mm_mul_ps(lightColorZ, ambientStrength);
+
+                        __m128 diff =  _mm_min_ps(_mm_max_ps(
+                                        _mm_add_ps(
+                                             _mm_add_ps(_mm_mul_ps(normalizeInterpolatedNormalX, lightDirX),
+                                                        _mm_mul_ps(normalizeInterpolatedNormalY, lightDirY)),
+                                                        _mm_mul_ps(normalizeInterpolatedNormalZ, lightDirZ)),
+                                       zero), one);
+
+                        __m128 diffuseX = _mm_mul_ps(_mm_mul_ps(diffuseColorX, diff), diffuseStrength);
+                        __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(diffuseColorY, diff), diffuseStrength);
+                        __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(diffuseColorZ, diff), diffuseStrength);
+
+                        __m128 resultX = _mm_mul_ps(_mm_add_ps(ambientX, diffuseX), red);
+                        __m128 resultY = _mm_mul_ps(_mm_add_ps(ambientY, diffuseY), green);
+                        __m128 resultZ = _mm_mul_ps(_mm_add_ps(ambientZ, diffuseZ), blue);
+
+                        // clamp to 0-255 range
+                        resultX = _mm_min_ps(_mm_max_ps(resultX, zero), f255);
+                        resultY = _mm_min_ps(_mm_max_ps(resultY, zero), f255);
+                        resultZ = _mm_min_ps(_mm_max_ps(resultZ, zero), f255);
+
+                        __m128i r = _mm_cvtps_epi32(resultX);
+                        __m128i g = _mm_cvtps_epi32(resultY);
+                        __m128i b = _mm_cvtps_epi32(resultZ);
+                        __m128i a = _mm_cvtps_epi32(f255);
+
+                        __m128i sr = _mm_slli_epi32(r, 16);
+                        __m128i sg = _mm_slli_epi32(g, 8);
+                        __m128i sb = b;
+                        __m128i sa = _mm_slli_epi32(a, 24);
+                        if(lightsCount) { 
+                            color = _mm_or_si128(_mm_or_si128(sr, sg), _mm_or_si128(sb, sa));
+                        }
+
+
+
+
+
+
+
+
+#else
                         __m128 finalColorX = _mm_set1_ps(0);
                         __m128 finalColorY = _mm_set1_ps(0);
                         __m128 finalColorZ = _mm_set1_ps(0);
