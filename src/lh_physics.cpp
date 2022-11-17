@@ -12,10 +12,10 @@ void PhysicSystemShutdown() {
     // TODO: ...
 }
 
-SlotmapKey PhysicAddObject(PhysicObject *outObject) {
+SlotmapKey PhysicAddObject(PhysicObject **outObject) {
     PhysicObject object = {};
     SlotmapKey key = gPhysicWorld.objects.Add(object);
-    outObject = gPhysicWorld.objects.GetPtr(key);
+    *outObject = gPhysicWorld.objects.GetPtr(key);
     return key;
 }
 
@@ -111,8 +111,7 @@ void UpdateCollisionData(PhysicObject *object, vec3 position) {
     object->down.o = object->collider.b;
 }
 
-PhysicWorldState PhysicStep(OctreeNode *tree, Arena *arena, f32 dt) {
-    PhysicWorldState state = {};
+void PhysicStep(OctreeNode *tree, Arena *arena, f32 dt) {
     for(i32 i = 0; i < gPhysicWorld.objects.count; ++i) {
         PhysicObject *object = gPhysicWorld.objects.data + i;
 
@@ -120,19 +119,20 @@ PhysicWorldState PhysicStep(OctreeNode *tree, Arena *arena, f32 dt) {
         ProcessCollision(object, tree, arena, dt);
         object->position = object->potentialPosition;
         UpdateCollisionData(object, object->position);
-
-        state.objects[i] = *object;
-        state.objectCount++;
     }
-    return state;
 }
 
-PhysicWorldState PhysicInterpolate(PhysicWorldState a, PhysicWorldState b, f32 t) {
-    PhysicWorldState state = {};
-    return state;
+vec3 PhysicInterpolatePosition(PhysicObject *a, PhysicObject *b, f32 t) {
+    vec3 result = a->position * (1.0f - t) + b->position * t;
+    return result;
 }
 
 void PhysicAddForce(SlotmapKey key, vec3 force) {
     PhysicObject *object = gPhysicWorld.objects.GetPtr(key);
     object->acceleration = object->acceleration + force;
+}
+
+void PhysicAddImpulse(SlotmapKey key, vec3 impulse) {
+    PhysicObject *object = gPhysicWorld.objects.GetPtr(key);
+    object->velocity = object->velocity + impulse;
 }

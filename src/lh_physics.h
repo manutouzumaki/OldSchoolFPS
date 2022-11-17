@@ -26,17 +26,13 @@ struct PhysicWorld {
     Slotmap<PhysicObject, MAX_PHYSIC_OBJECTS_IN_WORLD> objects;
 };
 
-struct PhysicWorldState {
-    PhysicObject objects[MAX_PHYSIC_OBJECTS_IN_WORLD];
-    i32 objectCount;
-};
-
 void PhysicSystemInitialize();
 void PhysicSystemShutdown();
-SlotmapKey PhysicAddObject(PhysicObject *outObject);
+SlotmapKey PhysicAddObject(PhysicObject **outObject);
 void PhysicRemoveObject(SlotmapKey key);
-PhysicWorldState PhysicStep(OctreeNode *tree, Arena *arena, f32 dt);
-PhysicWorldState PhysicInterpolate(PhysicWorldState a, PhysicWorldState b, f32 t);
+void PhysicStep(OctreeNode *tree, Arena *arena, f32 dt);
+vec3 PhysicInterpolatePosition(PhysicObject *a, PhysicObject *b, f32 t);
 void PhysicAddForce(SlotmapKey key, vec3 force);
+void PhysicAddImpulse(SlotmapKey key, vec3 impulse);
 
 #endif

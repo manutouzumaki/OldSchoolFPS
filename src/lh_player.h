@@ -3,7 +3,7 @@
 
 #include "lh_defines.h"
 #include "lh_math.h"
-#include "lh_collision.h"
+#include "lh_physics.h"
 
 struct OctreeNode;
 struct Arena;
@@ -20,6 +20,33 @@ struct Camera {
     f32 fov;
 };
 
+#if 1
+
+struct Player {
+    PhysicObject *physic;
+    PhysicObject lastPhysicState;
+    SlotmapKey physicId;
+    vec3 direction;
+    f32 speed;
+    f32 gravity;
+    
+    i32 frameCount;
+    i32 frame;
+    bool playAnimation;
+    f32 animationTimer;
+    vec3 bulletBuffer[10];
+    i32 bulletBufferCount;
+    
+    f32 joystickSensitivity;
+    f32 mouseSensitivity;
+    i32 mouseDefaultScreenX;
+    i32 mouseDefaultScreenY;
+
+    Camera camera;
+};
+
+
+#else
 struct Player {
     vec3 position;
     vec3 potentialPosition;
@@ -47,6 +74,17 @@ struct Player {
     Ray down;
     Ray up;
 };
+#endif
+
+#if 1
+void PlayerInitialize(Player *player, vec3 position);
+void PlayerProcessMovement(Player *player, f32 dt);
+void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
+void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
+void PlayerFixUpdate(Player *player, f32 dt);
+void PlayerPostUpdate(Player *player, f32 t);
+
+#else
 
 void PlayerInitialize(Player *player, vec3 position);
 void PlayerUpdateCollisionData(Player *player, vec3 position, f32 dt);
@@ -54,5 +92,7 @@ void PlayerProcessMovement(Player *player, f32 dt);
 void PlayerProcessCollision(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
 void PlayerFixUpdate(Player *player, OctreeNode *tree, Arena *arena, f32 dt);
+
+#endif
 
 #endif

@@ -216,6 +216,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
             accumulator -= dt;
         }
 
+        f32 t = accumulator / dt;
+
+        GamePostUpdate(&memory, t);
+
         GameRender(&memory);
 
         gLastInput = gInput; 

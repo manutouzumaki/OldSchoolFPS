@@ -5,6 +5,7 @@
 #include "lh_texture.h"
 #include "lh_input.h"
 #include "lh_static_entity.h"
+#include "lh_physics.h"
 
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
@@ -184,6 +185,7 @@ void GameInit(Memory *memory) {
     WindowSystemInitialize(WINDOW_WIDTH, WINDOW_HEIGHT, "Minecraft");
     RendererSystemInitialize();
     SoundSystemInitialize();
+    PhysicSystemInitialize();
     
     gameState->dataArena = ArenaCreate(memory, Megabytes(500));
     gameState->frameArena = ArenaCreate(memory, Megabytes(10));
@@ -352,13 +354,19 @@ void GameUpdate(Memory *memory, f32 dt) {
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
-    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, gameState->player.position, dt);
+    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, gameState->player.physic->position, dt);
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
 }
 
 void GameFixUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
-    PlayerFixUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
+    PlayerFixUpdate(&gameState->player, dt);
+    PhysicStep(gameState->tree, &gameState->frameArena, dt); 
+}
+
+void GamePostUpdate(Memory *memory, f32 t) {
+    GameState *gameState = (GameState *)memory->data;
+    PlayerPostUpdate(&gameState->player, t);
 }
 
 void GameRender(Memory *memory) {
@@ -367,11 +375,11 @@ void GameRender(Memory *memory) {
     RendererClearBuffers(0xFFFFFFEE, 0.0f);
 
     // SKYBOX
-    DrawSkybox(gameState->player.position, gameState);
+    DrawSkybox(gameState->player.camera.position, gameState);
     RendererFlushWorkQueue(); 
 
     OBB obb;
-    obb.c = gameState->player.position;
+    obb.c = gameState->player.camera.position;
     obb.u[0] = {1, 0, 0};
     obb.u[1] = {0, 1, 0};
     obb.u[2] = {0, 0, 1};
@@ -381,14 +389,14 @@ void GameRender(Memory *memory) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.position);
+    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.camera.position);
 
     for(i32 i = 0; i < 10; ++i) {
         vec3 position = gameState->player.bulletBuffer[i];
         mat4 world = Mat4Translate(position.x, position.y, position.z) * Mat4Scale(0.05f, 0.05f, 0.05f);
         RendererPushWorkToQueue(verticesCube2, indicesCube2, ARRAY_LENGTH(indicesCube2),
                                 gameState->bitmaps[3], NULL, 0,
-                                gameState->player.position, world, true, 1, 1);
+                                gameState->player.camera.position, world, true, 1, 1);
     }
 
     RendererFlushWorkQueue(); 
@@ -396,7 +404,7 @@ void GameRender(Memory *memory) {
     // TODO: render the enemy
     Enemy *enemy = &gameState->enemy;
     RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->texture,
-                            NULL, 0, gameState->player.position, enemy->mesh.world, true, 1, 1);
+                            NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
 
     RendererFlushWorkQueue(); 
 
@@ -417,6 +425,7 @@ void GameShutdown(Memory * memory) {
     SoundDestroy(gameState->music);
     SoundDestroy(gameState->chocolate);
 
+    PhysicSystemShutdown();
     SoundSystemShudown();
     RendererSystemShutdown();
     WindowSystemShutdown();
