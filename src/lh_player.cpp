@@ -126,10 +126,7 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     }    
 }
 
-#include "windows.h"
-#include "stdio.h"
-
-void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, f32 dt) {
+void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemies, i32 enemyCount, f32 dt) {
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !player->playAnimation) {
         player->playAnimation = true; 
         player->animationTimer = 0.0f;
@@ -166,28 +163,36 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *ene
 
         // test ray against enemies
         // pistol have a range of fire of 20 units
+        f32 shootRange = 30.0f;
         vec3 p1 = player->physic->position;
-        vec3 q1 = player->physic->position + (player->direction * 20.0f);
-        vec3 p2 = enemy->collider.b;
-        vec3 q2 = enemy->collider.b + (enemy->collider.a - enemy->collider.b);
-        f32 s, t;
-        vec3 c1, c2;
-        f32 sqDist = ClosestPtSegmentSegment(p1, q1, p2, q2, s, t, c1, c2); 
-        if((sqDist <= (enemy->collider.r * enemy->collider.r)) && ((s*20.0f) < tMin)) {
-            //tMin = s*20.0f;
-            OutputDebugString("Enemy Hit\n");
-            enemy->currentTexture = enemy->hitTexture;
-            enemy->hitTimer = 0.2f;
+        vec3 q1 = player->physic->position + (player->direction * shootRange);
 
+        f32 enemyTMin = FLT_MAX;
+        Enemy *enemyHit = NULL;
+        for(i32 i = 0; i < enemyCount; ++i) {
+            Enemy *enemy = enemies + i;
+            vec3 p2 = enemy->collider.b;
+            vec3 q2 = enemy->collider.b + (enemy->collider.a - enemy->collider.b);
+            f32 s, t;
+            vec3 c1, c2;
+            f32 sqDist = ClosestPtSegmentSegment(p1, q1, p2, q2, s, t, c1, c2); 
+            if((sqDist <= (enemy->collider.r * enemy->collider.r))) {
+                if(s < enemyTMin) {
+                    enemyHit = enemy;
+                    enemyTMin = s;
+                }
+            }
+        }
+        if((enemyTMin*shootRange) < tMin) {
+            EnemyWasShoot(enemyHit); 
         }
         else {
-            OutputDebugString("Enemy Not Hit\n");
+            vec3 hitPoint = bullet.o + bullet.d * tMin;
+            player->bulletBuffer[player->bulletBufferCount++] = hitPoint;
+            player->bulletBufferCount %= 10; 
         }
-        
-        vec3 hitPoint = bullet.o + bullet.d * tMin;
-        player->bulletBuffer[player->bulletBufferCount++] = hitPoint;
-        player->bulletBufferCount %= 10; 
     }
+
     if(player->playAnimation) {
         player->frame = (i32)player->animationTimer;
         player->animationTimer += 15.0f * dt;
@@ -199,9 +204,9 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *ene
     }
 }
 
-void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, f32 dt) {
+void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, i32 enemyCount, f32 dt) {
     PlayerProcessMovement(player, dt);
-    PlayerProcessGun(player, tree, arena, enemy, dt);
+    PlayerProcessGun(player, tree, arena, enemy, enemyCount, dt);
 }
 
 void PlayerFixUpdate(Player *player, f32 dt) {

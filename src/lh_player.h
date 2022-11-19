@@ -46,8 +46,8 @@ struct Player {
 
 void PlayerInitialize(Player *player, vec3 position);
 void PlayerProcessMovement(Player *player, f32 dt);
-void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, f32 dt);
-void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, f32 dt);
+void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, i32 enemyCount, f32 dt);
+void PlayerUpdate(Player *player, OctreeNode *tree, Arena *arena, Enemy *enemy, i32 enemyCount, f32 dt);
 void PlayerFixUpdate(Player *player, f32 dt);
 void PlayerPostUpdate(Player *player, f32 t);
 

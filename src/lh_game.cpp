@@ -342,7 +342,13 @@ void GameInit(Memory *memory) {
     RendererSetView(gameState->player.camera.view);
 
 
-    EnemyInitialize(&gameState->enemy, {2, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[0], {2, -0.3, 5}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[1], {3, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[2], {3, -0.3, 25}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[3], {12, -0.3, 20}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[4], {16, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[5], {17, -0.3, 15}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    gameState->enemyCount = 6;
     //SoundPlay(gameState->music, true); 
 
 }
@@ -353,8 +359,12 @@ void GameUpdate(Memory *memory, f32 dt) {
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
-    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
-    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, &gameState->enemy, dt);
+    for(i32 i = 0; i < gameState->enemyCount; ++i) {
+        Enemy *enemy = gameState->enemy + i;
+        EnemyUpdate(enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
+    }
+    
+    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, gameState->enemy, gameState->enemyCount, dt);
 }
 
 void GameFixUpdate(Memory *memory, f32 dt) {
@@ -401,9 +411,11 @@ void GameRender(Memory *memory) {
     RendererFlushWorkQueue(); 
 
     // TODO: render the enemy
-    Enemy *enemy = &gameState->enemy;
-    RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
-                            NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
+    for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
+        Enemy *enemy = gameState->enemy + i;
+        RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
+                                NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
+    }
 
     RendererFlushWorkQueue(); 
 

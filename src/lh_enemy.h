@@ -23,5 +23,6 @@ struct Enemy {
 
 void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hitTexture);
 void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt);
+void EnemyWasShoot(Enemy *enemy);
 
 #endif

@@ -56,8 +56,10 @@ void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hit
     enemy->collider.r = 0.3f;
 }
 
-#include "windows.h"
-#include "stdio.h"
+void EnemyWasShoot(Enemy *enemy) {
+    enemy->currentTexture = enemy->hitTexture;
+    enemy->hitTimer = 0.2f;
+}
 
 void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt) {
 #if 1

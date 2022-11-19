@@ -27,7 +27,8 @@ struct GameState {
     Sound *shoot;
 
     Player player;
-    Enemy enemy;
+    Enemy enemy[6];
+    i32 enemyCount;
     
     OctreeNode *tree;
     StaticEntity *entities;
