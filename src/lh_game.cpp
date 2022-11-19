@@ -10,10 +10,7 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - fix jump VERY IMPORTANT
 // - add some kind of enemy
-// - add aplha blending to the 3d software renderer
-// - improve the physic of the player
 // - add font
 //////////////////////////////////////////////////////////////////////
 
@@ -200,6 +197,7 @@ void GameInit(Memory *memory) {
     gameState->bitmaps[3] = TextureCreate("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[4] = TextureCreate("../assets/shootSpritesheet.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->bitmaps[5] = TextureCreate("../assets/enemy.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[6] = TextureCreate("../assets/enemyHit.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
     gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
@@ -344,18 +342,19 @@ void GameInit(Memory *memory) {
     RendererSetView(gameState->player.camera.view);
 
 
-    EnemyInitialize(&gameState->enemy, {2, -0.3, 10}, gameState->bitmaps[5]);
+    EnemyInitialize(&gameState->enemy, {2, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
     //SoundPlay(gameState->music, true); 
 
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
+    PhysicClearForces();
     GameState *gameState = (GameState *)memory->data;
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
-    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, gameState->player.physic->position, dt);
-    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, dt);
+    EnemyUpdate(&gameState->enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
+    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, &gameState->enemy, dt);
 }
 
 void GameFixUpdate(Memory *memory, f32 dt) {
@@ -403,7 +402,7 @@ void GameRender(Memory *memory) {
 
     // TODO: render the enemy
     Enemy *enemy = &gameState->enemy;
-    RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->texture,
+    RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
                             NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
 
     RendererFlushWorkQueue(); 

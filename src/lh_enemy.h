@@ -15,10 +15,13 @@ struct Enemy {
     vec3 direction;
     Mesh mesh;
     Texture *texture;
+    Texture *hitTexture;
+    Texture *currentTexture;
     Capsule collider;
+    f32 hitTimer;
 };
 
-void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture);
-void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, vec3 playerPosition, f32 dt);
+void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hitTexture);
+void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt);
 
 #endif

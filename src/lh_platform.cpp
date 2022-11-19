@@ -196,7 +196,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
         LARGE_INTEGER currentCounter;
         QueryPerformanceCounter(&currentCounter);
         f32 deltaTime = (f32)(currentCounter.QuadPart - lastCounter.QuadPart) * invFrequency;
-#if 1
+#if 0
         char buffer[256];
         sprintf(buffer, "MS: %f\n", deltaTime * 1000.0f);
         OutputDebugString(buffer);

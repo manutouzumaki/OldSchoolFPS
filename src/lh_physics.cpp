@@ -30,13 +30,11 @@ void Integrate(PhysicObject *object, f32 dt) {
     if(object->grounded) {
         f32 damping = powf(0.001f, dt);
         object->velocity.x = object->velocity.x * damping;
-        object->velocity.y = object->velocity.y * damping;
         object->velocity.z = object->velocity.z * damping;
     }
     else {
-        f32 damping = powf(0.999f, dt);
+        f32 damping = powf(0.5f, dt);
         object->velocity.x = object->velocity.x * damping;
-        object->velocity.y = object->velocity.y * damping;
         object->velocity.z = object->velocity.z * damping;    
     }
 }
@@ -109,6 +107,13 @@ void UpdateCollisionData(PhysicObject *object, vec3 position) {
     object->collider.b = position;
     object->collider.b.y -= 0.8f;
     object->down.o = object->collider.b;
+}
+
+void PhysicClearForces() {
+    for(i32 i = 0; i < gPhysicWorld.objects.count; ++i) {
+        PhysicObject *object = gPhysicWorld.objects.data + i;
+        object->acceleration = {};
+    }    
 }
 
 void PhysicStep(OctreeNode *tree, Arena *arena, f32 dt) {

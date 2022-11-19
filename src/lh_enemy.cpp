@@ -26,12 +26,12 @@ global_variable u32 indices[] = {
 
 void EnemyUpdateCollisionData(Enemy *enemy, vec3 position) {
     enemy->collider.a = position;
-    enemy->collider.a.y += 0.2f;
+    enemy->collider.a.y += 0.4f;
     enemy->collider.b = position;
-    enemy->collider.b.y -= 0.8f;
+    enemy->collider.b.y -= 0.4f;
 }
 
-void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture) {
+void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hitTexture) {
     enemy->position = position;
     enemy->direction = {0, 0, 1};
     enemy->mesh.vertices = vertices;
@@ -47,22 +47,36 @@ void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture) {
                                         enemy->mesh.transform.rotation,
                                         enemy->mesh.transform.scale);
     enemy->texture = texture;
+    enemy->hitTexture = hitTexture;
+    enemy->currentTexture = texture;
     enemy->collider.a = position;
-    enemy->collider.a.y += 0.2f;
+    enemy->collider.a.y += 0.4f;
     enemy->collider.b = position;
-    enemy->collider.b.y -= 0.8f;
+    enemy->collider.b.y -= 0.4f;
+    enemy->collider.r = 0.3f;
 }
 
 #include "windows.h"
 #include "stdio.h"
 
-void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, vec3 playerPosition, f32 dt) {
+void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt) {
 #if 1
     // DOOM use this kind of rotation
     enemy->mesh.transform.rotation.y = -DEG(cameraYaw) + 90;
     enemy->mesh.world = TransformToMat4(enemy->mesh.transform.position,
                                         enemy->mesh.transform.rotation,
                                         enemy->mesh.transform.scale);
+
+    if(enemy->hitTimer > 0.0f) {
+        enemy->hitTimer -= dt;
+    }
+    if(enemy->hitTimer < 0.0f) {
+        enemy->hitTimer = 0.0f;
+        enemy->currentTexture = enemy->texture;
+    }
+    
+
+
 #else
     vec2 planeEnemyFront = {enemy->direction.x, enemy->direction.z};
     vec2 planeEnemyRight = {enemy->direction.z, -enemy->direction.x};

@@ -30,6 +30,7 @@ void PhysicSystemInitialize();
 void PhysicSystemShutdown();
 SlotmapKey PhysicAddObject(PhysicObject **outObject);
 void PhysicRemoveObject(SlotmapKey key);
+void PhysicClearForces();
 void PhysicStep(OctreeNode *tree, Arena *arena, f32 dt);
 vec3 PhysicInterpolatePosition(PhysicObject *a, PhysicObject *b, f32 t);
 void PhysicAddForce(SlotmapKey key, vec3 force);

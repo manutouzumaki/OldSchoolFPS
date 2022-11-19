@@ -353,6 +353,23 @@ vec3 Corner(OBB b, i32 n) {
     return p;
 }
 
+bool RaycastSphere(Sphere *sphere, Ray *ray, f32 *tOut) {
+     vec3 m = ray->o - sphere->c;
+     f32 b = dot(m, ray->d);
+     f32 c = dot(m, m) - sphere->r*sphere->r;
+     // exit if r's origin outside s (c > 0) and r pointing away from s (b > 0)
+     if(c > 0.0f && b > 0.0f) return false;
+     f32 discr = b*b - c;
+     // a negative discriminant corresponds to ray missing sphere
+     if(discr < 0.0f) return false;
+     // ray now found to intersect sphere, compute the smallest t values of intersection
+     f32 t = -b - sqrtf(discr);
+     // if t is negative, ray start inside the sphere so clamp t to zero
+     if(t < 0.0f) t = 0.0f;
+     *tOut = t;
+     return true;
+}
+
 
 i32 IntersectMovingSphereOBB(Sphere s, vec3 d, OBB b, f32 *t) {
     // Compute the OBB resulting from expanding b by sphere radius r
