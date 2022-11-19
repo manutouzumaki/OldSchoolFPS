@@ -171,12 +171,12 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *ene
         Enemy *enemyHit = NULL;
         for(i32 i = 0; i < enemyCount; ++i) {
             Enemy *enemy = enemies + i;
-            vec3 p2 = enemy->collider.b;
-            vec3 q2 = enemy->collider.b + (enemy->collider.a - enemy->collider.b);
+            vec3 p2 = enemy->physic->collider.b;
+            vec3 q2 = enemy->physic->collider.b + (enemy->physic->collider.a - enemy->physic->collider.b);
             f32 s, t;
             vec3 c1, c2;
             f32 sqDist = ClosestPtSegmentSegment(p1, q1, p2, q2, s, t, c1, c2); 
-            if((sqDist <= (enemy->collider.r * enemy->collider.r))) {
+            if((sqDist <= (enemy->physic->collider.r * enemy->physic->collider.r))) {
                 if(s < enemyTMin) {
                     enemyHit = enemy;
                     enemyTMin = s;
@@ -185,6 +185,7 @@ void PlayerProcessGun(Player *player, OctreeNode *tree, Arena *arena, Enemy *ene
         }
         if((enemyTMin*shootRange) < tMin) {
             EnemyWasShoot(enemyHit); 
+            PhysicAddImpulse(enemyHit->physicId, player->direction*10.0f);
         }
         else {
             vec3 hitPoint = bullet.o + bullet.d * tMin;

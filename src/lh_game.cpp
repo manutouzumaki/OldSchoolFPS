@@ -128,17 +128,17 @@ void SortEnemies(Enemy *enemies, vec3 position, i32 count) {
         ++j)
     {
         Enemy key = enemies[j];
-        f32 keyDistance = lenSq(key.position - position);
+        f32 keyDistance = lenSq(key.physic->position - position);
         i32 i = j - 1;
         
         Enemy src = enemies[i];
-        f32 srcDistance = lenSq(src.position - position);
+        f32 srcDistance = lenSq(src.physic->position - position);
         while(i >= 0 && srcDistance < keyDistance)
         {
             enemies[i + 1] = enemies[i];
             --i;
             if(i >= 0) {
-                srcDistance = lenSq(src.position - position);
+                srcDistance = lenSq(src.physic->position - position);
             }
         }
         enemies[i + 1] = key;
@@ -366,12 +366,12 @@ void GameInit(Memory *memory) {
     RendererSetView(gameState->player.camera.view);
 
 
-    EnemyInitialize(&gameState->enemy[0], {2, -0.3, 5}, gameState->bitmaps[5], gameState->bitmaps[6]);
-    EnemyInitialize(&gameState->enemy[1], {3, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
-    EnemyInitialize(&gameState->enemy[2], {3, -0.3, 25}, gameState->bitmaps[5], gameState->bitmaps[6]);
-    EnemyInitialize(&gameState->enemy[3], {12, -0.3, 20}, gameState->bitmaps[5], gameState->bitmaps[6]);
-    EnemyInitialize(&gameState->enemy[4], {16, -0.3, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
-    EnemyInitialize(&gameState->enemy[5], {17, -0.3, 15}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[0], {2,  2, 5}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[1], {3,  2, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[2], {3,  2, 25}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[3], {12, 2, 20}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[4], {16, 2, 10}, gameState->bitmaps[5], gameState->bitmaps[6]);
+    EnemyInitialize(&gameState->enemy[5], {17, 2, 15}, gameState->bitmaps[5], gameState->bitmaps[6]);
     gameState->enemyCount = 6;
     //SoundPlay(gameState->music, true); 
 
@@ -385,7 +385,7 @@ void GameUpdate(Memory *memory, f32 dt) {
     }
     for(i32 i = 0; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
-        EnemyUpdate(enemy, gameState->tree, &gameState->frameArena, gameState->player.camera.yaw, dt);
+        EnemyUpdate(enemy, gameState->tree, &gameState->frameArena, dt);
     }
     
     PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, gameState->enemy, gameState->enemyCount, dt);
@@ -394,12 +394,21 @@ void GameUpdate(Memory *memory, f32 dt) {
 void GameFixUpdate(Memory *memory, f32 dt) {
     GameState *gameState = (GameState *)memory->data;
     PlayerFixUpdate(&gameState->player, dt);
+    for(i32 i = 0; i < gameState->enemyCount; ++i) {
+        Enemy *enemy = gameState->enemy + i;
+        EnemyFixUpdate(enemy, dt);
+    }
     PhysicStep(gameState->tree, &gameState->frameArena, dt); 
 }
 
 void GamePostUpdate(Memory *memory, f32 t) {
     GameState *gameState = (GameState *)memory->data;
     PlayerPostUpdate(&gameState->player, t);
+    for(i32 i = 0; i < gameState->enemyCount; ++i) {
+        Enemy *enemy = gameState->enemy + i;
+        EnemyPostUpdate(enemy, gameState->player.camera.yaw, t);
+    }
+
 }
 
 void GameRender(Memory *memory) {
@@ -435,7 +444,7 @@ void GameRender(Memory *memory) {
     RendererFlushWorkQueue(); 
 
     // TODO: render the enemy
-    // TODO: mabey copy the enemy to a tmp Arena
+    // TODO: mabye copy the enemy to a tmp Arena
     SortEnemies(gameState->enemy, gameState->player.camera.position, gameState->enemyCount);
     for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;

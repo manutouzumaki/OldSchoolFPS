@@ -24,15 +24,18 @@ global_variable u32 indices[] = {
     3, 1, 2
 };
 
-void EnemyUpdateCollisionData(Enemy *enemy, vec3 position) {
-    enemy->collider.a = position;
-    enemy->collider.a.y += 0.4f;
-    enemy->collider.b = position;
-    enemy->collider.b.y -= 0.4f;
-}
-
 void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hitTexture) {
-    enemy->position = position;
+    enemy->physicId = PhysicAddObject(&enemy->physic);
+    enemy->physic->position = position;
+    enemy->physic->potentialPosition = position;
+    enemy->physic->collider.a = position;
+    enemy->physic->collider.a.y += 0.4f;
+    enemy->physic->collider.b = position;
+    enemy->physic->collider.b.y -= 0.4f;
+    enemy->physic->collider.r = 0.3f;
+    enemy->physic->down.o = enemy->physic->collider.b;
+    enemy->physic->down.d = {0, (-enemy->physic->collider.r) - 0.1f, 0};
+
     enemy->direction = {0, 0, 1};
     enemy->mesh.vertices = vertices;
     enemy->mesh.indices = indices;
@@ -49,11 +52,7 @@ void EnemyInitialize(Enemy *enemy, vec3 position, Texture *texture, Texture *hit
     enemy->texture = texture;
     enemy->hitTexture = hitTexture;
     enemy->currentTexture = texture;
-    enemy->collider.a = position;
-    enemy->collider.a.y += 0.4f;
-    enemy->collider.b = position;
-    enemy->collider.b.y -= 0.4f;
-    enemy->collider.r = 0.3f;
+
 }
 
 void EnemyWasShoot(Enemy *enemy) {
@@ -61,14 +60,13 @@ void EnemyWasShoot(Enemy *enemy) {
     enemy->hitTimer = 0.2f;
 }
 
-void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f32 dt) {
-#if 1
-    // DOOM use this kind of rotation
-    enemy->mesh.transform.rotation.y = -DEG(cameraYaw) + 90;
-    enemy->mesh.world = TransformToMat4(enemy->mesh.transform.position,
-                                        enemy->mesh.transform.rotation,
-                                        enemy->mesh.transform.scale);
+void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 dt) {
+    if(!enemy->physic->grounded) {
+        vec3 gravityVector = {0, -9.8f*1.5f, 0.0f};
+        PhysicAddForce(enemy->physicId, gravityVector);
+    }
 
+    
     if(enemy->hitTimer > 0.0f) {
         enemy->hitTimer -= dt;
     }
@@ -76,9 +74,22 @@ void EnemyUpdate(Enemy *enemy, OctreeNode *tree, Arena *arena, f32 cameraYaw, f3
         enemy->hitTimer = 0.0f;
         enemy->currentTexture = enemy->texture;
     }
-    
+}
 
+void EnemyFixUpdate(Enemy *enemy, f32 dt) {
+    enemy->lastPhysicState = *enemy->physic;
+}
 
+void EnemyPostUpdate(Enemy *enemy, f32 cameraYaw, f32 t) {
+#if 1
+    // DOOM use this kind of rotation
+    vec3 interpolatedPosition = PhysicInterpolatePosition(&enemy->lastPhysicState, enemy->physic, t);
+    interpolatedPosition.y -= 0.4f;
+    enemy->mesh.transform.position = interpolatedPosition;
+    enemy->mesh.transform.rotation.y = -DEG(cameraYaw) + 90;
+    enemy->mesh.world = TransformToMat4(enemy->mesh.transform.position,
+                                        enemy->mesh.transform.rotation,
+                                        enemy->mesh.transform.scale);
 #else
     vec2 planeEnemyFront = {enemy->direction.x, enemy->direction.z};
     vec2 planeEnemyRight = {enemy->direction.z, -enemy->direction.x};
