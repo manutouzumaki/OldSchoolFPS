@@ -10,7 +10,7 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - add some kind of enemy
+// - sort enemies by distanceSq of the player camera
 // - add font
 //////////////////////////////////////////////////////////////////////
 
@@ -120,6 +120,30 @@ global_variable vec3 lights[12] = {
 };
 
 #include "lh_map.h"
+
+internal
+void SortEnemies(Enemy *enemies, vec3 position, i32 count) {
+    for(i32 j = 1;
+        j < count;
+        ++j)
+    {
+        Enemy key = enemies[j];
+        f32 keyDistance = lenSq(key.position - position);
+        i32 i = j - 1;
+        
+        Enemy src = enemies[i];
+        f32 srcDistance = lenSq(src.position - position);
+        while(i >= 0 && srcDistance < keyDistance)
+        {
+            enemies[i + 1] = enemies[i];
+            --i;
+            if(i >= 0) {
+                srcDistance = lenSq(src.position - position);
+            }
+        }
+        enemies[i + 1] = key;
+    }
+}
 
 internal
 void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gameState, vec3 cameraPosition) {
@@ -411,6 +435,8 @@ void GameRender(Memory *memory) {
     RendererFlushWorkQueue(); 
 
     // TODO: render the enemy
+    // TODO: mabey copy the enemy to a tmp Arena
+    SortEnemies(gameState->enemy, gameState->player.camera.position, gameState->enemyCount);
     for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
         RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
