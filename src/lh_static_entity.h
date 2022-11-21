@@ -19,10 +19,26 @@ struct StaticEntity {
     i32 meshCount;
 };
 
+struct Light {
+    vec3 position;
+    // TODO: add:
+    // - color
+    // - diffuseStrength
+    // - specularStrength
+    // - etc ...
+};
+
 struct StaticEntityNode {
     StaticEntity *object;
     StaticEntityNode *next;
 };
+
+struct LightNode {
+    Light *object;
+    LightNode *next;
+};
+
+
 
 // octree node data structure
 struct OctreeNode {
@@ -30,11 +46,15 @@ struct OctreeNode {
     f32 halfWidth;              // half the width of the node volumen
     OctreeNode *child[8];       // pointers to the eight children nodes
     StaticEntityNode *objList;  // linked list of the object in this node
+    LightNode *lightList;       // linked list of the lights in this node
 };
 
 OctreeNode *OctreeCreate(vec3 center, f32 halfWidth, i32 stopDepth, Arena *arena);
 void OctreeInsertObject(OctreeNode *tree, StaticEntity *object, Arena *arena);
+void OctreeInsertLight(OctreeNode *tree, Light *light, Arena *arena);
 void OctreeOBBQuery(OctreeNode *node, OBB *testOBB, StaticEntityNode **entitiesList,
                     i32 *entitiesCount, Arena *outFrameArena);
+void OctreeOBBQueryLights(OctreeNode *node, OBB *testOBB, LightNode **lightsList, i32 *lightsCount,
+                    Arena *outFrameArena);
 
 #endif

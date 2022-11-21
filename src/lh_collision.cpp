@@ -63,6 +63,17 @@ f32 SqDistPointOBB(vec3 p, OBB *b) {
     return sqDist;
 }
 
+i32 TestPointOBB(OBB *obb, vec3 p) {
+    vec3 pRel = p - obb->c;
+    f32 xDot = fabsf(dot(obb->u[0], pRel));
+    f32 yDot = fabsf(dot(obb->u[1], pRel));
+    f32 zDot = fabsf(dot(obb->u[2], pRel));
+    if(xDot > obb->e.x) return 0;
+    if(yDot > obb->e.y) return 0;
+    if(zDot > obb->e.z) return 0;
+    return 1;
+}
+
 i32 TestOBBOBB(OBB *a, OBB *b) {
     f32 ra, rb;
     mat3 R, AbsR;

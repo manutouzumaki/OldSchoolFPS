@@ -447,7 +447,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128 green = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
                         __m128 blue  = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
                         
-                        vec3 lightDir = {0.3f, -1.0f, 1.0f};
+                        vec3 lightDir = {0.4f, -0.5f, -1};
                         normalize(&lightDir);
                         __m128 lightDirX = _mm_set1_ps(lightDir.x);
                         __m128 lightDirY = _mm_set1_ps(lightDir.y);

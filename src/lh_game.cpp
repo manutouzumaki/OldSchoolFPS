@@ -57,30 +57,30 @@ global_variable Vertex verticesCube[] = {
 };
 
 global_variable Vertex verticesCube2[] = {
-    -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
-    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
-    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f, -1.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
-     1.0f, -1.0f,  1.0f, 1.0f, 1.0f,  0.0f, -1.0f,  0.0f,
-    -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
-    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, -1.0f,  0.0f,  0.0f,
-    -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
-    -1.0f,  1.0f, -1.0f, 1.0f, 1.0f, -1.0f,  0.0f,  0.0f,
-    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
-     1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  1.0f,  0.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  0.0f, -1.0f,
-     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  0.0f, -1.0f,
-     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  0.0f,  0.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f, 0.0f, 1.0f,  0.0f,  0.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  1.0f,
-     1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  1.0f,
-     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  1.0f
+    -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  -1.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  -1.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  -1.0f,  0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  -1.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+    -1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
+    -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  1.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  1.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  -1.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  -1.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  -1.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  -1.0f
 };
 
 global_variable u32 indicesCube2[] =
@@ -107,7 +107,7 @@ global_variable u32 indices[] = {
     3, 1, 2
 };
 
-global_variable vec3 lights[12] = {
+global_variable Light lights[12] = {
     {3, 1, 4},
     {3, 1, 8},
     {3, 1, 12},
@@ -121,6 +121,22 @@ global_variable vec3 lights[12] = {
     {16, 1, 12},
     {16, 1, 16}
 };
+
+global_variable vec3 lights2[12] = {
+    {3, 1, 4},
+    {3, 1, 8},
+    {3, 1, 12},
+    {3, 1, 16},
+    {3, 1, 25},
+    {6, 1, 25},
+    {9, 1, 25},
+    {12, 1,25},
+    {16, 1, 4},
+    {16, 1, 8},
+    {16, 1, 12},
+    {16, 1, 16}
+};
+
 
 #include "lh_map.h"
 
@@ -149,7 +165,16 @@ void SortEnemies(Enemy *enemies, vec3 position, i32 count) {
 }
 
 internal
-void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gameState, vec3 cameraPosition) {
+void DrawStaticEntityArray(StaticEntityNode *entities, i32 count,
+                           LightNode *lightsToRendere, i32 lightsToRenderCount,
+                           GameState *gameState, vec3 cameraPosition, Arena *frameArena) {
+
+    vec3 *lightsArray = ArenaPushArray(frameArena, lightsToRenderCount, vec3);
+    for(i32 i = 0; i < lightsToRenderCount; ++i) {
+        LightNode *light = lightsToRendere + i;
+        lightsArray[i] = light->object->position;
+    }
+
     for(i32 i = 0; i < count; ++i) {
         StaticEntityNode *entityNode = entities + i;
         StaticEntity *staticEntity = entityNode->object;
@@ -159,7 +184,7 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count, GameState *gam
             f32 repeatV = staticEntity->transform.scale.y;
             f32 repeatU = staticEntity->transform.scale.x > staticEntity->transform.scale.z ? staticEntity->transform.scale.x : staticEntity->transform.scale.z;
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
-                                    staticEntity->bitmap, lights, ARRAY_LENGTH(lights),
+                                    staticEntity->bitmap, lightsArray, lightsToRenderCount,
                                     cameraPosition, mesh->world, true, repeatU, repeatV);
             //DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
         }
@@ -355,13 +380,18 @@ void GameInit(Memory *memory) {
     f32 mapHeight = mapCountY*2.0f; 
     gameState->tree = OctreeCreate({mapWidth*0.5f, -2.0f, mapHeight*0.5f},
                                     mapWidth*0.5f,
-                                    1,
+                                    2,
                                     &gameState->dataArena);
 
     // add the StaticEntity to the octree
     for(i32 i = 0; i < gameState->entitiesCount; ++i) {
         StaticEntity *object = gameState->entities + i;
         OctreeInsertObject(gameState->tree, object, &gameState->dataArena);
+    }
+    // add lights to the octree
+    for(i32 i = 0; i < ARRAY_LENGTH(lights); ++i) {
+        Light *object = lights + i;
+        OctreeInsertLight(gameState->tree, object, &gameState->dataArena);
     }
 
     PlayerInitialize(&gameState->player, {2, 4, 4});
@@ -434,7 +464,14 @@ void GameRender(Memory *memory) {
     OctreeOBBQuery(gameState->tree, &obb, &entitiesToRender, &entitiesToRenderCount, &gameState->frameArena);
     entitiesToRender = entitiesToRender - (entitiesToRenderCount - 1);
 
-    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, gameState, gameState->player.camera.position);
+    obb.e = {10, 1, 10};
+    LightNode *lightsToRender = NULL;
+    i32 lightsToRenderCount = 0;
+    OctreeOBBQueryLights(gameState->tree, &obb, &lightsToRender, &lightsToRenderCount, &gameState->frameArena);
+    lightsToRender = lightsToRender - (lightsToRenderCount - 1);
+
+    DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, lightsToRender, lightsToRenderCount,
+                          gameState, gameState->player.camera.position, &gameState->frameArena);
 
     for(i32 i = 0; i < 10; ++i) {
         vec3 position = gameState->player.bulletBuffer[i];
@@ -452,7 +489,7 @@ void GameRender(Memory *memory) {
     for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
         RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
-                                lights, ARRAY_LENGTH(lights), gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
+                                NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
     }
 
     RendererFlushWorkQueue(); 
