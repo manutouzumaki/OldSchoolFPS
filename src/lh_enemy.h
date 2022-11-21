@@ -14,13 +14,11 @@ struct Enemy {
     PhysicObject *physic;
     PhysicObject lastPhysicState;
     SlotmapKey physicId;
-    //vec3 position;
     vec3 direction;
     Mesh mesh;
     Texture *texture;
     Texture *hitTexture;
     Texture *currentTexture;
-    //Capsule collider;
     f32 hitTimer;
 };
 

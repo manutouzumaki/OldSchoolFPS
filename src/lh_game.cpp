@@ -10,8 +10,11 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// - sort enemies by distanceSq of the player camera
-// - add font
+// ...
+// ...
+// ...
+// ...
+// ...
 //////////////////////////////////////////////////////////////////////
 
 global_variable Vertex verticesCube[] = {
@@ -383,12 +386,12 @@ void GameUpdate(Memory *memory, f32 dt) {
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
+    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, gameState->enemy, gameState->enemyCount, dt);
     for(i32 i = 0; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
         EnemyUpdate(enemy, gameState->tree, &gameState->frameArena, dt);
     }
     
-    PlayerUpdate(&gameState->player, gameState->tree, &gameState->frameArena, gameState->enemy, gameState->enemyCount, dt);
 }
 
 void GameFixUpdate(Memory *memory, f32 dt) {
@@ -443,13 +446,13 @@ void GameRender(Memory *memory) {
 
     RendererFlushWorkQueue(); 
 
-    // TODO: render the enemy
+    // render the enemy
     // TODO: mabye copy the enemy to a tmp Arena
     SortEnemies(gameState->enemy, gameState->player.camera.position, gameState->enemyCount);
     for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
         RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
-                                NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
+                                lights, ARRAY_LENGTH(lights), gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
     }
 
     RendererFlushWorkQueue(); 

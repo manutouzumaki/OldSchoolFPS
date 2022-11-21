@@ -2,15 +2,6 @@
 #include "lh_static_entity.h"
 #include "lh_memory.h"
 
-/*
-struct Enemy {
-    vec3 position;
-    Mesh mesh;
-    Texture *texture;
-    Capsule collider;
-};
-*/
-
 global_variable Vertex vertices[] = {
     // position           // uv        // normal
     -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,

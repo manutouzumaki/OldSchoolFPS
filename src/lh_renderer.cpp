@@ -423,28 +423,6 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             Mi(color, i) = ((u32 *)bitmap->data)[textureY * bitmap->width + textureX];
                         }
 
-                        // alpha blending
-                        {
-                        __m128 a = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 24), u255));
-                        __m128 invA =_mm_div_ps(a, f255); 
-
-                        __m128 srcR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 16), u255));
-                        __m128 srcG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
-                        __m128 srcB = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
-
-                        __m128 dstR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 16), u255));
-                        __m128 dstG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 8), u255));
-                        __m128 dstB = _mm_cvtepi32_ps(_mm_and_si128(originalDest, u255));
-
-                        __m128 r = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstR), _mm_mul_ps(invA, srcR));
-                        __m128 g = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstG), _mm_mul_ps(invA, srcG));
-                        __m128 b = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstB), _mm_mul_ps(invA, srcB));
-                        
-                        color = _mm_or_si128(
-                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(a), 24), _mm_slli_epi32(_mm_cvtps_epi32(r), 16)),
-                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(g),  8), _mm_cvtps_epi32(b)));
-                        }
-
 #if 0
                         __m128 interpolatedNormalX = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormX, alpha), _mm_mul_ps(bNormX, gamma)), _mm_mul_ps(cNormX, beta));
                         __m128 interpolatedNormalY = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormY, alpha), _mm_mul_ps(bNormY, gamma)), _mm_mul_ps(cNormY, beta));
@@ -503,7 +481,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128i r = _mm_cvtps_epi32(resultX);
                         __m128i g = _mm_cvtps_epi32(resultY);
                         __m128i b = _mm_cvtps_epi32(resultZ);
-                        __m128i a = _mm_cvtps_epi32(f255);
+                        __m128i a = _mm_and_si128(_mm_srli_epi32(color, 24), u255);
 
                         __m128i sr = _mm_slli_epi32(r, 16);
                         __m128i sg = _mm_slli_epi32(g, 8);
@@ -512,14 +490,6 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         if(lightsCount) { 
                             color = _mm_or_si128(_mm_or_si128(sr, sg), _mm_or_si128(sb, sa));
                         }
-
-
-
-
-
-
-
-
 #else
                         __m128 finalColorX = _mm_set1_ps(0);
                         __m128 finalColorY = _mm_set1_ps(0);
@@ -684,7 +654,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128i r = _mm_cvtps_epi32(finalColorX);
                         __m128i g = _mm_cvtps_epi32(finalColorY);
                         __m128i b = _mm_cvtps_epi32(finalColorZ);
-                        __m128i a = _mm_cvtps_epi32(f255);
+                        __m128i a = _mm_and_si128(_mm_srli_epi32(color, 24), u255);
 
                         __m128i sr = _mm_slli_epi32(r, 16);
                         __m128i sg = _mm_slli_epi32(g, 8);
@@ -695,6 +665,27 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         }
 
 #endif
+                        // alpha blending
+                        {
+                        __m128 a = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 24), u255));
+                        __m128 invA =_mm_div_ps(a, f255); 
+
+                        __m128 srcR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 16), u255));
+                        __m128 srcG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
+                        __m128 srcB = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
+
+                        __m128 dstR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 16), u255));
+                        __m128 dstG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 8), u255));
+                        __m128 dstB = _mm_cvtepi32_ps(_mm_and_si128(originalDest, u255));
+
+                        __m128 r = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstR), _mm_mul_ps(invA, srcR));
+                        __m128 g = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstG), _mm_mul_ps(invA, srcG));
+                        __m128 b = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, invA), dstB), _mm_mul_ps(invA, srcB));
+                        
+                        color = _mm_or_si128(
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(a), 24), _mm_slli_epi32(_mm_cvtps_epi32(r), 16)),
+                                _mm_or_si128(_mm_slli_epi32(_mm_cvtps_epi32(g),  8), _mm_cvtps_epi32(b)));
+                        }
 
                         __m128i colorMaskedOut = _mm_or_si128(_mm_and_si128(writeMaski, color), _mm_andnot_si128(writeMaski, originalDest));
                         __m128 depthMaskOut = _mm_or_ps(_mm_and_ps(writeMask, interReciZ), _mm_andnot_ps(writeMask, depth));
