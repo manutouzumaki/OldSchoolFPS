@@ -23,7 +23,8 @@ global_variable i32 map[mapCountY][mapCountX] = {
 
 internal
 void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Arena *arena,
-                               Vertex *vertices, u32 *indices, i32 indicesCount, Texture **bitmaps) {
+                               Vertex *vertices, u32 *indices, i32 indicesCount, Texture **bitmaps,
+                               Mesh *gpuMesh) {
     for(i32 y = 0; y < mapCountY; ++y) {
         for(i32 x = 0; x < mapCountX; ++x) {
             i32 tile = map[y][x];
@@ -64,6 +65,8 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
                     mesh->indicesCount = indicesCount;
+                    mesh->gpuVertex = gpuMesh->gpuVertex;
+                    mesh->gpuIndices = gpuMesh->gpuIndices;
 
                 } break;
                 case 2: {
@@ -93,6 +96,8 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
                     mesh->indicesCount = indicesCount;
+                    mesh->gpuVertex = gpuMesh->gpuVertex;
+                    mesh->gpuIndices = gpuMesh->gpuIndices;
                 } break;
                 case 4: {
                     *entities = ArenaPushStruct(arena, StaticEntity);
@@ -121,6 +126,8 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
                     mesh->indicesCount = indicesCount;
+                    mesh->gpuVertex = gpuMesh->gpuVertex;
+                    mesh->gpuIndices = gpuMesh->gpuIndices;
 
                 } break;
                 case 5: {
@@ -150,6 +157,8 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
                     mesh->indicesCount = indicesCount;
+                    mesh->gpuVertex = gpuMesh->gpuVertex;
+                    mesh->gpuIndices = gpuMesh->gpuIndices;
 
                 } break;
                 case 3: {
@@ -180,6 +189,8 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh->verticesCount = 0;
                     mesh->indices = indices;
                     mesh->indicesCount = indicesCount;
+                    mesh->gpuVertex = gpuMesh->gpuVertex;
+                    mesh->gpuIndices = gpuMesh->gpuIndices;
 
                 } break;
                 case 6: {
@@ -222,10 +233,15 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh1->verticesCount = 0;
                     mesh1->indices = indices;
                     mesh1->indicesCount = indicesCount;
+                    mesh1->gpuVertex = gpuMesh->gpuVertex;
+                    mesh1->gpuIndices = gpuMesh->gpuIndices;
+
                     mesh2->vertices = vertices;
                     mesh2->verticesCount = 0;
                     mesh2->indices = indices;
                     mesh2->indicesCount = indicesCount;
+                    mesh2->gpuVertex = gpuMesh->gpuVertex;
+                    mesh2->gpuIndices = gpuMesh->gpuIndices;
                 } break;
                 case 7: {
                     *entities = ArenaPushStruct(arena, StaticEntity);
@@ -267,10 +283,15 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh1->verticesCount = 0;
                     mesh1->indices = indices;
                     mesh1->indicesCount = indicesCount;
+                    mesh1->gpuVertex = gpuMesh->gpuVertex;
+                    mesh1->gpuIndices = gpuMesh->gpuIndices;
+
                     mesh2->vertices = vertices;
                     mesh2->verticesCount = 0;
                     mesh2->indices = indices;
                     mesh2->indicesCount = indicesCount;
+                    mesh2->gpuVertex = gpuMesh->gpuVertex;
+                    mesh2->gpuIndices = gpuMesh->gpuIndices;
 
                 } break;
                 case 8: {
@@ -313,10 +334,15 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh1->verticesCount = 0;
                     mesh1->indices = indices;
                     mesh1->indicesCount = indicesCount;
+                    mesh1->gpuVertex = gpuMesh->gpuVertex;
+                    mesh1->gpuIndices = gpuMesh->gpuIndices;
+                    
                     mesh2->vertices = vertices;
                     mesh2->verticesCount = 0;
                     mesh2->indices = indices;
                     mesh2->indicesCount = indicesCount;
+                    mesh2->gpuVertex = gpuMesh->gpuVertex;
+                    mesh2->gpuIndices = gpuMesh->gpuIndices;
                 } break;
                 case 9: {
                     *entities = ArenaPushStruct(arena, StaticEntity);
@@ -358,10 +384,15 @@ void StaticEntitiesInitialized(StaticEntity **entities, i32 *entitiesCount, Aren
                     mesh1->verticesCount = 0;
                     mesh1->indices = indices;
                     mesh1->indicesCount = indicesCount;
+                    mesh1->gpuVertex = gpuMesh->gpuVertex;
+                    mesh1->gpuIndices = gpuMesh->gpuIndices;
+                    
                     mesh2->vertices = vertices;
                     mesh2->verticesCount = 0;
                     mesh2->indices = indices;
                     mesh2->indicesCount = indicesCount;
+                    mesh2->gpuVertex = gpuMesh->gpuVertex;
+                    mesh2->gpuIndices = gpuMesh->gpuIndices;
                 } break;
             }; 
 

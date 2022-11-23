@@ -1,12 +1,12 @@
 #include <windows.h>
 #include "lh_renderer.h"
 #include "lh_platform.h"
-#include "lh_texture.h"
+#include "lh_file.h"
+#include "lh_memory.h"
 #include <math.h>
 #include <immintrin.h>
 #include <xmmintrin.h>
 
-#include <d3d11.h>
 #include <d3dcompiler.h>
 
 // TODO: implement the new trianglel rasterizer and SIMD omptimized it.
@@ -43,7 +43,7 @@ global_variable char *pixelShaderSource  =
 "};\n"
 "float4 PS_Main( PS_Input frag ) : SV_TARGET\n"
 "{\n"
-"   float4 color = colorMap.Sample(colorSampler, frag.tex0.xy);"
+"   float4 color = colorMap.Sample(colorSampler, frag.tex0.xy);\n"
 "   return float4(color.rgb, 1);\n"
 "}\0";
 
@@ -66,7 +66,7 @@ struct RenderWork {
     f32 repeatV;
 };
 
-struct Renderer {
+struct CPURenderer {
     u32 *colorBuffer;
     f32 *depthBuffer;
     i32 bufferWidth;
@@ -76,11 +76,6 @@ struct Renderer {
     RenderWork *workArray;
     i32 workCount;
 
-    ID3D11Device *device;
-    ID3D11DeviceContext *deviceContext;
-    IDXGISwapChain *swapChain;
-    ID3D11RenderTargetView *renderTargetView;
-
     ID3D11VertexShader *vertexShader;
     ID3D11PixelShader  *pixelShader;
     ID3D11InputLayout  *inputLayout;
@@ -89,6 +84,32 @@ struct Renderer {
     ID3D11Texture2D *backBuffer;
     ID3D11ShaderResourceView *colorMap;
     ID3D11SamplerState *colorMapSampler;
+};
+
+struct GPURenderer {
+    i32 bufferWidth;
+    i32 bufferHeight;
+    
+    ID3D11DepthStencilView *depthStencilView;
+    ID3D11RasterizerState *wireFrameRasterizer;
+    ID3D11RasterizerState *fillRasterizerCullBack;
+    ID3D11RasterizerState *fillRasterizerCullFront;
+    ID3D11RasterizerState *fillRasterizerCullNone;
+    ID3D11DepthStencilState *depthStencilOn;
+    ID3D11DepthStencilState *depthStencilOff;
+    ID3D11BlendState *alphaBlendEnable;
+    ID3D11BlendState *alphaBlendDisable;
+};
+
+struct Renderer {
+    RendererType type;
+    CPURenderer cpuRenderer;
+    GPURenderer gpuRenderer;
+    
+    ID3D11Device *device;
+    ID3D11DeviceContext *deviceContext;
+    IDXGISwapChain *swapChain;
+    ID3D11RenderTargetView *renderTargetView;
 };
 
 struct VertexD3D11 {
@@ -170,6 +191,7 @@ vec3 SolveBarycentric(vec2 a, vec2 b, vec2 c, vec2 p) {
 
 internal 
 void DrawLine(Point a, Point b, u32 color) {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     i32 xDelta = (i32)(b.x - a.x);
     i32 yDelta = (i32)(b.y - a.y);
     i32 sideLength = abs(xDelta) >= abs(yDelta) ? abs(xDelta) : abs(yDelta);
@@ -185,10 +207,10 @@ void DrawLine(Point a, Point b, u32 color) {
         vec2 pRel = start - p;
         f32 t = len(pRel) / len(delta);
         f32 interpolatedReciprocalZ = ((1.0f/a.z) + ((1.0f/b.z) - (1.0f/a.z)) * t); 
-        if(x >= 0 && x < gRenderer.bufferWidth && y >= 0 && y < gRenderer.bufferHeight) {
-            if(interpolatedReciprocalZ >= gRenderer.depthBuffer[(i32)y * gRenderer.bufferWidth + (i32)x]) {
-                gRenderer.depthBuffer[(i32)y * gRenderer.bufferWidth + (i32)x] = interpolatedReciprocalZ;
-                gRenderer.colorBuffer[(i32)y * gRenderer.bufferWidth + (i32)x] = color;
+        if(x >= 0 && x < cpuRenderer->bufferWidth && y >= 0 && y < cpuRenderer->bufferHeight) {
+            if(interpolatedReciprocalZ >= cpuRenderer->depthBuffer[(i32)y * cpuRenderer->bufferWidth + (i32)x]) {
+                cpuRenderer->depthBuffer[(i32)y * cpuRenderer->bufferWidth + (i32)x] = interpolatedReciprocalZ;
+                cpuRenderer->colorBuffer[(i32)y * cpuRenderer->bufferWidth + (i32)x] = color;
             } 
         }
         x += xInc;
@@ -213,8 +235,8 @@ internal
 void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv, vec3 aNorm, vec3 bNorm, vec3 cNorm,
                         vec3 aFragPos, vec3 bFragPos, vec3 cFragPos, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
                         rectangle2i clipRect, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {
-
-    ASSERT(((uintptr_t)gRenderer.colorBuffer & 15) == 0);
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+    ASSERT(((uintptr_t)cpuRenderer->colorBuffer & 15) == 0);
     // compute trinangle AABB
     rectangle2i fillRect;
     fillRect.minX = minFloat(minFloat(a.x, b.x), c.x);
@@ -333,8 +355,8 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 specComponent = _mm_set1_ps(16.0f);
 
         __m128 constant = _mm_set1_ps(1.0f);
-        __m128 linear = _mm_set1_ps(0.22f);
-        __m128 quadratic = _mm_set1_ps(0.20f);
+        __m128 linear = _mm_set1_ps(0.07f);
+        __m128 quadratic = _mm_set1_ps(0.017f);
 
         i32 minX = fillRect.minX;
         i32 minY = fillRect.minY;
@@ -347,10 +369,10 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
             for(i32 x = minX; x <= maxX; x += 4) {
 
                 // get the old data for the maskout
-                u32 *pixelPt = gRenderer.colorBuffer + ((y * gRenderer.bufferWidth) + x);
+                u32 *pixelPt = cpuRenderer->colorBuffer + ((y * cpuRenderer->bufferWidth) + x);
                 __m128i originalDest = _mm_load_si128((__m128i *)pixelPt);
                 
-                f32 *depthPt = gRenderer.depthBuffer + ((y * gRenderer.bufferWidth) + x);
+                f32 *depthPt = cpuRenderer->depthBuffer + ((y * cpuRenderer->bufferWidth) + x);
                 __m128 depth = _mm_load_ps(depthPt);
                 __m128 pixelsToTestX = _mm_set_ps(x + 3, x + 2, x + 1, x);
                 // TODO: standarize the conditional once we load 3d models
@@ -775,6 +797,7 @@ internal
 void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
                            i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount, vec3 viewPos,
                            mat4 world, rectangle2i clipRect, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {    
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     for(i32 i = 0; i < indicesCount; i += 3) {
 
         Vertex *aVertex = vertices + indices[i + 0];
@@ -809,7 +832,7 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
         vec3 cFragPos = Vec4ToVec3(world * Vec3ToVec4(cTmp, 1.0f));
 
         // transform the vertices relative to the camera
-        mat4 view = gRenderer.view;
+        mat4 view = cpuRenderer->view;
         a = view * a;
         b = view * b;
         c = view * c;
@@ -827,7 +850,7 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
             continue;
         }
 
-        mat4 proj = gRenderer.proj;
+        mat4 proj = cpuRenderer->proj;
         a = proj * a;
         b = proj * b;
         c = proj * c;
@@ -878,8 +901,8 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
             f32 aInvW = 1.0f/newA.w;
             f32 bInvW = 1.0f/newB.w;
             f32 cInvW = 1.0f/newC.w;
-            i32 halfBufferWidth = gRenderer.bufferWidth/2;
-            i32 halfBufferHeight = gRenderer.bufferHeight/2;
+            i32 halfBufferWidth =  cpuRenderer->bufferWidth/2;
+            i32 halfBufferHeight = cpuRenderer->bufferHeight/2;
             Point aPoint = {((newA.x * aInvW) * halfBufferWidth) + halfBufferWidth, ((newA.y * aInvW) * halfBufferHeight) + halfBufferHeight, aInvW};
             Point bPoint = {((newB.x * bInvW) * halfBufferWidth) + halfBufferWidth, ((newB.y * bInvW) * halfBufferHeight) + halfBufferHeight, bInvW};
             Point cPoint = {((newC.x * cInvW) * halfBufferWidth) + halfBufferWidth, ((newC.y * cInvW) * halfBufferHeight) + halfBufferHeight, cInvW};
@@ -897,9 +920,10 @@ void RenderVertexArrayFast(Vertex *vertices, u32 *indices,
 
 internal
 void DoTileRenderWork(void *data) {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     ThreadParam *param = (ThreadParam *)data;
-    for(i32 i = 0; i < gRenderer.workCount; ++i) {
-        RenderWork *work = gRenderer.workArray + i;
+    for(i32 i = 0; i < cpuRenderer->workCount; ++i) {
+        RenderWork *work = cpuRenderer->workArray + i;
         RenderVertexArrayFast(work->vertices, work->indices,
                               work->indicesCount, work->bitmap,
                               work->lights, work->lightsCount,
@@ -911,43 +935,42 @@ void DoTileRenderWork(void *data) {
 
 
 void RendererFlushWorkQueue() {
-#if 1
-    const i32 tileCountX = 4;
-    const i32 tileCountY = 4;
-    ThreadParam paramArray[tileCountX*tileCountY];
-    i32 tileWidth = gRenderer.bufferWidth / tileCountX;
-    i32 tileHeight = gRenderer.bufferHeight / tileCountY;
-    tileWidth = ((tileWidth + 3) / 4) * 4;
-    i32 paramCount = 0;
-    for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
-        for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
-            ThreadParam *param = paramArray + paramCount++;
-            rectangle2i clipRect;
-            clipRect.minX = (tileX * tileWidth);
-            clipRect.maxX = (clipRect.minX + tileWidth);
-            clipRect.minY = (tileY * tileHeight);
-            clipRect.maxY = (clipRect.minY + tileHeight);
-            if(tileX == (tileCountX - 1)) {
-                clipRect.maxX = gRenderer.bufferWidth - 1;
+
+
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+
+            CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+            const i32 tileCountX = 4;
+            const i32 tileCountY = 4;
+            ThreadParam paramArray[tileCountX*tileCountY];
+            i32 tileWidth = cpuRenderer->bufferWidth / tileCountX;
+            i32 tileHeight = cpuRenderer->bufferHeight / tileCountY;
+            tileWidth = ((tileWidth + 3) / 4) * 4;
+            i32 paramCount = 0;
+            for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
+                for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
+                    ThreadParam *param = paramArray + paramCount++;
+                    rectangle2i clipRect;
+                    clipRect.minX = (tileX * tileWidth);
+                    clipRect.maxX = (clipRect.minX + tileWidth);
+                    clipRect.minY = (tileY * tileHeight);
+                    clipRect.maxY = (clipRect.minY + tileHeight);
+                    if(tileX == (tileCountX - 1)) {
+                        clipRect.maxX = cpuRenderer->bufferWidth - 1;
+                    }
+                    if(tileY == (tileCountY - 1)) {
+                        clipRect.maxY = cpuRenderer->bufferHeight - 1;
+                    }
+                    param->clipRect = clipRect; 
+                    PlatformAddEntry(DoTileRenderWork, param);
+                }
             }
-            if(tileY == (tileCountY - 1)) {
-                clipRect.maxY = gRenderer.bufferHeight - 1;
-            }
-            param->clipRect = clipRect; 
-            PlatformAddEntry(DoTileRenderWork, param);
-        }
-    }
-    PlatformCompleteAllWork();
-    gRenderer.workCount = 0;
-#else
-    rectangle2i clipRect = {0, 0, gRenderer.bufferWidth - 1, gRenderer.bufferHeight - 1};
-    for(i32 i = 0; i < gRenderer.workCount; ++i) {
-        RenderWork *work = gRenderer.workArray + i;
-        RenderVertexArrayFast(work->vertices, work->indices,
-                              work->indicesCount, work->bitmap, work->lightDir, work->world, clipRect);
-    }
-    gRenderer.workCount = 0;
-#endif
+            PlatformCompleteAllWork();
+            cpuRenderer->workCount = 0;
+             
+        }break;
+    };
 }
 
 
@@ -1017,21 +1040,27 @@ void InitializeD3D11() {
     if(backBufferTexture) {
         backBufferTexture->Release();
     }
-    gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, 0);
 
-    // - 4: Set the viewport.
-    D3D11_VIEWPORT viewport;
+    OutputDebugString("D3D11 Initialized\n");
+}
 
-    viewport.TopLeftX = 0.0f;
-    viewport.TopLeftY = 0.0f;
-    viewport.Width = clientWidth;
-    viewport.Height = clientHeight;
+internal
+void CPURendererInitialize() {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
 
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    gRenderer.deviceContext->RSSetViewports(1, &viewport);
-
+    i32 bufferPitch = Align16(gWindow.width*4);
+    i32 rendererWidth = bufferPitch/4;
+    cpuRenderer->colorBuffer = (u32 *)malloc(rendererWidth * gWindow.height * sizeof(u32));
+    cpuRenderer->depthBuffer = (f32 *)malloc(gWindow.width * gWindow.height * sizeof(f32));
+    cpuRenderer->bufferWidth = gWindow.width;
+    cpuRenderer->bufferHeight = gWindow.height;
+    cpuRenderer->view = Mat4Identity();
+    cpuRenderer->proj = Mat4Identity();
+    cpuRenderer->workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
+    cpuRenderer->workCount = 0;
+    
     // - 5: Create Vertex, Pixel shader and Input Layout
+    HRESULT result;
     ID3DBlob *vertexShaderCompiled = 0;
     ID3DBlob *errorVertexShader    = 0;
     result = D3DCompile((void *)vertexShaderSource,
@@ -1059,7 +1088,7 @@ void InitializeD3D11() {
     // Create the Vertex Shader.
     result = gRenderer.device->CreateVertexShader(vertexShaderCompiled->GetBufferPointer(),
                                                   vertexShaderCompiled->GetBufferSize(), 0,
-                                                  &gRenderer.vertexShader);
+                                                  &cpuRenderer->vertexShader);
     // Create the Input layout.
     D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] =
     {
@@ -1073,11 +1102,11 @@ void InitializeD3D11() {
                                                  totalLayoutElements,
                                                  vertexShaderCompiled->GetBufferPointer(),
                                                  vertexShaderCompiled->GetBufferSize(),
-                                                 &gRenderer.inputLayout);
+                                                 &cpuRenderer->inputLayout);
     // Create Pixel Shader.
     result = gRenderer.device->CreatePixelShader(pixelShaderCompiled->GetBufferPointer(),
                                                  pixelShaderCompiled->GetBufferSize(), 0,
-                                                 &gRenderer.pixelShader); 
+                                                 &cpuRenderer->pixelShader); 
     vertexShaderCompiled->Release();
     pixelShaderCompiled->Release();
 
@@ -1104,13 +1133,14 @@ void InitializeD3D11() {
     D3D11_SUBRESOURCE_DATA resourceData = {};
     resourceData.pSysMem = vertices;
     // Create the VertexBuffer
-    result = gRenderer.device->CreateBuffer(&vertexDesc, &resourceData, &gRenderer.vertexBuffer);
+    result = gRenderer.device->CreateBuffer(&vertexDesc, &resourceData, &cpuRenderer->vertexBuffer);
 
+    i32 clientWidth = gWindow.width;
+    i32 clientHeight = gWindow.height;
 
-    // load a texture 
     D3D11_TEXTURE2D_DESC textureDesc = {}; 
-    textureDesc.Width = clientWidth;
-    textureDesc.Height = clientHeight;
+    textureDesc.Width = cpuRenderer->bufferWidth;
+    textureDesc.Height = cpuRenderer->bufferHeight;
     textureDesc.MipLevels = 1;
     textureDesc.ArraySize = 1;
     textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -1120,8 +1150,8 @@ void InitializeD3D11() {
     textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     textureDesc.MiscFlags = 0;
-    // Create oout Texture 
-    result = gRenderer.device->CreateTexture2D(&textureDesc, NULL, &gRenderer.backBuffer);
+    // Create out Texture 
+    result = gRenderer.device->CreateTexture2D(&textureDesc, NULL, &cpuRenderer->backBuffer);
     if(SUCCEEDED(result))
     {
         OutputDebugString("SUCCEEDED Creating Texture\n");
@@ -1132,7 +1162,7 @@ void InitializeD3D11() {
     shaderResourceDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     shaderResourceDesc.Texture2D.MostDetailedMip = 0;
     shaderResourceDesc.Texture2D.MipLevels = 1;
-    result = gRenderer.device->CreateShaderResourceView(gRenderer.backBuffer, &shaderResourceDesc, &gRenderer.colorMap);
+    result = gRenderer.device->CreateShaderResourceView(cpuRenderer->backBuffer, &shaderResourceDesc, &cpuRenderer->colorMap);
     if(SUCCEEDED(result))
     {
         OutputDebugString("SUCCEEDED Creating Shader resource view\n");
@@ -1145,97 +1175,278 @@ void InitializeD3D11() {
     colorMapDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     colorMapDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT; //D3D11_FILTER_MIN_MAG_MIP_LINEAR | D3D11_FILTER_MIN_MAG_MIP_POINT
     colorMapDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    result = gRenderer.device->CreateSamplerState(&colorMapDesc, &gRenderer.colorMapSampler);
+    result = gRenderer.device->CreateSamplerState(&colorMapDesc, &cpuRenderer->colorMapSampler);
     if(SUCCEEDED(result))
     {
         OutputDebugString("SUCCEEDED Creating sampler state\n");
     }
 
-    gRenderer.deviceContext->PSSetShaderResources(0, 1, &gRenderer.colorMap);
-    gRenderer.deviceContext->PSSetSamplers(0, 1, &gRenderer.colorMapSampler);
+}
 
-    u32 stride = sizeof(VertexD3D11);
-    u32 offset = 0;
-    gRenderer.deviceContext->IASetInputLayout(gRenderer.inputLayout);
-    gRenderer.deviceContext->IASetVertexBuffers(0, 1, &gRenderer.vertexBuffer, &stride, &offset);
-    gRenderer.deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    gRenderer.deviceContext->VSSetShader(gRenderer.vertexShader, 0, 0);
-    gRenderer.deviceContext->PSSetShader(gRenderer.pixelShader,  0, 0);
+internal
+void CPURendererShutdown() {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+    cpuRenderer->colorMapSampler->Release();
+    cpuRenderer->colorMap->Release();
+    cpuRenderer->backBuffer->Release();
+    cpuRenderer->vertexBuffer->Release();
+    cpuRenderer->inputLayout->Release();
+    cpuRenderer->pixelShader->Release();
+    cpuRenderer->vertexShader->Release();
 
-    OutputDebugString("D3D11 Initialized\n");
+    free(cpuRenderer->workArray);
+    free(cpuRenderer->depthBuffer);
+    free(cpuRenderer->colorBuffer);
+
+
+}
+
+internal
+void GPURendererInitialize() {
+    GPURenderer *gpuRenderer = &gRenderer.gpuRenderer;
+
+    gpuRenderer->bufferWidth = gWindow.width;
+    gpuRenderer->bufferHeight = gWindow.height;
+  
+    HRESULT result;
+    // create the depth stencil texture
+    ID3D11Texture2D *depthStencilTexture = 0;
+    D3D11_TEXTURE2D_DESC depthStencilTextureDesc;
+    ZeroMemory(&depthStencilTextureDesc, sizeof(depthStencilTextureDesc));
+    depthStencilTextureDesc.Width = gpuRenderer->bufferWidth;
+    depthStencilTextureDesc.Height = gpuRenderer->bufferHeight;
+    depthStencilTextureDesc.MipLevels = 1;
+    depthStencilTextureDesc.ArraySize = 1;
+    depthStencilTextureDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthStencilTextureDesc.SampleDesc.Count = 1;
+    depthStencilTextureDesc.SampleDesc.Quality = 0;
+    depthStencilTextureDesc.Usage = D3D11_USAGE_DEFAULT;
+    depthStencilTextureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depthStencilTextureDesc.CPUAccessFlags = 0;
+    depthStencilTextureDesc.MiscFlags = 0;
+
+    // create depth stencil states
+    D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
+    // Depth test parameters
+    depthStencilDesc.DepthEnable = true;
+    depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
+    // Stencil test parameters
+    depthStencilDesc.StencilEnable = true;
+    depthStencilDesc.StencilReadMask = 0xFF;
+    depthStencilDesc.StencilWriteMask = 0xFF;
+    
+    // Stencil operations if pixel is front-facing
+    depthStencilDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+    depthStencilDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    depthStencilDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+    // Stencil operations if pixel is back-facing
+    depthStencilDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    depthStencilDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+    depthStencilDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+    gRenderer.device->CreateDepthStencilState(&depthStencilDesc, &gpuRenderer->depthStencilOn);
+    depthStencilDesc.DepthEnable = false;
+    depthStencilDesc.StencilEnable = false;
+    gRenderer.device->CreateDepthStencilState(&depthStencilDesc, &gpuRenderer->depthStencilOff);
+    
+    // TODO: check if this is necesary as this point in time
+    //gRenderer.deviceContext->OMSetDepthStencilState(gpuRenderer->depthStencilOn, 1);
+
+    result = gRenderer.device->CreateTexture2D(&depthStencilTextureDesc, NULL, &depthStencilTexture);
+    
+    // create the depth stencil view
+    D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+    descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    descDSV.Texture2D.MipSlice = 0;
+
+    result = gRenderer.device->CreateDepthStencilView(depthStencilTexture, &descDSV, &gpuRenderer->depthStencilView);
+    if(depthStencilTexture)
+    {
+        depthStencilTexture->Release();
+    }
+
+    // TODO: check if this is necesary as this point in time
+    //gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, gpuRenderer->depthStencilView);
+
+    // Alpha blending
+    D3D11_BLEND_DESC blendStateDesc = {};
+    blendStateDesc.RenderTarget[0].BlendEnable = true;
+    blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+    blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    gRenderer.device->CreateBlendState(&blendStateDesc, &gpuRenderer->alphaBlendEnable);
+
+    blendStateDesc.RenderTarget[0].BlendEnable = false;
+    blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    gRenderer.device->CreateBlendState(&blendStateDesc, &gpuRenderer->alphaBlendDisable);
+
+    // TODO: check if this is necesary as this point in time
+    //gRenderer.deviceContext->OMSetBlendState(gpuRenderer->alphaBlendDisable, 0, 0xffffffff);
+
+    // Create Rasterizers Types
+    D3D11_RASTERIZER_DESC fillRasterizerFrontDesc = {};
+    fillRasterizerFrontDesc.FillMode = D3D11_FILL_SOLID;
+    fillRasterizerFrontDesc.CullMode = D3D11_CULL_FRONT;
+    fillRasterizerFrontDesc.DepthClipEnable = true;
+    gRenderer.device->CreateRasterizerState(&fillRasterizerFrontDesc, &gpuRenderer->fillRasterizerCullFront);
+
+    D3D11_RASTERIZER_DESC fillRasterizerBackDesc = {};
+    fillRasterizerBackDesc.FillMode = D3D11_FILL_SOLID;
+    fillRasterizerBackDesc.CullMode = D3D11_CULL_BACK;
+    fillRasterizerBackDesc.DepthClipEnable = true;
+    gRenderer.device->CreateRasterizerState(&fillRasterizerBackDesc, &gpuRenderer->fillRasterizerCullBack);
+
+    D3D11_RASTERIZER_DESC fillRasterizerNoneDesc = {};
+    fillRasterizerNoneDesc.FillMode = D3D11_FILL_SOLID;
+    fillRasterizerNoneDesc.CullMode = D3D11_CULL_NONE;
+    fillRasterizerNoneDesc.DepthClipEnable = true;
+    gRenderer.device->CreateRasterizerState(&fillRasterizerNoneDesc, &gpuRenderer->fillRasterizerCullNone);
+
+    D3D11_RASTERIZER_DESC wireFrameRasterizerDesc = {};
+    wireFrameRasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
+    wireFrameRasterizerDesc.CullMode = D3D11_CULL_NONE;
+    wireFrameRasterizerDesc.DepthClipEnable = true;
+    gRenderer.device->CreateRasterizerState(&wireFrameRasterizerDesc, &gpuRenderer->wireFrameRasterizer);
+}
+
+internal
+void GPURendererShutdown() {
+    GPURenderer *gpuRenderer = &gRenderer.gpuRenderer;
+    gpuRenderer->depthStencilView->Release();
+    gpuRenderer->wireFrameRasterizer->Release();
+    gpuRenderer->fillRasterizerCullBack->Release();
+    gpuRenderer->fillRasterizerCullFront->Release();
+    gpuRenderer->fillRasterizerCullNone->Release();
+    gpuRenderer->depthStencilOn->Release();
+    gpuRenderer->depthStencilOff->Release();
+    gpuRenderer->alphaBlendEnable->Release();
+    gpuRenderer->alphaBlendDisable->Release();
 }
 
 void RendererSystemInitialize() {
-    i32 bufferPitch = Align16(gWindow.width*4);
-    i32 rendererWidth = bufferPitch/4;
-
-    gRenderer.colorBuffer = (u32 *)malloc(rendererWidth * gWindow.height * sizeof(u32));
-    gRenderer.depthBuffer = (f32 *)malloc(gWindow.width * gWindow.height * sizeof(f32));
-    gRenderer.bufferWidth = gWindow.width;
-    gRenderer.bufferHeight = gWindow.height;
-    gRenderer.view = Mat4Identity();
-    gRenderer.proj = Mat4Identity();
-    gRenderer.workArray = (RenderWork *)malloc(sizeof(RenderWork) * 65536);
-    gRenderer.workCount = 0;
-
     InitializeD3D11();
+    GPURendererInitialize();
+    CPURendererInitialize();
+    gRenderer.type = RENDERER_DIRECTX;
+
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+            gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, 0);
+            gRenderer.deviceContext->PSSetShaderResources(0, 1, &gRenderer.cpuRenderer.colorMap);
+            gRenderer.deviceContext->PSSetSamplers(0, 1, &gRenderer.cpuRenderer.colorMapSampler);
+            u32 stride = sizeof(VertexD3D11);
+            u32 offset = 0;
+            gRenderer.deviceContext->IASetInputLayout(gRenderer.cpuRenderer.inputLayout);
+            gRenderer.deviceContext->IASetVertexBuffers(0, 1, &gRenderer.cpuRenderer.vertexBuffer, &stride, &offset);
+            gRenderer.deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            gRenderer.deviceContext->VSSetShader(gRenderer.cpuRenderer.vertexShader, 0, 0);
+            gRenderer.deviceContext->PSSetShader(gRenderer.cpuRenderer.pixelShader,  0, 0);
+                           
+        }break;
+        case RENDERER_DIRECTX: {
+            gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, gRenderer.gpuRenderer.depthStencilView);
+            gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOn, 1);
+            gRenderer.deviceContext->OMSetBlendState(gRenderer.gpuRenderer.alphaBlendEnable, 0, 0xffffffff);
+            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullNone);            
+        }break;  
+    };
+
+
+
+    // TODO: put this back in InitializeD3D11 function
+    D3D11_VIEWPORT viewport;
+
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = gWindow.width;
+    viewport.Height = gWindow.height;
+
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    gRenderer.deviceContext->RSSetViewports(1, &viewport);
+
 }
 
 void RendererSystemShutdown() {
-    gRenderer.colorMapSampler->Release();
-    gRenderer.colorMap->Release();
-    gRenderer.backBuffer->Release();
-    gRenderer.vertexBuffer->Release();
-    gRenderer.inputLayout->Release();
-    gRenderer.pixelShader->Release();
-    gRenderer.vertexShader->Release();
+    CPURendererShutdown();
+    GPURendererShutdown();
     gRenderer.renderTargetView->Release();
     gRenderer.swapChain->Release();
     gRenderer.deviceContext->Release();
     gRenderer.device->Release();
+}
 
-    free(gRenderer.workArray);
-    free(gRenderer.depthBuffer);
-    free(gRenderer.colorBuffer);
+void RendererSetDepthBuffer(bool value) {
+    if(value) {
+        gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOn, 1);
+    }
+    else {
+ 
+        gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOff, 1);
+    }
 }
 
 void RendererClearBuffers(u32 color, f32 depth) {
-    
-    // TODO: test the cycles on this function
-    __m128i pixelColor = _mm_set1_epi32(color);
-    __m128 depthValue = _mm_set1_ps(depth);
-    for(i32 y = 0; y < gRenderer.bufferHeight; ++y) {
-        for(i32 x = 0; x < gRenderer.bufferWidth; x += 4) {
-            u32 *pixelPt = gRenderer.colorBuffer + ((y * gRenderer.bufferWidth) + x);
-            f32 *depthPt = gRenderer.depthBuffer + ((y * gRenderer.bufferWidth) + x);
-            _mm_storeu_si128((__m128i *)pixelPt, pixelColor);
-            _mm_storeu_ps(depthPt, depthValue);
-        }
+
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+            CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+            __m128i pixelColor = _mm_set1_epi32(color);
+            __m128 depthValue = _mm_set1_ps(depth);
+            for(i32 y = 0; y < cpuRenderer->bufferHeight; ++y) {
+                for(i32 x = 0; x < cpuRenderer->bufferWidth; x += 4) {
+                    u32 *pixelPt = cpuRenderer->colorBuffer + ((y * cpuRenderer->bufferWidth) + x);
+                    f32 *depthPt = cpuRenderer->depthBuffer + ((y * cpuRenderer->bufferWidth) + x);
+                    _mm_storeu_si128((__m128i *)pixelPt, pixelColor);
+                    _mm_storeu_ps(depthPt, depthValue);
+                }
+            }
+        } break;
+        case RENDERER_DIRECTX: {
+            GPURenderer *gpuRenderer = &gRenderer.gpuRenderer;
+            gRenderer.deviceContext->ClearDepthStencilView(gpuRenderer->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+        } break;
     }
 
-    float ClearColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float ClearColor[4] = {1.0f, 0.5f, 1.0f, 1.0f};
     gRenderer.deviceContext->ClearRenderTargetView(gRenderer.renderTargetView, ClearColor);
 }
 
 void RendererPushWorkToQueue(Vertex *vertices, u32 *indices,
                              i32 indicesCount, Texture *bitmap, vec3 *lights, i32 lightsCount,
                              vec3 viewPos, mat4 world, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {
-    RenderWork *work = gRenderer.workArray + gRenderer.workCount++;
-    work->vertices = vertices;
-    work->verticesCount = 0;
-    work->indices = indices;
-    work->indicesCount = indicesCount;
-    work->bitmap = bitmap;
-    work->lights = lights;
-    work->lightsCount = lightsCount;
-    work->viewPos = viewPos;
-    work->world = world;
-    work->writeDepthBuffer = writeDepthBuffer;
-    work->repeatU = repeatU;
-    work->repeatV = repeatV;
+
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+            CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+            RenderWork *work = cpuRenderer->workArray + cpuRenderer->workCount++;
+            work->vertices = vertices;
+            work->verticesCount = 0;
+            work->indices = indices;
+            work->indicesCount = indicesCount;
+            work->bitmap = bitmap;
+            work->lights = lights;
+            work->lightsCount = lightsCount;
+            work->viewPos = viewPos;
+            work->world = world;
+            work->writeDepthBuffer = writeDepthBuffer;
+            work->repeatU = repeatU;
+            work->repeatV = repeatV;               
+        } break;
+    };
 }
 
 void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     u32 *pixels = (u32 *)bitmap->data;
     for(i32 y = yPos; y < height + yPos; ++y) {
         for(i32 x = xPos; x < width + xPos; ++x) {
@@ -1249,7 +1460,7 @@ void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap
             f32 srcG = (f32)((srcColor >>  8) & 0xFF);
             f32 srcB = (f32)((srcColor >>  0) & 0xFF);
             
-            u32 dstColor = gRenderer.colorBuffer[y * gRenderer.bufferWidth + x]; 
+            u32 dstColor = cpuRenderer->colorBuffer[y * cpuRenderer->bufferWidth + x]; 
             f32 dstR = (f32)((dstColor >> 16) & 0xFF);
             f32 dstG = (f32)((dstColor >>  8) & 0xFF);
             f32 dstB = (f32)((dstColor >>  0) & 0xFF);
@@ -1261,12 +1472,13 @@ void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap
 
             u32 color = r << 16 | g << 8 | b;
 
-            gRenderer.colorBuffer[y * gRenderer.bufferWidth + x] = color;
+            cpuRenderer->colorBuffer[y * cpuRenderer->bufferWidth + x] = color;
         }
     }
 }
 
 void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     i32 minX = x;
     i32 minY = y;
     i32 maxX = x + width;
@@ -1279,18 +1491,18 @@ void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) 
         offsetX = -minX;
         minX = 0;
     }
-    if(maxX > gRenderer.bufferWidth)
+    if(maxX > cpuRenderer->bufferWidth)
     {
-        maxX = gRenderer.bufferWidth;
+        maxX = cpuRenderer->bufferWidth;
     }
     if(minY < 0)
     {
         offsetY = -minY;
         minY = 0;
     }
-    if(maxY > gRenderer.bufferHeight)
+    if(maxY > cpuRenderer->bufferHeight)
     {
-        maxY = gRenderer.bufferHeight;
+        maxY = cpuRenderer->bufferHeight;
     }
 
     f32 ratioU = (f32)bitmap->width / width;
@@ -1308,7 +1520,7 @@ void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) 
         i32 counterX = offsetX;
         for(i32 x = minX; x < (maxX - 3); x += 4)
         {
-            u32 *dst = gRenderer.colorBuffer + (y * gRenderer.bufferWidth + x);
+            u32 *dst = cpuRenderer->colorBuffer + (y * cpuRenderer->bufferWidth + x);
             __m128i oldTexel = _mm_loadu_si128((__m128i *)dst);
             
             i32 texY = (i32)(counterY * ratioV); 
@@ -1353,6 +1565,7 @@ void RendererDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) 
 }
 
 void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap, i32 spriteW, i32 spriteH, i32 frame) {
+    CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
     i32 minX = x;
     i32 minY = y;
     i32 maxX = x + width;
@@ -1365,18 +1578,18 @@ void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *
         offsetX = -minX;
         minX = 0;
     }
-    if(maxX > gRenderer.bufferWidth)
+    if(maxX > cpuRenderer->bufferWidth)
     {
-        maxX = gRenderer.bufferWidth;
+        maxX = cpuRenderer->bufferWidth;
     }
     if(minY < 0)
     {
         offsetY = -minY;
         minY = 0;
     }
-    if(maxY > gRenderer.bufferHeight)
+    if(maxY > cpuRenderer->bufferHeight)
     {
-        maxY = gRenderer.bufferHeight;
+        maxY = cpuRenderer->bufferHeight;
     }
 
 
@@ -1397,7 +1610,7 @@ void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *
         i32 counterX = offsetX;
         for(i32 x = minX; x < (maxX - 3); x += 4)
         {
-            u32 *dst = gRenderer.colorBuffer + (y * gRenderer.bufferWidth + x);
+            u32 *dst = cpuRenderer->colorBuffer + (y * cpuRenderer->bufferWidth + x);
             __m128i oldTexel = _mm_loadu_si128((__m128i *)dst);
             
             i32 texY = (i32)(counterY * ratioV); 
@@ -1443,23 +1656,27 @@ void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *
 
 
 void RendererPresent() {
-    //FlushWorkQueue();
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+            D3D11_MAPPED_SUBRESOURCE buffer;
+            gRenderer.deviceContext->Map(gRenderer.cpuRenderer.backBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &buffer);
+            memcpy(buffer.pData, gRenderer.cpuRenderer.colorBuffer, gRenderer.cpuRenderer.bufferWidth*gRenderer.cpuRenderer.bufferHeight*sizeof(u32));
+            gRenderer.deviceContext->Unmap(gRenderer.cpuRenderer.backBuffer, 0);
+            gRenderer.deviceContext->Draw(6, 0);
+        } break;
+        case RENDERER_DIRECTX: {
 
-    D3D11_MAPPED_SUBRESOURCE buffer;
-    gRenderer.deviceContext->Map(gRenderer.backBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &buffer);
-    memcpy(buffer.pData, gRenderer.colorBuffer, gRenderer.bufferWidth*gRenderer.bufferHeight*sizeof(u32));
-    gRenderer.deviceContext->Unmap(gRenderer.backBuffer, 0);
-
-    gRenderer.deviceContext->Draw(6, 0);
+        } break;
+    }
     gRenderer.swapChain->Present(1, 0);
 }
 
 void RendererSetProj(mat4 proj) {
-    gRenderer.proj = proj;
+    gRenderer.cpuRenderer.proj = proj;
 } 
 
 void RendererSetView(mat4 view) {
-    gRenderer.view = view;
+    gRenderer.cpuRenderer.view = view;
 }
 
 void DEBUG_RendererDrawWireframeBuffer(Vertex *vertices, i32 verticesCount, u32 color, mat4 world) {
@@ -1497,12 +1714,12 @@ void DEBUG_RendererDrawWireframeBuffer(Vertex *vertices, i32 verticesCount, u32 
         vec3 cFragPos = Vec4ToVec3(world * Vec3ToVec4(cTmp, 1.0f));
 
         // transform the vertices relative to the camera
-        mat4 view = gRenderer.view;
+        mat4 view = gRenderer.cpuRenderer.view;
         a = view * a;
         b = view * b;
         c = view * c;
         
-        mat4 proj = gRenderer.proj;
+        mat4 proj = gRenderer.cpuRenderer.proj;
         a = proj * a;
         b = proj * b;
         c = proj * c;
@@ -1540,14 +1757,250 @@ void DEBUG_RendererDrawWireframeBuffer(Vertex *vertices, i32 verticesCount, u32 
             vec4 newA = verticesToClipA[0];
             vec4 newB = verticesToClipA[1 + j];
             vec4 newC = verticesToClipA[2 + j]; 
-            i32 halfBufferWidth = gRenderer.bufferWidth/2;
-            i32 halfBufferHeight = gRenderer.bufferHeight/2;
+            i32 halfBufferWidth = gRenderer.cpuRenderer.bufferWidth/2;
+            i32 halfBufferHeight = gRenderer.cpuRenderer.bufferHeight/2;
             Point aPoint = {((newA.x / newA.w) * halfBufferWidth) + halfBufferWidth, ((newA.y / newA.w) * halfBufferHeight) + halfBufferHeight, newA.w};
             Point bPoint = {((newB.x / newB.w) * halfBufferWidth) + halfBufferWidth, ((newB.y / newB.w) * halfBufferHeight) + halfBufferHeight, newB.w};
             Point cPoint = {((newC.x / newC.w) * halfBufferWidth) + halfBufferWidth, ((newC.y / newC.w) * halfBufferHeight) + halfBufferHeight, newC.w};
             DrawLineTriangle(aPoint, bPoint, cPoint, color);
         }
     }
+}
+
+
+
+Shader *RendererCreateShader(char *vertexPath, char *pixelPath, Arena *arena) {
+    Shader *shader = ArenaPushStruct(arena, Shader);
+    ReadFileResult vertexSrc = ReadFile(vertexPath);
+    ReadFileResult pixelSrc = ReadFile(pixelPath); 
+
+    HRESULT result;
+    ID3DBlob *vertexShaderCompiled = 0;
+    ID3DBlob *errorVertexShader    = 0;
+    result = D3DCompile(vertexSrc.data,
+                        vertexSrc.size,
+                        0, 0, 0, "VS_Main", "vs_4_0",
+                        D3DCOMPILE_ENABLE_STRICTNESS, 0,
+                        &vertexShaderCompiled, &errorVertexShader);
+    if(errorVertexShader != 0)
+    {
+        OutputDebugString("ERROR COMPILING VERTEX SHADER ...\n");
+        OutputDebugString((char *)errorVertexShader->GetBufferPointer());
+        errorVertexShader->Release();
+        ASSERT(false);
+    }
+    ID3DBlob *pixelShaderCompiled = 0;
+    ID3DBlob *errorPixelShader    = 0;
+    result = D3DCompile(pixelSrc.data,
+                        pixelSrc.size,
+                        0, 0, 0, "PS_Main", "ps_4_0",
+                        D3DCOMPILE_ENABLE_STRICTNESS, 0,
+                        &pixelShaderCompiled, &errorPixelShader);
+    if(errorPixelShader != 0)
+    {
+        OutputDebugString("ERROR COMPILING PIXEL SHADER ...\n");
+        OutputDebugString((char *)errorPixelShader->GetBufferPointer());
+        errorPixelShader->Release();
+        ASSERT(false);
+    }
+
+    // Create the Vertex Shader.
+    result = gRenderer.device->CreateVertexShader(vertexShaderCompiled->GetBufferPointer(),
+                                                  vertexShaderCompiled->GetBufferSize(), 0,
+                                                  &shader->vertex);
+    // Create the Input layout.
+    D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
+         0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+         0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    u32 totalLayoutElements = ARRAY_LENGTH(inputLayoutDesc);
+    result = gRenderer.device->CreateInputLayout(inputLayoutDesc,
+                                                 totalLayoutElements,
+                                                 vertexShaderCompiled->GetBufferPointer(),
+                                                 vertexShaderCompiled->GetBufferSize(),
+                                                 &shader->input);
+    if(FAILED(result)) {
+        ASSERT(!"ERROR Creating INPUT LAYOUT");
+    }
+    // Create Pixel Shader.
+    result = gRenderer.device->CreatePixelShader(pixelShaderCompiled->GetBufferPointer(),
+                                                 pixelShaderCompiled->GetBufferSize(), 0,
+                                                 &shader->pixel); 
+    vertexShaderCompiled->Release();
+    pixelShaderCompiled->Release();
+    
+    free(vertexSrc.data);
+    free(pixelSrc.data);
+
+    // Initialize constant buffer
+    D3D11_BUFFER_DESC constantBufferDesc;
+    ZeroMemory(&constantBufferDesc, sizeof(constantBufferDesc));
+    constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    constantBufferDesc.ByteWidth = sizeof(ConstantBuffer);
+    constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    result = gRenderer.device->CreateBuffer(&constantBufferDesc, 0, &shader->buffer);
+    if(FAILED(result)) {
+        OutputDebugString("ERROR Creating constant buffer\n");
+        ASSERT(false);
+    }
+
+    return shader;
+}
+
+void RendererUpdateShaderData(Shader *shader, ConstantBuffer *buffer) {
+    gRenderer.deviceContext->UpdateSubresource(shader->buffer, 0, 0, buffer, 0, 0);
+    gRenderer.deviceContext->VSSetConstantBuffers(0, 1, &shader->buffer);
+};
+
+
+Mesh *RendererCreateMesh(Vertex *vertices, i32 verticesCount, u32 *indices, i32 indicesCount, mat4 world, Arena *arena) {
+    
+    Mesh *mesh = ArenaPushStruct(arena, Mesh);
+
+    mesh->vertices = vertices;
+    mesh->verticesCount = 0;
+    mesh->indices = indices;
+    mesh->indicesCount = indicesCount;
+    mesh->world = world;
+    // mesh->transform = TODO: ....
+   
+
+    D3D11_SUBRESOURCE_DATA resourceData;
+    ZeroMemory(&resourceData, sizeof(resourceData));
+    resourceData.pSysMem = vertices;
+
+    // vertex buffer initialization 
+    D3D11_BUFFER_DESC vertexDesc;
+    ZeroMemory(&vertexDesc, sizeof(vertexDesc));
+    vertexDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexDesc.ByteWidth = sizeof(Vertex) * verticesCount;
+    HRESULT result = gRenderer.device->CreateBuffer(&vertexDesc, &resourceData, &mesh->gpuVertex);
+    if(FAILED(result)) {
+        ASSERT(!"ERROR Creating VERTEX BUFFER");
+    }
+    // indices buffer initialization
+    D3D11_BUFFER_DESC indexDesc;
+    ZeroMemory(&indexDesc, sizeof(indexDesc));
+    indexDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexDesc.ByteWidth = sizeof(u32) * indicesCount;
+    indexDesc.CPUAccessFlags = 0;
+    resourceData.pSysMem = indices;
+    result = gRenderer.device->CreateBuffer(&indexDesc, &resourceData, &mesh->gpuIndices);
+    if(FAILED(result)) {
+        ASSERT(!"ERROR Creating INDEX BUFFER");
+    }
+
+    return mesh;
+}
+
+internal
+u32 BitScanForward(u32 mask)
+{
+    unsigned long shift = 0;
+    _BitScanForward(&shift, mask);
+    return (u32)shift;
+}
+
+Texture *RendererCreateTexture(char *path, Arena *objArena, Arena *dataArena) {
+    ReadFileResult fileResult = ReadFile(path, dataArena);
+    BitmapHeader *header = (BitmapHeader *)fileResult.data;
+    Texture *texture = ArenaPushStruct(objArena, Texture);
+    texture->data = (void *)((u8 *)fileResult.data + header->bitmapOffset);
+    texture->width = header->width;
+    texture->height = header->height;
+    u32 redShift = BitScanForward(header->redMask);
+    u32 greenShift = BitScanForward(header->greenMask);
+    u32 blueShift = BitScanForward(header->blueMask);
+    u32 alphaShift = BitScanForward(header->alphaMask);
+    u32 *colorData = (u32 *)texture->data;
+    for(u32 i = 0; i < texture->width*texture->height; ++i)
+    {
+        u32 red = (colorData[i] & header->redMask) >> redShift;       
+        u32 green = (colorData[i] & header->greenMask) >> greenShift;       
+        u32 blue = (colorData[i] & header->blueMask) >> blueShift;       
+        u32 alpha = (colorData[i] & header->alphaMask) >> alphaShift;       
+        colorData[i] = (alpha << 24) | (red << 16) | (green << 8) | (blue << 0);
+    }
+
+
+    D3D11_SUBRESOURCE_DATA data = {};
+    data.pSysMem = texture->data;
+    data.SysMemPitch = texture->width*sizeof(u32);
+    data.SysMemSlicePitch = 0;
+
+    D3D11_TEXTURE2D_DESC textureDesc = {}; 
+    textureDesc.Width = texture->width;
+    textureDesc.Height = texture->height;
+    textureDesc.MipLevels = 1; // use 0 to generate a full set of subtextures (mipmaps)
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;//DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = 0;
+    textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+    ID3D11Texture2D *tempTexture;
+    HRESULT result = gRenderer.device->CreateTexture2D(&textureDesc, 0, &tempTexture);
+    if(FAILED(result))
+    {
+        ASSERT("FAILED Creating texture\n");
+    }
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceDesc = {};
+    shaderResourceDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;// DXGI_FORMAT_R8G8B8A8_UNORM;
+    shaderResourceDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceDesc.Texture2D.MipLevels = -1;
+    shaderResourceDesc.Texture2D.MostDetailedMip = 0;
+    result = gRenderer.device->CreateShaderResourceView(tempTexture, &shaderResourceDesc, &texture->colorMap);
+    if(FAILED(result))
+    {
+        ASSERT("FAILED Creating Shader resource view\n");
+    }
+    gRenderer.deviceContext->UpdateSubresource(tempTexture, 0, 0, data.pSysMem, data.SysMemPitch, 0);
+    gRenderer.deviceContext->GenerateMips(texture->colorMap);
+
+    tempTexture->Release();
+
+    D3D11_SAMPLER_DESC colorMapDesc = {};
+    colorMapDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;//D3D11_TEXTURE_ADDRESS_WRAP;
+    colorMapDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    colorMapDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT; //D3D11_FILTER_MIN_MAG_MIP_LINEAR | D3D11_FILTER_MIN_MAG_MIP_POINT
+    colorMapDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    result = gRenderer.device->CreateSamplerState(&colorMapDesc, &texture->colorMapSampler);
+    if(FAILED(result))
+    {
+        OutputDebugString("FAILED Creating sampler state\n");
+    }
+    return texture;
+}
+
+void RendererSetShader(Shader *shader) {
+    gRenderer.deviceContext->IASetInputLayout(shader->input);
+    gRenderer.deviceContext->VSSetShader(shader->vertex, 0, 0);
+    gRenderer.deviceContext->PSSetShader(shader->pixel,  0, 0);
+}
+
+void RendererDrawMesh(Mesh *mesh, Texture *texture)
+{
+    u32 stride = sizeof(Vertex);
+    u32 offset = 0;
+    gRenderer.deviceContext->IASetVertexBuffers(0, 1, &mesh->gpuVertex, &stride, &offset);
+    gRenderer.deviceContext->IASetIndexBuffer(mesh->gpuIndices, DXGI_FORMAT_R32_UINT, 0);
+    gRenderer.deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    gRenderer.deviceContext->PSSetShaderResources(0, 1, &texture->colorMap);
+    gRenderer.deviceContext->PSSetSamplers(0, 1, &texture->colorMapSampler);
+    gRenderer.deviceContext->DrawIndexed(mesh->indicesCount, 0, 0);
 }
 
 

@@ -2,7 +2,6 @@
 #include "lh_platform.h"
 #include "lh_renderer.h"
 #include "lh_sound.h"
-#include "lh_texture.h"
 #include "lh_input.h"
 #include "lh_static_entity.h"
 #include "lh_physics.h"
@@ -10,8 +9,9 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// ...
-// ...
+// Implement DirectX Renderer
+// Implement a Platform independent Renderer
+// Add global sun with phog lighting
 // ...
 // ...
 // ...
@@ -57,10 +57,10 @@ global_variable Vertex verticesCube[] = {
 };
 
 global_variable Vertex verticesCube2[] = {
-    -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  -1.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  -1.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  -1.0f,  0.0f,
-    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  -1.0f,  0.0f,
+    -1.0f,  1.0f, -1.0f, 0.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
     -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
      1.0f, -1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
@@ -69,18 +69,18 @@ global_variable Vertex verticesCube2[] = {
     -1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
     -1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
     -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-     1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f,  1.0f, 0.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f, -1.0f, 1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f, -1.0f, 1.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+     1.0f,  1.0f,  1.0f, 0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
     -1.0f, -1.0f, -1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  1.0f,
      1.0f, -1.0f, -1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  1.0f,
      1.0f,  1.0f, -1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  1.0f,
     -1.0f,  1.0f, -1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  -1.0f,
-     1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f,  0.0f,  -1.0f,
-     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  0.0f,  -1.0f,
-    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f,  -1.0f
+    -1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f,  0.0f, -1.0f,
+     1.0f, -1.0f,  1.0f, 1.0f, 0.0f,  0.0f,  0.0f, -1.0f,
+     1.0f,  1.0f,  1.0f, 1.0f, 1.0f,  0.0f,  0.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f, 0.0f, 1.0f,  0.0f,  0.0f, -1.0f
 };
 
 global_variable u32 indicesCube2[] =
@@ -180,12 +180,21 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count,
         StaticEntity *staticEntity = entityNode->object;
         for(i32 j = 0; j < staticEntity->meshCount; ++j) {
             Mesh *mesh = staticEntity->meshes + j;
+            /*
             OBB *obb = staticEntity->obbs + j;
             f32 repeatV = staticEntity->transform.scale.y;
             f32 repeatU = staticEntity->transform.scale.x > staticEntity->transform.scale.z ? staticEntity->transform.scale.x : staticEntity->transform.scale.z;
             RendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount,
                                     staticEntity->bitmap, lightsArray, lightsToRenderCount,
                                     cameraPosition, mesh->world, true, repeatU, repeatV);
+            */
+            
+            ConstantBuffer constBuffer;
+            constBuffer.world = mesh->world;
+            constBuffer.view = gameState->player.camera.view;
+            constBuffer.proj = gameState->player.camera.proj; 
+            RendererUpdateShaderData(gameState->shader, &constBuffer);
+            RendererDrawMesh(mesh, staticEntity->bitmap);
             //DEBUG_RendererDrawWireframeBuffer(verticesCube, ARRAY_LENGTH(verticesCube), obb->color, obb->world);
         }
     }
@@ -193,35 +202,61 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count,
 
 internal
 void DrawSkybox(vec3 cameraPosition, GameState *gameState) {
+    RendererSetDepthBuffer(false);
+    RendererSetShader(gameState->skyboxShader);
 // FRONT
     mat4 skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[2], NULL, 0,
-                            cameraPosition, skyboxWorld, false, 1, 1);
+                            cameraPosition, skyboxWorld, false, 1, 1); 
+    ConstantBuffer constBuffer;
+    constBuffer.world = skyboxWorld;
+    constBuffer.view = gameState->player.camera.view;
+    constBuffer.proj = gameState->player.camera.proj; 
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->skybox[2]);
 // BACK
     skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * 
                   Mat4RotateY(RAD(180.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[3], NULL, 0,
                             cameraPosition, skyboxWorld, false, 1, 1);
+    constBuffer.world = skyboxWorld;
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->skybox[3]);
+
 // LEFT
     skyboxWorld = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * 
                   Mat4RotateY(RAD(90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[5], NULL, 0,
                             cameraPosition, skyboxWorld, false, 1, 1);
+    constBuffer.world = skyboxWorld;
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->skybox[5]);
 // RIGHT
     skyboxWorld = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * 
                   Mat4RotateY(RAD(-90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[4], NULL, 0,
                             cameraPosition, skyboxWorld, false, 1, 1);
+    constBuffer.world = skyboxWorld;
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->skybox[4]);
+
 // UP
     skyboxWorld = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * 
                   Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
     RendererPushWorkToQueue(vertices, indices, ARRAY_LENGTH(indices),
                             gameState->skybox[0], NULL, 0,
                             cameraPosition, skyboxWorld, false, 1, 1);
+    constBuffer.world = skyboxWorld;
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->skybox[0]);
+
+
+    RendererSetShader(gameState->shader);
+    RendererSetDepthBuffer(true);
 }
 
 void GameInit(Memory *memory) {
@@ -243,29 +278,32 @@ void GameInit(Memory *memory) {
     gameState->staticEntitiesArena = ArenaCreate(memory, Megabytes(1));
 
     // Load Assets
-    gameState->bitmaps[0] = TextureCreate("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[1] = TextureCreate("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[2] = TextureCreate("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[3] = TextureCreate("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[4] = TextureCreate("../assets/shootSpritesheet.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[5] = TextureCreate("../assets/enemy.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->bitmaps[6] = TextureCreate("../assets/enemyHit.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[0] = RendererCreateTexture("../assets/test.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[1] = RendererCreateTexture("../assets/grass.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[2] = RendererCreateTexture("../assets/hand.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[3] = RendererCreateTexture("../assets/crosshair.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[4] = RendererCreateTexture("../assets/shootSpritesheet.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[5] = RendererCreateTexture("../assets/enemy.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->bitmaps[6] = RendererCreateTexture("../assets/enemyHit.bmp", &gameState->textureArena, &gameState->dataArena);
     
-    gameState->skybox[0] = TextureCreate("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->skybox[1] = TextureCreate("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->skybox[2] = TextureCreate("../assets/skyFront.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->skybox[3] = TextureCreate("../assets/skyBack.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->skybox[4] = TextureCreate("../assets/skyLeft.bmp", &gameState->textureArena, &gameState->dataArena);
-    gameState->skybox[5] = TextureCreate("../assets/skyRight.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[0] = RendererCreateTexture("../assets/skyUp.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[1] = RendererCreateTexture("../assets/skyDown.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[2] = RendererCreateTexture("../assets/skyFront.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[3] = RendererCreateTexture("../assets/skyBack.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[4] = RendererCreateTexture("../assets/skyLeft.bmp", &gameState->textureArena, &gameState->dataArena);
+    gameState->skybox[5] = RendererCreateTexture("../assets/skyRight.bmp", &gameState->textureArena, &gameState->dataArena);
     
     gameState->chocolate = SoundCreate("../assets/chocolate.wav", &gameState->soundArena, &gameState->dataArena);
     gameState->music     = SoundCreate("../assets/lugia.wav", &gameState->soundArena, &gameState->dataArena);
     gameState->shoot     = SoundCreate("../assets/shoot.wav", &gameState->soundArena, &gameState->dataArena);
 
-    
+    gameState->quadMesh = RendererCreateMesh(vertices, ARRAY_LENGTH(vertices), indices, ARRAY_LENGTH(indices), Mat4Identity(), &gameState->dataArena); 
+    gameState->cubeMesh = RendererCreateMesh(verticesCube2, ARRAY_LENGTH(verticesCube2), indicesCube2, ARRAY_LENGTH(indicesCube2), Mat4Identity(), &gameState->dataArena); 
+
     // InitializeMap
     StaticEntitiesInitialized(&gameState->entities, &gameState->entitiesCount, &gameState->staticEntitiesArena,
-                              vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps);
+                              vertices, indices, ARRAY_LENGTH(indices), gameState->bitmaps, gameState->quadMesh);
+    Mesh *cubeMesh = gameState->cubeMesh;
 
     StaticEntity *entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
@@ -292,6 +330,9 @@ void GameInit(Memory *memory) {
     mesh1->verticesCount = 0;
     mesh1->indices = indicesCube2;
     mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+    mesh1->gpuVertex = cubeMesh->gpuVertex;
+    mesh1->gpuIndices = cubeMesh->gpuIndices;
+
 
     entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
@@ -318,6 +359,9 @@ void GameInit(Memory *memory) {
     mesh1->verticesCount = 0;
     mesh1->indices = indicesCube2;
     mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+    mesh1->gpuVertex = cubeMesh->gpuVertex;
+    mesh1->gpuIndices = cubeMesh->gpuIndices;
+
 
     entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
@@ -344,6 +388,8 @@ void GameInit(Memory *memory) {
     mesh1->verticesCount = 0;
     mesh1->indices = indicesCube2;
     mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+    mesh1->gpuVertex = cubeMesh->gpuVertex;
+    mesh1->gpuIndices = cubeMesh->gpuIndices;
 
     entity = ArenaPushStruct(&gameState->staticEntitiesArena, StaticEntity);
     gameState->entitiesCount++;
@@ -370,6 +416,9 @@ void GameInit(Memory *memory) {
     mesh1->verticesCount = 0;
     mesh1->indices = indicesCube2;
     mesh1->indicesCount = ARRAY_LENGTH(indicesCube2);
+    mesh1->gpuVertex = cubeMesh->gpuVertex;
+    mesh1->gpuIndices = cubeMesh->gpuIndices;
+
 
 
     gameState->entities = entity;
@@ -394,9 +443,12 @@ void GameInit(Memory *memory) {
         OctreeInsertLight(gameState->tree, object, &gameState->dataArena);
     }
 
+    //PlayerInitialize(&gameState->player, {1, 1, -5});
     PlayerInitialize(&gameState->player, {2, 4, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
+
+    gameState->ortho = Mat4Ortho(-WINDOW_WIDTH/2, WINDOW_WIDTH/2, -WINDOW_HEIGHT/2, WINDOW_HEIGHT/2, 0.0f, 100.0f);  
 
 
     EnemyInitialize(&gameState->enemy[0], {2,  2, 5}, gameState->bitmaps[5], gameState->bitmaps[6]);
@@ -407,7 +459,15 @@ void GameInit(Memory *memory) {
     EnemyInitialize(&gameState->enemy[5], {17, 2, 15}, gameState->bitmaps[5], gameState->bitmaps[6]);
     gameState->enemyCount = 6;
     //SoundPlay(gameState->music, true); 
+    
 
+    gameState->shader = RendererCreateShader("../src/shaders/vertex.hlsl", 
+                                             "../src/shaders/pixel.hlsl",
+                                             &gameState->dataArena);
+    gameState->skyboxShader = RendererCreateShader("../src/shaders/vertex.hlsl", 
+                                                   "../src/shaders/skybox.hlsl",
+                                                   &gameState->dataArena);
+    RendererSetShader(gameState->shader);
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
@@ -421,6 +481,12 @@ void GameUpdate(Memory *memory, f32 dt) {
         Enemy *enemy = gameState->enemy + i;
         EnemyUpdate(enemy, gameState->tree, &gameState->frameArena, dt);
     }
+
+    ConstantBuffer constBuffer;
+    constBuffer.world = Mat4Identity();
+    constBuffer.view = gameState->player.camera.view;
+    constBuffer.proj = gameState->player.camera.proj; 
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
     
 }
 
@@ -473,12 +539,20 @@ void GameRender(Memory *memory) {
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, lightsToRender, lightsToRenderCount,
                           gameState, gameState->player.camera.position, &gameState->frameArena);
 
+    RendererSetShader(gameState->skyboxShader);
     for(i32 i = 0; i < 10; ++i) {
         vec3 position = gameState->player.bulletBuffer[i];
         mat4 world = Mat4Translate(position.x, position.y, position.z) * Mat4Scale(0.05f, 0.05f, 0.05f);
         RendererPushWorkToQueue(verticesCube2, indicesCube2, ARRAY_LENGTH(indicesCube2),
                                 gameState->bitmaps[3], NULL, 0,
                                 gameState->player.camera.position, world, true, 1, 1);
+
+        ConstantBuffer constBuffer;
+        constBuffer.world = world;
+        constBuffer.view = gameState->player.camera.view;
+        constBuffer.proj = gameState->player.camera.proj; 
+        RendererUpdateShaderData(gameState->shader, &constBuffer);
+        RendererDrawMesh(gameState->cubeMesh, gameState->bitmaps[3]);
     }
 
     RendererFlushWorkQueue(); 
@@ -490,8 +564,15 @@ void GameRender(Memory *memory) {
         Enemy *enemy = gameState->enemy + i;
         RendererPushWorkToQueue(enemy->mesh.vertices, enemy->mesh.indices, enemy->mesh.indicesCount, enemy->currentTexture,
                                 NULL, 0, gameState->player.camera.position, enemy->mesh.world, true, 1, 1);
-    }
+    
+        ConstantBuffer constBuffer;
+        constBuffer.world = enemy->mesh.world;
+        constBuffer.view = gameState->player.camera.view;
+        constBuffer.proj = gameState->player.camera.proj; 
+        RendererUpdateShaderData(gameState->shader, &constBuffer);
+        RendererDrawMesh(gameState->quadMesh, enemy->currentTexture);
 
+    }
     RendererFlushWorkQueue(); 
 
     //RendererDrawRectFast((WINDOW_WIDTH/2) - ((192)/2) - 20, 0, 192, 192, gameState->bitmaps[2]);
@@ -499,8 +580,25 @@ void GameRender(Memory *memory) {
     RendererDrawRectFast((WINDOW_WIDTH/2) - ((16)/2),
                          (WINDOW_HEIGHT/2) - ((16)/2), 
                           16, 16, gameState->bitmaps[3]);
+
+    ConstantBuffer constBuffer;
+    constBuffer.world = Mat4Translate(0, (-WINDOW_HEIGHT/2) + (128/2), 0) * Mat4Scale(78, 128, 1);
+    //constBuffer.world = Mat4Translate(0, 0, 0) * Mat4Scale(10, 10, 1);
+    constBuffer.view = Mat4Identity();
+    constBuffer.proj = gameState->ortho; 
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->bitmaps[4]);
+
+    constBuffer.world = Mat4Translate(0, 0, 0) * Mat4Scale(8, 8, 1);
+    RendererUpdateShaderData(gameState->shader, &constBuffer);
+    RendererDrawMesh(gameState->quadMesh, gameState->bitmaps[3]);
+
+
+ 
     
     RendererPresent();
+    
+    RendererSetShader(gameState->shader);
 
     ArenaReset(&gameState->frameArena);
 }

@@ -12,6 +12,9 @@ struct Texture;
 struct StaticEntity;
 struct OctreeNode;
 
+struct Mesh;
+struct Shader;
+
 struct GameState {
     Arena dataArena;
     Arena frameArena;
@@ -33,6 +36,13 @@ struct GameState {
     OctreeNode *tree;
     StaticEntity *entities;
     i32 entitiesCount;
+
+    // TODO: test directx renderer
+    Mesh *quadMesh;
+    Mesh *cubeMesh;
+    Shader *shader;
+    Shader *skyboxShader;
+    mat4 ortho;
 };
 
 void GameInit(Memory *memory);
