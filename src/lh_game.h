@@ -42,7 +42,7 @@ struct GameState {
     Mesh *cubeMesh;
     Shader *shader;
     Shader *skyboxShader;
-    mat4 ortho;
+    ConstantBuffer constBuffer;
 };
 
 void GameInit(Memory *memory);
