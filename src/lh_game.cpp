@@ -182,7 +182,7 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count,
             Mesh *mesh = staticEntity->meshes + j;
             f32 repeatV = staticEntity->transform.scale.y;
             f32 repeatU = staticEntity->transform.scale.x > staticEntity->transform.scale.z ? staticEntity->transform.scale.x : staticEntity->transform.scale.z;
-            RendererDrawMesh(mesh, staticEntity->bitmap, lightsArray, lightsToRenderCount,
+            RendererDrawMesh(mesh, mesh->world, staticEntity->bitmap, lightsArray, lightsToRenderCount,
                              cameraPosition, true, repeatU, repeatV,
                              &gameState->constBuffer, gameState->shader);
         }
@@ -191,30 +191,31 @@ void DrawStaticEntityArray(StaticEntityNode *entities, i32 count,
 
 internal
 void DrawSkybox(vec3 cameraPosition, GameState *gameState) {
-// FRONT
-    Mesh mesh = *gameState->quadMesh;
-    mesh.world = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
-    RendererDrawMesh(&mesh, gameState->skybox[2], NULL, 0, cameraPosition, false, 1, 1,
+    mat4 world;
+    Mesh *mesh = gameState->quadMesh;
+    // FRONT
+    world = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z + 1.0f);
+    RendererDrawMesh(mesh, world, gameState->skybox[2], NULL, 0, cameraPosition, false, 1, 1,
                      &gameState->constBuffer, gameState->skyboxShader);
 // BACK
-    mesh.world = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * Mat4RotateY(RAD(180.0f));
-    RendererDrawMesh(&mesh, gameState->skybox[3], NULL, 0, cameraPosition, false, 1, 1,
+    world = Mat4Translate(cameraPosition.x, cameraPosition.y, cameraPosition.z - 1.0f) * Mat4RotateY(RAD(180.0f));
+    RendererDrawMesh(mesh, world, gameState->skybox[3], NULL, 0, cameraPosition, false, 1, 1,
                      &gameState->constBuffer, gameState->skyboxShader);
 
 
 // LEFT
-    mesh.world = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * Mat4RotateY(RAD(90.0f));
-    RendererDrawMesh(&mesh, gameState->skybox[5], NULL, 0, cameraPosition, false, 1, 1,
+    world = Mat4Translate(cameraPosition.x - 1, cameraPosition.y, cameraPosition.z) * Mat4RotateY(RAD(90.0f));
+    RendererDrawMesh(mesh, world, gameState->skybox[5], NULL, 0, cameraPosition, false, 1, 1,
                      &gameState->constBuffer, gameState->skyboxShader);
 
 // RIGHT
-    mesh.world = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * Mat4RotateY(RAD(-90.0f));
-    RendererDrawMesh(&mesh, gameState->skybox[4], NULL, 0, cameraPosition, false, 1, 1,
+    world = Mat4Translate(cameraPosition.x + 1, cameraPosition.y, cameraPosition.z) * Mat4RotateY(RAD(-90.0f));
+    RendererDrawMesh(mesh, world, gameState->skybox[4], NULL, 0, cameraPosition, false, 1, 1,
                      &gameState->constBuffer, gameState->skyboxShader);
 
 // UP
-    mesh.world = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
-    RendererDrawMesh(&mesh, gameState->skybox[0], NULL, 0, cameraPosition, false, 1, 1,
+    world = Mat4Translate(cameraPosition.x, cameraPosition.y + 1, cameraPosition.z) * Mat4RotateX(RAD(-90.0f)) * Mat4RotateZ(RAD(-90.0f));
+    RendererDrawMesh(mesh, world, gameState->skybox[0], NULL, 0, cameraPosition, false, 1, 1,
                      &gameState->constBuffer, gameState->skyboxShader);
 }
 
@@ -465,11 +466,11 @@ void GameRender(Memory *memory) {
     GameState *gameState = (GameState *)memory->data;
     RendererSetView(gameState->player.camera.view);
     RendererClearBuffers(0xFFFFFFEE, 0.0f);
-
-    // SKYBOX
     gameState->constBuffer.view = gameState->player.camera.view;
     RendererUpdateShaderData(gameState->shader, &gameState->constBuffer);
     RendererUpdateShaderData(gameState->skyboxShader, &gameState->constBuffer);
+
+    // SKYBOX
     DrawSkybox(gameState->player.camera.position, gameState);
     RendererFlushWorkQueue(); 
 
@@ -493,15 +494,17 @@ void GameRender(Memory *memory) {
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, lightsToRender, lightsToRenderCount,
                           gameState, gameState->player.camera.position, &gameState->frameArena);
 
+
     for(i32 i = 0; i < 10; ++i) {
         vec3 position = gameState->player.bulletBuffer[i];
         mat4 world = Mat4Translate(position.x, position.y, position.z) * Mat4Scale(0.05f, 0.05f, 0.05f);
-        Mesh mesh = *gameState->cubeMesh;
-        mesh.world = world;
-        RendererDrawMesh(&mesh, gameState->bitmaps[3], NULL, 0, gameState->player.camera.position, true, 1, 1,
+        RendererDrawMesh(gameState->cubeMesh, world, gameState->bitmaps[3], NULL, 0, gameState->player.camera.position, true, 1, 1,
                          &gameState->constBuffer, gameState->skyboxShader);
     }
+
+
     RendererFlushWorkQueue(); 
+
 
     // render the enemy
     // TODO: mabye copy the enemy to a tmp Arena
@@ -513,7 +516,7 @@ void GameRender(Memory *memory) {
         enemy->mesh.gpuVertex = gameState->quadMesh->gpuVertex;
         enemy->mesh.gpuIndices = gameState->quadMesh->gpuIndices;
         //////////////////////////////////////////////////////////
-        RendererDrawMesh(&enemy->mesh, enemy->currentTexture, NULL, 0, gameState->player.camera.position, true, 1, 1,
+        RendererDrawMesh(&enemy->mesh, enemy->mesh.world, enemy->currentTexture, NULL, 0, gameState->player.camera.position, true, 1, 1,
                          &gameState->constBuffer, gameState->skyboxShader);
 
     }

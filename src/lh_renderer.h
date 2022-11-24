@@ -33,7 +33,7 @@ Texture *RendererCreateTexture(char *path, Arena *objArena, Arena *dataArena);
 
 void RendererSetShader(Shader *shader);
 
-void RendererDrawMesh(Mesh *mesh, Texture *texture, vec3 *lights, i32 lightsCount,
+void RendererDrawMesh(Mesh *mesh, mat4 world, Texture *texture, vec3 *lights, i32 lightsCount,
                       vec3 viewPos, bool writeDepthBuffer, f32 repeatU, f32 repeatV,
                       ConstantBuffer *constBuffer, Shader *shader);
 

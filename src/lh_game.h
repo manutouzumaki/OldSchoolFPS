@@ -38,8 +38,8 @@ struct GameState {
     i32 entitiesCount;
 
     // TODO: test directx renderer
-    Mesh *quadMesh;
     Mesh *cubeMesh;
+    Mesh *quadMesh;
     Shader *shader;
     Shader *skyboxShader;
     ConstantBuffer constBuffer;

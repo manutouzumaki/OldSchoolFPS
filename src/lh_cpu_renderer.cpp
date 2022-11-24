@@ -1172,10 +1172,10 @@ void CPURendererShutdown() {
     free(cpuRenderer->colorBuffer);
 }
 
-void CPURendererDrawMesh(Mesh *mesh, Texture *texture, vec3 *lights, i32 lightsCount,
+void CPURendererDrawMesh(Mesh *mesh, mat4 world, Texture *texture, vec3 *lights, i32 lightsCount,
                          vec3 viewPos, bool writeDepthBuffer, f32 repeatU, f32 repeatV) {
     CPURendererPushWorkToQueue(mesh->vertices, mesh->indices, mesh->indicesCount, texture, lights, lightsCount,
-                               viewPos, mesh->world, writeDepthBuffer, repeatU, repeatV);
+                               viewPos, world, writeDepthBuffer, repeatU, repeatV);
 }
 
 void CPUDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap) {

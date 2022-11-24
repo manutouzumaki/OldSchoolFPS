@@ -42,7 +42,7 @@ struct CPURenderer {
 void CPURendererInitialize();
 void CPURendererShutdown();
 
-void CPURendererDrawMesh(Mesh *mesh, Texture *texture, vec3 *lights, i32 lightsCount,
+void CPURendererDrawMesh(Mesh *mesh, mat4 world, Texture *texture, vec3 *lights, i32 lightsCount,
                          vec3 viewPos, bool writeDepthBuffer, f32 repeatU, f32 repeatV);
 void CPUDrawRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap);
 void CPUDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap, i32 spriteW, i32 spriteH, i32 frame);
