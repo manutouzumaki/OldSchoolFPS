@@ -8,12 +8,6 @@
 struct Texture;
 struct Arena;
 
-enum RendererType {
-    RENDERER_DIRECTX,
-    RENDERER_CPU,
-    RENDERER_OPENGL
-};
-
 struct Vertex {
     vec3 position;
     vec2 uv;

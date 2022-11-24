@@ -83,8 +83,8 @@ void RendererSystemInitialize() {
     InitializeD3D11();
     GPURendererInitialize();
     CPURendererInitialize();
-    //gRenderer.type = RENDERER_DIRECTX;
-    gRenderer.type = RENDERER_CPU;
+    gRenderer.type = RENDERER_DIRECTX;
+    //gRenderer.type = RENDERER_CPU;
 
     switch(gRenderer.type) {
         case RENDERER_CPU: {
@@ -116,6 +116,35 @@ void RendererSystemShutdown() {
     gRenderer.swapChain->Release();
     gRenderer.deviceContext->Release();
     gRenderer.device->Release();
+}
+
+RendererType GetRendererType() {
+    return gRenderer.type;
+}
+void RendererSetMode(RendererType mode) {
+    gRenderer.type = mode;
+    switch(gRenderer.type) {
+        case RENDERER_CPU: {
+            gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, 0);
+            gRenderer.deviceContext->PSSetShaderResources(0, 1, &gRenderer.cpuRenderer.colorMap);
+            gRenderer.deviceContext->PSSetSamplers(0, 1, &gRenderer.cpuRenderer.colorMapSampler);
+            u32 stride = sizeof(VertexD3D11);
+            u32 offset = 0;
+            gRenderer.deviceContext->IASetInputLayout(gRenderer.cpuRenderer.inputLayout);
+            gRenderer.deviceContext->IASetVertexBuffers(0, 1, &gRenderer.cpuRenderer.vertexBuffer, &stride, &offset);
+            gRenderer.deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            gRenderer.deviceContext->VSSetShader(gRenderer.cpuRenderer.vertexShader, 0, 0);
+            gRenderer.deviceContext->PSSetShader(gRenderer.cpuRenderer.pixelShader,  0, 0);
+                           
+        }break;
+        case RENDERER_DIRECTX: {
+            gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, gRenderer.gpuRenderer.depthStencilView);
+            gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOn, 1);
+            gRenderer.deviceContext->OMSetBlendState(gRenderer.gpuRenderer.alphaBlendEnable, 0, 0xffffffff);
+            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullNone);            
+        }break;  
+    };
+
 }
 
 void RendererSetDepthBuffer(bool value) {
@@ -171,22 +200,24 @@ void RendererDrawMesh(Mesh *mesh, mat4 world, Texture *texture, vec3 *lights, i3
     };
 }
 
-void RendererDrawRectFast(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {
+void RendererDrawRect(i32 xPos, i32 yPos, i32 width, i32 height, Texture *bitmap) {
     switch(gRenderer.type) {
         case RENDERER_CPU: {
             CPUDrawRectFast(xPos, yPos, width, height, bitmap);
         } break;
         case RENDERER_DIRECTX: {
+            GPURendererDrawRect(xPos, yPos, width, height, bitmap);
         } break; 
     };
 }
 
-void RendererDrawAnimatedRectFast(i32 x, i32 y, i32 width, i32 height, Texture *bitmap, i32 spriteW, i32 spriteH, i32 frame) {
+void RendererDrawAnimatedRect(i32 x, i32 y, i32 width, i32 height, Texture *bitmap, i32 spriteW, i32 spriteH, i32 frame) {
     switch(gRenderer.type) {
         case RENDERER_CPU: {
             CPUDrawAnimatedRectFast(x, y, width, height, bitmap, spriteW, spriteH, frame);
         } break;
         case RENDERER_DIRECTX: {
+            GPUDrawAnimatedRect(x, y, width, height, bitmap, spriteW, spriteH, frame);
         } break; 
     };
 }

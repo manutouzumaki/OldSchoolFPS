@@ -981,42 +981,36 @@ void CPURendererPushWorkToQueue(Vertex *vertices, u32 *indices,
 
 
 void RendererFlushWorkQueue() {
-
-
-    switch(gRenderer.type) {
-        case RENDERER_CPU: {
-
-            CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
-            const i32 tileCountX = 4;
-            const i32 tileCountY = 4;
-            ThreadParam paramArray[tileCountX*tileCountY];
-            i32 tileWidth = cpuRenderer->bufferWidth / tileCountX;
-            i32 tileHeight = cpuRenderer->bufferHeight / tileCountY;
-            tileWidth = ((tileWidth + 3) / 4) * 4;
-            i32 paramCount = 0;
-            for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
-                for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
-                    ThreadParam *param = paramArray + paramCount++;
-                    rectangle2i clipRect;
-                    clipRect.minX = (tileX * tileWidth);
-                    clipRect.maxX = (clipRect.minX + tileWidth);
-                    clipRect.minY = (tileY * tileHeight);
-                    clipRect.maxY = (clipRect.minY + tileHeight);
-                    if(tileX == (tileCountX - 1)) {
-                        clipRect.maxX = cpuRenderer->bufferWidth - 1;
-                    }
-                    if(tileY == (tileCountY - 1)) {
-                        clipRect.maxY = cpuRenderer->bufferHeight - 1;
-                    }
-                    param->clipRect = clipRect; 
-                    PlatformAddEntry(DoTileRenderWork, param);
+    if(gRenderer.type == RENDERER_CPU) {
+        CPURenderer *cpuRenderer = &gRenderer.cpuRenderer;
+        const i32 tileCountX = 4;
+        const i32 tileCountY = 4;
+        ThreadParam paramArray[tileCountX*tileCountY];
+        i32 tileWidth = cpuRenderer->bufferWidth / tileCountX;
+        i32 tileHeight = cpuRenderer->bufferHeight / tileCountY;
+        tileWidth = ((tileWidth + 3) / 4) * 4;
+        i32 paramCount = 0;
+        for(i32 tileY = 0; tileY < tileCountY; ++tileY) {
+            for(i32 tileX = 0; tileX < tileCountX; ++tileX) {
+                ThreadParam *param = paramArray + paramCount++;
+                rectangle2i clipRect;
+                clipRect.minX = (tileX * tileWidth);
+                clipRect.maxX = (clipRect.minX + tileWidth);
+                clipRect.minY = (tileY * tileHeight);
+                clipRect.maxY = (clipRect.minY + tileHeight);
+                if(tileX == (tileCountX - 1)) {
+                    clipRect.maxX = cpuRenderer->bufferWidth - 1;
                 }
+                if(tileY == (tileCountY - 1)) {
+                    clipRect.maxY = cpuRenderer->bufferHeight - 1;
+                }
+                param->clipRect = clipRect; 
+                PlatformAddEntry(DoTileRenderWork, param);
             }
-            PlatformCompleteAllWork();
-            cpuRenderer->workCount = 0;
-             
-        }break;
-    };
+        }
+        PlatformCompleteAllWork();
+        cpuRenderer->workCount = 0;
+    }    
 }
 
 

@@ -410,7 +410,6 @@ void GameInit(Memory *memory) {
         OctreeInsertLight(gameState->tree, object, &gameState->dataArena);
     }
 
-    //PlayerInitialize(&gameState->player, {1, 1, -5});
     PlayerInitialize(&gameState->player, {2, 4, 4});
     RendererSetProj(gameState->player.camera.proj);
     RendererSetView(gameState->player.camera.view);
@@ -430,6 +429,17 @@ void GameInit(Memory *memory) {
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
+
+    if(KeyboardGetKeyJustDown(KEYBOARD_KEY_1) || JoysickGetButtonJustDown(JOYSTICK_BUTTON_B)) {
+        RendererType type = GetRendererType();
+        if(type == RENDERER_DIRECTX) {
+            RendererSetMode(RENDERER_CPU);
+        }
+        if(type == RENDERER_CPU) {
+            RendererSetMode(RENDERER_DIRECTX);
+        }
+    }
+
     PhysicClearForces();
     GameState *gameState = (GameState *)memory->data;
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
@@ -505,25 +515,20 @@ void GameRender(Memory *memory) {
 
     RendererFlushWorkQueue(); 
 
-
     // render the enemy
     // TODO: mabye copy the enemy to a tmp Arena
     SortEnemies(gameState->enemy, gameState->player.camera.position, gameState->enemyCount);
     for(i32 i = 0 ; i < gameState->enemyCount; ++i) {
         Enemy *enemy = gameState->enemy + i;
-        // TODO: FIX THIS IMPORTANT.....
-        //////////////////////////////////////////////////////////
-        enemy->mesh.gpuVertex = gameState->quadMesh->gpuVertex;
-        enemy->mesh.gpuIndices = gameState->quadMesh->gpuIndices;
-        //////////////////////////////////////////////////////////
-        RendererDrawMesh(&enemy->mesh, enemy->mesh.world, enemy->currentTexture, NULL, 0, gameState->player.camera.position, true, 1, 1,
+        RendererDrawMesh(gameState->quadMesh, enemy->mesh.world, enemy->currentTexture, NULL, 0, gameState->player.camera.position, true, 1, 1,
                          &gameState->constBuffer, gameState->skyboxShader);
-
     }
     RendererFlushWorkQueue(); 
 
-    RendererDrawAnimatedRectFast((WINDOW_WIDTH/2) - ((78*2)/2) , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
-    RendererDrawRectFast((WINDOW_WIDTH/2) - ((16)/2), (WINDOW_HEIGHT/2) - ((16)/2), 16, 16, gameState->bitmaps[3]);
+    //RendererDrawAnimatedRect(0 , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
+    RendererDrawAnimatedRect((WINDOW_WIDTH/2) - ((78*2)/2) , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
+    
+    RendererDrawRect((WINDOW_WIDTH/2) - ((16)/2), (WINDOW_HEIGHT/2) - ((16)/2), 16, 16, gameState->bitmaps[3]);
 
     RendererPresent();
     ArenaReset(&gameState->frameArena);
