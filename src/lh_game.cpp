@@ -9,9 +9,6 @@
 //////////////////////////////////////////////////////////////////////
 // TODO (manuto):
 //////////////////////////////////////////////////////////////////////
-// Implement DirectX Renderer
-// Implement a Platform independent Renderer
-// Add global sun with phog lighting
 // ...
 // ...
 // ...
@@ -503,16 +500,12 @@ void GameRender(Memory *memory) {
 
     DrawStaticEntityArray(entitiesToRender, entitiesToRenderCount, lightsToRender, lightsToRenderCount,
                           gameState, gameState->player.camera.position, &gameState->frameArena);
-
-
     for(i32 i = 0; i < 10; ++i) {
         vec3 position = gameState->player.bulletBuffer[i];
         mat4 world = Mat4Translate(position.x, position.y, position.z) * Mat4Scale(0.05f, 0.05f, 0.05f);
         RendererDrawMesh(gameState->cubeMesh, world, gameState->bitmaps[3], NULL, 0, gameState->player.camera.position, true, 1, 1,
                          &gameState->constBuffer, gameState->skyboxShader);
     }
-
-
     RendererFlushWorkQueue(); 
 
     // render the enemy
@@ -525,9 +518,7 @@ void GameRender(Memory *memory) {
     }
     RendererFlushWorkQueue(); 
 
-    //RendererDrawAnimatedRect(0 , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
     RendererDrawAnimatedRect((WINDOW_WIDTH/2) - ((78*2)/2) , 0, 78*2, 128*2, gameState->bitmaps[4], 78, 128, gameState->player.frame);
-    
     RendererDrawRect((WINDOW_WIDTH/2) - ((16)/2), (WINDOW_HEIGHT/2) - ((16)/2), 16, 16, gameState->bitmaps[3]);
 
     RendererPresent();

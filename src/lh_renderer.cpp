@@ -104,7 +104,7 @@ void RendererSystemInitialize() {
             gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, gRenderer.gpuRenderer.depthStencilView);
             gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOn, 1);
             gRenderer.deviceContext->OMSetBlendState(gRenderer.gpuRenderer.alphaBlendEnable, 0, 0xffffffff);
-            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullNone);            
+            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullBack);            
         }break;  
     };
 }
@@ -141,7 +141,7 @@ void RendererSetMode(RendererType mode) {
             gRenderer.deviceContext->OMSetRenderTargets(1, &gRenderer.renderTargetView, gRenderer.gpuRenderer.depthStencilView);
             gRenderer.deviceContext->OMSetDepthStencilState(gRenderer.gpuRenderer.depthStencilOn, 1);
             gRenderer.deviceContext->OMSetBlendState(gRenderer.gpuRenderer.alphaBlendEnable, 0, 0xffffffff);
-            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullNone);            
+            gRenderer.deviceContext->RSSetState(gRenderer.gpuRenderer.fillRasterizerCullBack);            
         }break;  
     };
 

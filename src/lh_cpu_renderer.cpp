@@ -265,7 +265,6 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 d11 = _mm_add_ps(_mm_mul_ps(v1x, v1x), _mm_mul_ps(v1y, v1y));
         __m128 denom = _mm_sub_ps(_mm_mul_ps(d00, d11), _mm_mul_ps(d10, d10));
 
-
         // vec3 viewPos = {0, -3, -8};
         __m128 viewPosX = _mm_set1_ps(viewPos.x);
         __m128 viewPosY = _mm_set1_ps(viewPos.y);
@@ -275,18 +274,8 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 lightColorX = _mm_set1_ps(0.8f);
         __m128 lightColorY = _mm_set1_ps(0.7f);
         __m128 lightColorZ = _mm_set1_ps(0.2f);
-
-        //__m128 diffuseColorX = _mm_set1_ps(1);
-        //__m128 diffuseColorY = _mm_set1_ps(1);
-        //__m128 diffuseColorZ = _mm_set1_ps(1);
-        
-        //vec3 lightColor = {1, 1, 1};
-        //__m128 specularColorX = _mm_set1_ps(1);
-        //__m128 specularColorY = _mm_set1_ps(1);
-        //__m128 specularColorZ = _mm_set1_ps(1);
-        
+ 
         __m128 ambientStrength  = _mm_set1_ps(0.2f);
-        //__m128 diffuseStrength = _mm_set1_ps(0.6f);
         __m128 specularStrength = _mm_set1_ps(1.0f);
 
         __m128 specComponent = _mm_set1_ps(32.0f);

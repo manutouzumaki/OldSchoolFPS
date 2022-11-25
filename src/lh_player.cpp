@@ -114,8 +114,8 @@ void PlayerProcessMovement(Player *player, f32 dt) {
     PhysicAddForce(player->physicId, playerMovement);
 
     if(!player->physic->grounded) {
-        vec3 gravityVector = {0, -player->gravity, 0.0f};
-        PhysicAddForce(player->physicId, gravityVector);
+      vec3 gravityVector = {0, -player->gravity, 0.0f};
+      PhysicAddForce(player->physicId, gravityVector);
     }
 
     // Jump
