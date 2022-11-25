@@ -35,6 +35,7 @@ struct ConstantBuffer {
     mat4 world;
     mat4 view;
     mat4 proj; 
+    vec3 viewPos;
 };
 
 struct Shader {

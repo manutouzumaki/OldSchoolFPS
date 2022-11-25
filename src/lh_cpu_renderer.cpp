@@ -272,28 +272,28 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
         __m128 viewPosZ = _mm_set1_ps(viewPos.z);
 
         //vec3 lightColor = {1, 1, 1};
-        __m128 lightColorX = _mm_set1_ps(1);
-        __m128 lightColorY = _mm_set1_ps(1);
-        __m128 lightColorZ = _mm_set1_ps(1);
+        __m128 lightColorX = _mm_set1_ps(0.8f);
+        __m128 lightColorY = _mm_set1_ps(0.7f);
+        __m128 lightColorZ = _mm_set1_ps(0.2f);
 
-        __m128 diffuseColorX = _mm_set1_ps(1);
-        __m128 diffuseColorY = _mm_set1_ps(1);
-        __m128 diffuseColorZ = _mm_set1_ps(1);
+        //__m128 diffuseColorX = _mm_set1_ps(1);
+        //__m128 diffuseColorY = _mm_set1_ps(1);
+        //__m128 diffuseColorZ = _mm_set1_ps(1);
         
-       //vec3 lightColor = {1, 1, 1};
-        __m128 specularColorX = _mm_set1_ps(0.8f);
-        __m128 specularColorY = _mm_set1_ps(1);
-        __m128 specularColorZ = _mm_set1_ps(0.4f);
+        //vec3 lightColor = {1, 1, 1};
+        //__m128 specularColorX = _mm_set1_ps(1);
+        //__m128 specularColorY = _mm_set1_ps(1);
+        //__m128 specularColorZ = _mm_set1_ps(1);
         
         __m128 ambientStrength  = _mm_set1_ps(0.2f);
-        __m128 diffuseStrength = _mm_set1_ps(0.6f);
-        __m128 specularStrength = _mm_set1_ps(0.7f);
+        //__m128 diffuseStrength = _mm_set1_ps(0.6f);
+        __m128 specularStrength = _mm_set1_ps(1.0f);
 
-        __m128 specComponent = _mm_set1_ps(16.0f);
+        __m128 specComponent = _mm_set1_ps(32.0f);
 
         __m128 constant = _mm_set1_ps(1.0f);
-        __m128 linear = _mm_set1_ps(0.07f);
-        __m128 quadratic = _mm_set1_ps(0.017f);
+        __m128 linear = _mm_set1_ps(0.35f);
+        __m128 quadratic = _mm_set1_ps(0.44f);
 
         i32 minX = fillRect.minX;
         i32 minY = fillRect.minY;
@@ -382,7 +382,7 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             Mi(color, i) = ((u32 *)bitmap->data)[textureY * bitmap->width + textureX];
                         }
 
-#if 0
+#if 1
                         __m128 interpolatedNormalX = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormX, alpha), _mm_mul_ps(bNormX, gamma)), _mm_mul_ps(cNormX, beta));
                         __m128 interpolatedNormalY = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormY, alpha), _mm_mul_ps(bNormY, gamma)), _mm_mul_ps(cNormY, beta));
                         __m128 interpolatedNormalZ = _mm_add_ps(_mm_add_ps(_mm_mul_ps(aNormZ, alpha), _mm_mul_ps(bNormZ, gamma)), _mm_mul_ps(cNormZ, beta));
@@ -406,12 +406,21 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                         __m128 green = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
                         __m128 blue  = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
                         
-                        vec3 lightDir = {0.4f, -0.5f, -1};
-                        normalize(&lightDir);
-                        __m128 lightDirX = _mm_set1_ps(lightDir.x);
-                        __m128 lightDirY = _mm_set1_ps(lightDir.y);
-                        __m128 lightDirZ = _mm_set1_ps(lightDir.z);
-
+                        vec3 lightPos = {-10, 6, 40}; 
+                        __m128 lightPosX = _mm_set1_ps(lightPos.x);
+                        __m128 lightPosY = _mm_set1_ps(lightPos.y);
+                        __m128 lightPosZ = _mm_set1_ps(lightPos.z);
+                        __m128 lightDirX = _mm_sub_ps(interpolatedFragPosX, lightPosX);
+                        __m128 lightDirY = _mm_sub_ps(interpolatedFragPosY, lightPosY);
+                        __m128 lightDirZ = _mm_sub_ps(interpolatedFragPosZ, lightPosZ);
+                        squaredLength = _mm_add_ps(
+                                             _mm_add_ps(_mm_mul_ps(lightDirX, lightDirX),
+                                                        _mm_mul_ps(lightDirY, lightDirY)),
+                                                        _mm_mul_ps(lightDirZ, lightDirZ));
+                        length = _mm_sqrt_ps(squaredLength);
+                        lightDirX = _mm_div_ps(lightDirX, length);
+                        lightDirY = _mm_div_ps(lightDirY, length);
+                        lightDirZ = _mm_div_ps(lightDirZ, length);
 
                         __m128 ambientX = _mm_mul_ps(lightColorX, ambientStrength);
                         __m128 ambientY = _mm_mul_ps(lightColorY, ambientStrength);
@@ -424,13 +433,69 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                                                         _mm_mul_ps(normalizeInterpolatedNormalZ, lightDirZ)),
                                        zero), one);
 
-                        __m128 diffuseX = _mm_mul_ps(_mm_mul_ps(diffuseColorX, diff), diffuseStrength);
-                        __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(diffuseColorY, diff), diffuseStrength);
-                        __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(diffuseColorZ, diff), diffuseStrength);
+                        __m128 diffuseX = _mm_mul_ps(lightColorX, diff);
+                        __m128 diffuseY = _mm_mul_ps(lightColorY, diff);
+                        __m128 diffuseZ = _mm_mul_ps(lightColorZ, diff);
 
-                        __m128 resultX = _mm_mul_ps(_mm_add_ps(ambientX, diffuseX), red);
-                        __m128 resultY = _mm_mul_ps(_mm_add_ps(ambientY, diffuseY), green);
-                        __m128 resultZ = _mm_mul_ps(_mm_add_ps(ambientZ, diffuseZ), blue);
+                        __m128 viewDirX = _mm_sub_ps(interpolatedFragPosX, viewPosX);
+                        __m128 viewDirY = _mm_sub_ps(interpolatedFragPosY, viewPosY);
+                        __m128 viewDirZ = _mm_sub_ps(interpolatedFragPosZ, viewPosZ);
+
+                        squaredLength = _mm_add_ps(
+                                        _mm_add_ps(_mm_mul_ps(viewDirX, viewDirX),
+                                                   _mm_mul_ps(viewDirY, viewDirY)),
+                                                   _mm_mul_ps(viewDirZ, viewDirZ));
+                        length = _mm_sqrt_ps(squaredLength);
+                        viewDirX = _mm_div_ps(viewDirX, length);
+                        viewDirY = _mm_div_ps(viewDirY, length);
+                        viewDirZ = _mm_div_ps(viewDirZ, length);
+
+                        __m128 negativeLightDirX = _mm_mul_ps(lightDirX, minusOne);
+                        __m128 negativeLightDirY = _mm_mul_ps(lightDirY, minusOne);
+                        __m128 negativeLightDirZ = _mm_mul_ps(lightDirZ, minusOne);
+
+                        squaredLength = _mm_add_ps(
+                                        _mm_add_ps(_mm_mul_ps(normalizeInterpolatedNormalX, normalizeInterpolatedNormalX),
+                                                   _mm_mul_ps(normalizeInterpolatedNormalY, normalizeInterpolatedNormalY)),
+                                                   _mm_mul_ps(normalizeInterpolatedNormalZ, normalizeInterpolatedNormalZ));
+                        length = _mm_sqrt_ps(squaredLength);
+                            
+                        __m128 scale = _mm_div_ps(
+                                                  _mm_add_ps(
+                                                  _mm_add_ps(_mm_mul_ps(negativeLightDirX, normalizeInterpolatedNormalX),
+                                                             _mm_mul_ps(negativeLightDirY, normalizeInterpolatedNormalY)),
+                                                             _mm_mul_ps(negativeLightDirZ, normalizeInterpolatedNormalZ)), length);
+                        scale = _mm_mul_ps(scale, two);
+                        __m128 proj2X = _mm_mul_ps(normalizeInterpolatedNormalX, scale); 
+                        __m128 proj2Y = _mm_mul_ps(normalizeInterpolatedNormalY, scale); 
+                        __m128 proj2Z = _mm_mul_ps(normalizeInterpolatedNormalZ, scale);
+
+                        __m128  reflectDirX = _mm_sub_ps(negativeLightDirX, proj2X);
+                        __m128  reflectDirY = _mm_sub_ps(negativeLightDirY, proj2Y);
+                        __m128  reflectDirZ = _mm_sub_ps(negativeLightDirZ, proj2Z);
+
+                        squaredLength = _mm_add_ps(
+                                        _mm_add_ps(_mm_mul_ps(reflectDirX, reflectDirX),
+                                                   _mm_mul_ps(reflectDirY, reflectDirY)),
+                                                   _mm_mul_ps(reflectDirZ, reflectDirZ));
+                        length = _mm_sqrt_ps(squaredLength);
+                        reflectDirX = _mm_div_ps(reflectDirX, length);
+                        reflectDirY = _mm_div_ps(reflectDirY, length);
+                        reflectDirZ = _mm_div_ps(reflectDirZ, length);
+
+                        __m128 dotProduct = _mm_add_ps(
+                                            _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
+                                                       _mm_mul_ps(viewDirY, reflectDirY)),
+                                                       _mm_mul_ps(viewDirZ, reflectDirZ));
+                        __m128 spec = _mm_pow_ps(_mm_max_ps(dotProduct, zero), specComponent);
+                        
+                        __m128 specularX = _mm_mul_ps(_mm_mul_ps(lightColorX, spec), specularStrength);
+                        __m128 specularY = _mm_mul_ps(_mm_mul_ps(lightColorY, spec), specularStrength);
+                        __m128 specularZ = _mm_mul_ps(_mm_mul_ps(lightColorZ, spec), specularStrength);
+
+                        __m128 resultX = _mm_mul_ps(_mm_add_ps(_mm_add_ps(ambientX, diffuseX), specularX), red);
+                        __m128 resultY = _mm_mul_ps(_mm_add_ps(_mm_add_ps(ambientY, diffuseY), specularY), green);
+                        __m128 resultZ = _mm_mul_ps(_mm_add_ps(_mm_add_ps(ambientZ, diffuseZ), specularZ), blue);
 
                         // clamp to 0-255 range
                         resultX = _mm_min_ps(_mm_max_ps(resultX, zero), f255);
@@ -484,15 +549,19 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             __m128 green = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(color, 8), u255));
                             __m128 blue  = _mm_cvtepi32_ps(_mm_and_si128(color, u255));
 
-                            __m128 lightDirX = _mm_sub_ps(lightPosX, interpolatedFragPosX);
-                            __m128 lightDirY = _mm_sub_ps(lightPosY, interpolatedFragPosY);
-                            __m128 lightDirZ = _mm_sub_ps(lightPosZ, interpolatedFragPosZ);
+                            __m128 lightDirX = _mm_sub_ps(interpolatedFragPosX, lightPosX);
+                            __m128 lightDirY = _mm_sub_ps(interpolatedFragPosY, lightPosY);
+                            __m128 lightDirZ = _mm_sub_ps(interpolatedFragPosZ, lightPosZ);
 
                             __m128 distanceSq = _mm_add_ps(
                                                 _mm_add_ps(_mm_mul_ps(lightDirX, lightDirX),
                                                            _mm_mul_ps(lightDirY, lightDirY)),
                                                            _mm_mul_ps(lightDirZ, lightDirZ));
                             __m128 distance = _mm_sqrt_ps(distanceSq);
+
+                            lightDirX = _mm_div_ps(lightDirX, distance);
+                            lightDirY = _mm_div_ps(lightDirY, distance);
+                            lightDirZ = _mm_div_ps(lightDirZ, distance);
 
                             __m128 attenuation = _mm_div_ps(one,
                                                         _mm_add_ps(
@@ -505,9 +574,9 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             __m128 negativeLightDirY = _mm_mul_ps(lightDirY, minusOne);
                             __m128 negativeLightDirZ = _mm_mul_ps(lightDirZ, minusOne);
 
-                            __m128 viewDirX = _mm_sub_ps(viewPosX, interpolatedFragPosX);
-                            __m128 viewDirY = _mm_sub_ps(viewPosY, interpolatedFragPosY);
-                            __m128 viewDirZ = _mm_sub_ps(viewPosZ, interpolatedFragPosZ);
+                            __m128 viewDirX = _mm_sub_ps(interpolatedFragPosX, viewPosX);
+                            __m128 viewDirY = _mm_sub_ps(interpolatedFragPosY, viewPosY);
+                            __m128 viewDirZ = _mm_sub_ps(interpolatedFragPosZ, viewPosZ);
 
                             squaredLength = _mm_add_ps(
                                             _mm_add_ps(_mm_mul_ps(viewDirX, viewDirX),
@@ -521,7 +590,6 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                             squaredLength = _mm_add_ps(
                                             _mm_add_ps(_mm_mul_ps(normalizeInterpolatedNormalX, normalizeInterpolatedNormalX),
                                                        _mm_mul_ps(normalizeInterpolatedNormalY, normalizeInterpolatedNormalY)),
-                        //interpolatedV = _mm_mul_ps(interpolatedV, two);
                                                        _mm_mul_ps(normalizeInterpolatedNormalZ, normalizeInterpolatedNormalZ));
                             length = _mm_sqrt_ps(squaredLength);
                             
@@ -561,9 +629,9 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                                             _mm_mul_ps(normalizeInterpolatedNormalZ, lightDirZ)),
                                            zero), one);
 
-                            __m128 diffuseX = _mm_mul_ps(_mm_mul_ps(diffuseColorX, diff), diffuseStrength);
-                            __m128 diffuseY = _mm_mul_ps(_mm_mul_ps(diffuseColorY, diff), diffuseStrength);
-                            __m128 diffuseZ = _mm_mul_ps(_mm_mul_ps(diffuseColorZ, diff), diffuseStrength);
+                            __m128 diffuseX = _mm_mul_ps(lightColorX, diff);
+                            __m128 diffuseY = _mm_mul_ps(lightColorY, diff);
+                            __m128 diffuseZ = _mm_mul_ps(lightColorZ, diff);
 
                             __m128 dotProduct = _mm_add_ps(
                                                 _mm_add_ps(_mm_mul_ps(viewDirX, reflectDirX),
@@ -571,16 +639,16 @@ void TriangleRasterizer(Point a, Point b, Point c, vec2 aUv, vec2 bUv, vec2 cUv,
                                                            _mm_mul_ps(viewDirZ, reflectDirZ));
 
 
-#if 0
+#if 1
                             __m128 spec = _mm_pow_ps(_mm_max_ps(dotProduct, zero), specComponent);
 #else
                             dotProduct = _mm_max_ps(dotProduct, zero);
                             __m128 spec = _mm_mul_ps(dotProduct, dotProduct);
 #endif
 
-                            __m128 specularX = _mm_mul_ps(_mm_mul_ps(specularColorX, spec), specularStrength);
-                            __m128 specularY = _mm_mul_ps(_mm_mul_ps(specularColorY, spec), specularStrength);
-                            __m128 specularZ = _mm_mul_ps(_mm_mul_ps(specularColorZ, spec), specularStrength);
+                            __m128 specularX = _mm_mul_ps(_mm_mul_ps(lightColorX, spec), specularStrength);
+                            __m128 specularY = _mm_mul_ps(_mm_mul_ps(lightColorY, spec), specularStrength);
+                            __m128 specularZ = _mm_mul_ps(_mm_mul_ps(lightColorZ, spec), specularStrength);
 
                             ambientX = _mm_mul_ps(ambientX, attenuation);
                             ambientY = _mm_mul_ps(ambientY, attenuation);

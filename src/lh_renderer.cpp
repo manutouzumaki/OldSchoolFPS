@@ -192,6 +192,7 @@ void RendererDrawMesh(Mesh *mesh, mat4 world, Texture *texture, vec3 *lights, i3
         } break;
         case RENDERER_DIRECTX: {
             constBuffer->world = world;
+            constBuffer->viewPos = viewPos;
             RendererSetShader(shader);
             RendererUpdateShaderData(shader, constBuffer);
             RendererSetDepthBuffer(writeDepthBuffer);
