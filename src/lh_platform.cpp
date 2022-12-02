@@ -3,7 +3,6 @@
 #include "lh_platform.h"
 #include "lh_game.h"
 #include "lh_input.h"
-
 // TODO: start implementing multithreading code
 struct PlatformWorkQueueEntry {
     PlatformWorkQueueCallback *callback;
@@ -37,7 +36,6 @@ LRESULT WindowProcA(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     return result;
 }
-
 
 void WindowSystemInitialize(i32 width, i32 height, char *title) { 
     HINSTANCE hInstance = GetModuleHandleA(0);
@@ -76,6 +74,7 @@ void WindowSystemInitialize(i32 width, i32 height, char *title) {
     gWindow.height =  height;
     gWindow.title = title;
     gWindow.hwnd = hwnd;
+    gWindow.instance = hInstance;
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
@@ -206,26 +205,22 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
         // flush windows messages
         ProcessInputAndMessages();
-        
+
         GameUpdate(&memory, deltaTime); 
-        
         f32 frameTime = deltaTime;
         accumulator += frameTime;
         while(accumulator >= dt) {
             GameFixUpdate(&memory, dt);
             accumulator -= dt;
         }
-
         f32 t = accumulator / dt;
-
         GamePostUpdate(&memory, t);
-
         GameRender(&memory);
 
         gLastInput = gInput; 
         lastCounter = currentCounter;
     }
-
+    
     GameShutdown(&memory);
     MemoryDestroy(memory);
     return 0;

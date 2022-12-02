@@ -6,6 +6,7 @@
 
 struct Window {
     HWND hwnd;
+    HINSTANCE instance;
     i32 width;
     i32 height;
     char *title;

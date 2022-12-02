@@ -426,7 +426,7 @@ void GameInit(Memory *memory) {
 }
 
 void GameUpdate(Memory *memory, f32 dt) {
-
+    GameState *gameState = (GameState *)memory->data;
     if(KeyboardGetKeyJustDown(KEYBOARD_KEY_1) || JoysickGetButtonJustDown(JOYSTICK_BUTTON_B)) {
         RendererType type = GetRendererType();
         if(type == RENDERER_DIRECTX) {
@@ -438,7 +438,6 @@ void GameUpdate(Memory *memory, f32 dt) {
     }
 
     PhysicClearForces();
-    GameState *gameState = (GameState *)memory->data;
     if((MouseGetButtonDown(MOUSE_BUTTON_LEFT) || JoysickGetButtonDown(JOYSTICK_RIGHT_TRIGGER)) && !gameState->player.playAnimation) {
         SoundPlay(gameState->shoot, false); 
     }
